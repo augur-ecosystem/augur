@@ -30,7 +30,7 @@ class GitFileNotFoundError(exceptions.Exception):
 
 class UaGithub(object):
     def __init__(self):
-        self.github = Github(login_or_token="cbaa82c171843afef8afd9dcbc212e0b54681aba", 
+        self.github = Github(login_or_token=settings.main.integrations.github.login_token,
                          password="x-oauth-basic",
                          base_url=settings.main.integrations.github.base_url)
 

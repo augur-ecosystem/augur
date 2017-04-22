@@ -1,3 +1,5 @@
+import logging
+
 from augur import audit
 from augur.common import projects
 from augur.events.filters.jirawebhookfilter import JiraWebhookFilter
@@ -158,7 +160,7 @@ class JiraCmIssueTransitionHandler(WebhookListener):
                 success = self._handle_non_cm_transition(action, event)
 
         except Exception, e:
-            audit.error(e.message)
+            logging.error(e.message)
             success = False
 
         finally:
@@ -213,7 +215,7 @@ class JiraCmIssueTransitionHandler(WebhookListener):
 
                         transition_success = True
                     except Exception, e:
-                        audit.error("Unable to transition issue due to error: %s" % e.message)
+                        logging.error("Unable to transition issue due to error: %s" % e.message)
 
             else:
                 # already transitioned so we'll say the transition was successful.
