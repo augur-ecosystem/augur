@@ -1,0 +1,42 @@
+<style>
+
+    table th {
+        background-color:#efefef;
+        padding:4px;
+    }
+
+    table td {
+        padding:4px;
+    }
+
+</style>
+<h2>Changes Released to Production on ${data['release_date']}</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Key</th>
+            <th>Type</th>
+            <th>Priority</th>
+            <th>Summary</th>
+            <th>CM Ticket</th>
+        </tr>
+    </thead>
+    <tbody>
+    % if 'issues' not in data or len(data['issues']) == 0:
+        <tr>
+            <td colspan="5">There were no deployments on ${data['release_date']}</td>
+        </tr>
+    % else:
+        % for issue in data['issues']:
+        <tr>
+            <td><a href="http://underarmour.atlassian.net/browse/${issue.key}">${issue.key}</a></td>
+            <td>${issue.fields.issuetype.name}</td>
+            <td>${issue.fields.priority.name}</td>
+            <td>${issue.fields.summary}</td>
+            <td><a href="http://underarmour.atlassian.net/browse/${issue.cm.key}">${issue.cm.key}</a></td>
+        </tr>
+        % endfor
+    % endif
+    </tbody>
+</table>

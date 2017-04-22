@@ -1,0 +1,26 @@
+Metadata-Version: 1.1
+Name: augur
+Version: 1.0.0
+Summary: A library for extracting actionable data from development tools 
+Home-page: https://github.com/pypa/sampleproject
+Author: Karim Shehadeh
+Author-email: kshehadeh@underarmour.com
+License: MIT
+Description: # Augur Developer Metrics
+        
+        Help team leads, managers and developers track progress, improvement, 
+        gaps by combing data from multiple tools into an easy to use dashboard
+        using the Augur Development Method.
+        
+        This is a library that can be easily included into any client that wants to
+        collect data using ADM.  
+        
+        
+Keywords: metrics jira github development
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Software Development :: Metrics
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7

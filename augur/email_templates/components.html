@@ -1,0 +1,52 @@
+<%! from time import strftime as time %>
+
+<%!
+    def remove_spaces(text):
+        return text.replace(" ","")
+%>
+
+<p style="padding:5px; margin:5px;background-color:#EBF2F9;border-radius:4px;">This page was automatically generated on ${"%B %d %Y" | time} by
+    reading the most recent version of .further-review.yaml from each repo in the ${data['org']} organization</p>
+<div style="height:10px;"></div>
+<div style="">
+        <table>
+            <tr>
+                <th>Component</th>
+                <th>Github</th>
+                <th>Owner</th>
+                <th>Maintainers</th>
+                <th># Commits (3 months)</th>
+            </tr>
+            % for repo in data['repos']:
+            <tr>
+                <td>${repo['name']}</td>
+                <td><a href="${repo['html_url']}">${repo['html_url']}</a></td>
+                <td>
+                    % if 'owner' in repo['further_review'] and repo['further_review']['owner']:
+                        <div class="owner"><a href="mailto:${repo['further_review']['owner']['email']}">
+                            ${repo['further_review']['owner']['name']}</a></div>
+                    % else:
+                        None
+                    % endif
+                </td>
+                <td>
+                    % if 'maintainers' in repo['further_review'] and repo['further_review']['maintainers']:
+                        % for maintainer in repo['further_review']['maintainers']:
+                            <div class="maintainer"><a href="mailto:${maintainer['email']}">
+                                ${maintainer['name']}</a></div>
+                        % endfor
+                    % else:
+                        None
+                    % endif
+                </td>
+                <td>
+                    % if 'ua_stats' in repo:
+                        ${repo['ua_stats']['total_commits']} by ${len(repo['ua_stats']['by_author'])} authors
+                    % else:
+                        N/A
+                    % endif
+                </td>
+            </tr>
+            % endfor
+        </table>
+</div>

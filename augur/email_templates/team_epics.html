@@ -1,0 +1,46 @@
+<h2>Report: ${data['report']}</h2>
+
+<div style="display:block;padding:5px;margin:5px;background-color:#efefef">
+    <ul>
+        <li>This report looks only at ENG tickets within the epics listed</li>
+        <li>'Complete' issues are those that have one of the following statuses: "resolved", "closed", "ready for integration", "in integration"</li>
+        <li>Any issue that has not been pointed will be treated as a five point story for the purposes of calculating completion.</li>
+    </ul>
+</div>
+
+<table>
+    <thead>
+    <tr>
+        <th>Epic</th>
+        <th>Status</th>
+        <th>% Complete</th>
+        <th>Epic Pts</th>
+        <th>Unpointed</th>
+        <th>Due Date</th>
+        <th>Team</th>
+        <th>On Hold</th>
+        <th>Integration</th>
+        <th>Code Review</th>
+        <th>Notes</th>
+    </tr>
+    </thead>
+    <tbody>
+    % for team in data['teams']:
+        % for epic in team['epics']:
+        <tr style="padding: 5px; background-color: ${epic['metrics']['color']}">
+            <td><a href="${_jira_instance}/browse/${epic['id']}" >${epic['summary'] | h}</a></td>
+            <td>${epic['status']}</td>
+            <td>${epic['metrics']['percent_complete']}% complete</td>
+            <td>${epic['metrics']['total_points']}</td>
+            <td>${epic['metrics']['unpointed']}</td>
+            <td>${epic['duedate']}</td>
+            <td>${team['team_info']['full']}</td>
+            <td>${epic['metrics']['on_hold']}</td>
+            <td>${epic['metrics']['integration']}</td>
+            <td>${epic['metrics']['code_review']}</td>
+            <td>${epic['metrics']['notes']}</td>
+        </tr>
+        % endfor
+    % endfor
+    </tbody>
+</table>

@@ -1,0 +1,530 @@
+<%
+    from featuredev import common
+    from featuredev.common import formatting
+    import datetime
+%>
+<%
+def sort_issues_by_key(issues):
+    return sorted(issues,key=lambda x: x['key'])
+%>
+
+<%
+def add_up_points(issues):
+    return reduce(lambda x,y: x + (y['points'] if 'points' in y else (y['fields']['customfield_10002']
+            if y['fields']['customfield_10002'] else 0.0)), issues, 0.0)
+%>
+
+<%
+def duration(seconds):
+    return formatting.format_timedelta(datetime.timedelta(seconds=seconds))
+%>
+
+<%
+total_completed_points = 0
+%>
+
+<style>
+    body {
+        margin:0;
+        padding:0;
+
+    }
+    body,p,th,div,table {
+        font-family: "Roboto", "Lucida Grande", "DejaVu Sans", "Bitstream Vera Sans", Verdana, Arial, sans-serif;
+        font-size:10px;
+    }
+
+    h2 {
+        padding:5px;
+        background-color: #efefef;
+        width:100%;
+    }
+
+    h3 {
+        padding:5px;
+        border-bottom:3px solid #999;
+    }
+
+    span.emphasis {
+        font-weight:bold;
+        font-size:1.1em;
+    }
+
+    table th {
+        border-bottom:2px solid #bbb;
+        padding:4px;
+
+    }
+
+    table td {
+        padding:4px;
+        border-spacing: 0;
+    }
+
+    table.data , table.squares {
+        margin:10px;
+    }
+
+    table.squares {
+        border-spacing: 8px 0;
+    }
+
+    table.squares td {
+        border: 1px solid #efefef;
+        text-align:center;
+        min-width:100px;
+        height:100px;
+        font-size:4em;
+    }
+
+    table.squares th {
+        background-color:#efefef;
+        font-weight: 900;
+        text-align:center;
+    }
+
+    span.dev-in-table {
+        margin-left:4px;
+        margin-right:4px;
+    }
+
+    td.content-column {
+        border-right:1px solid #efefef;
+        padding-right:10px;
+        margin:0;
+        padding-left:0;
+    }
+
+    td.toc_column {
+        padding:10px;
+        vertical-align: top;
+    }
+
+    td.toc_column li{
+        padding:2px;
+    }
+
+    td.toc_column ul {
+        list-style-type: square;
+        margin:5px;
+        padding:0;
+        padding-left:10px;
+    }
+
+
+    td.toc_column ul ul {
+        list-style-type: disc;
+    }
+
+    header {
+        background-color: #DC493A;
+        width:100%;
+        padding:10px;
+        padding-top:3px;
+        color: #fff;
+        padding-left:175px;
+        height: 120px;
+        background-image:url(http://featuredev.ua-ecm.com/assets/images/white_large_logo.png);
+        background-size: 160px;
+        background-repeat:no-repeat;
+        background-position:10px 10px;
+    }
+
+    header h1 {
+        margin-bottom:0;
+        padding-bottom:0;
+        font-size:4em;
+    }
+
+    header p {
+        margin:0;
+        padding:0;
+        padding-top: 5px;
+        font-size:1.2em;
+    }
+</style>
+
+<header>
+    <h1>Engineering Report - Week ${data['week_number']}</h1>
+    <p>From <span class="emphasis">${data['start'].strftime('%Y/%m/%d')}</span> to <span class="emphasis">${data['end'].strftime('%Y/%m/%d')}</span></p>
+</header>
+
+<table>
+    <tr>
+        <td width="80%" class="content-column">
+            <h2 id="most_recently_completed">Most Recent Completed Sprint</h2>
+
+            <h3 id="performance">Performance</h3>
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Sprint</th>
+                        <th>Completed Points (Tickets)</th>
+                        <th>Incomplete Points (Tickets)</th>
+                        <th>Added Points (Tickets)</th>
+                        <th>Punted Points (Tickets)</th>
+                        <th>+/- Point Diff (Last)</th>
+                        <th>Std. Deviation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    % for team_id,sprint in data['sprint'].iteritems():
+
+                        <%
+                            total_completed_points += float(sprint['last']['team_sprint_data']['contents']['completedIssuesEstimateSum']['text'])
+                        %>
+                    <tr>
+                        <td>
+                            <a  title="Visit JIRA Sprint Retro Report"
+                                href="https://underarmour.atlassian.net/secure/RapidBoard.jspa?rapidView=${sprint['last']['board_id']}&view=reporting&chart=sprintRetrospective&sprint=${sprint['last']['team_sprint_data']['sprint']['id']}">
+                                ${sprint['last']['team_name']['team_name']}</a>
+                        </td>
+                        <td>
+                            ${sprint['last']['team_sprint_data']['sprint']['name']}<br/>
+                            ${sprint['last']['team_sprint_data']['sprint']['startDate'].strftime("%m/%d")} to ${sprint['last']['team_sprint_data']['sprint']['endDate'].strftime("%m/%d")}
+                        </td>
+                        <td>${sprint['last']['team_sprint_data']['contents']['completedIssuesEstimateSum']['text']}
+                            (${len(sprint['last']['team_sprint_data']['contents']['completedIssues'])})</td>
+
+                        <td>${sprint['last']['team_sprint_data']['contents']['issuesNotCompletedEstimateSum']['text']}
+                            (${len(sprint['last']['team_sprint_data']['contents']['issuesNotCompletedInCurrentSprint'])})</td>
+
+                        <td>${add_up_points(sprint['last']['team_sprint_data']['contents']['issueKeysAddedDuringSprint'])}
+                            (${len(sprint['last']['team_sprint_data']['contents']['issueKeysAddedDuringSprint'])})</td>
+
+                        <td>${sprint['last']['team_sprint_data']['contents']['puntedIssuesEstimateSum']['text']}
+                            (${len(sprint['last']['team_sprint_data']['contents']['puntedIssues'])})</td>
+
+                        <td>
+                            <%
+                                diff = "--"
+                                blv = 0
+                                if 'before_last' in sprint and sprint['before_last']:
+                                    last_info = sprint['last']['team_sprint_data']['contents']
+                                    before_last_info = sprint['before_last']['team_sprint_data']['contents']
+
+                                    lv = last_info['completedIssuesEstimateSum']['value'] if 'value' in last_info['completedIssuesEstimateSum'] else 0
+                                    blv = before_last_info['completedIssuesEstimateSum']['value'] if 'value' in before_last_info['completedIssuesEstimateSum'] else 0
+
+                                    diff = "{0:+d}".format(int(lv - blv))
+
+                                else:
+                                    diff = "No previous sprint"
+                            %>
+                            ${diff} (${blv})
+                        </td>
+                        <td>${"{:.2f}".format(sprint['last']['std_dev'])}</td>
+                    </tr>
+                    % endfor
+                </tbody>
+            </table>
+
+            <h3 id="epics_and_projects">Epics and Projects</h3>
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Epic Key</th>
+                        <th>Epic Summary</th>
+                        <th>Points Complete/Total Points</th>
+                        <th>Developers</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% epics = sort_issues_by_key(data['epics'].values()) %>
+                    % for epic in epics:
+                    <tr>
+                        <td><a href="http://featuredev.ua-ecm.com/report/epic/${epic['key']}">${epic['key']}</a></td>
+                        <td>${epic['text']}</td>
+                        <td>${epic['completed_points']} / ${epic['total_points']}</td>
+
+                        <td>
+                        % for dev in epic['devs']:
+                            <span class="dev-in-table"><a href="http://featuredev.ua-ecm.com/report/dev/${dev}/30">${dev}</a></span>
+                        % endfor
+                        % for team in epic['teams']:
+                            <span class="team-in-table">${team}</span>
+                        % endfor
+                        </td>
+                    </tr>
+                    % endfor
+                </tbody>
+            </table>
+
+
+            <h2  id="staff">Staff</h2>
+            <table class="squares">
+                <tr>
+                    <th>Fulltime</th>
+                    <th>Consultant</th>
+                    <th>Total</th>
+                    <th>Teams</th>
+                    <th>Points/Engineer</th>
+                </tr>
+                <tr>
+                    <td>${data['staff']['fulltime_count']}</td>
+                    <td>${data['staff']['consultant_count']}</td>
+                    <td>${data['staff']['engineer_count']}</td>
+                    <td>${data['staff']['team_count']}</td>
+                    <td>
+                        <%
+                            points_per_engineer = float(total_completed_points) / data['staff']['engineer_count']
+                        %>
+                        ${"{:.2f}".format(points_per_engineer)}
+                    </td>
+                </tr>
+            </table>
+
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Fulltime</th>
+                        <th>Consultants</th>
+                        <th>Total</th>
+                        <th>Points/Engineer</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    % for name,team in data['staff']['teams'].iteritems():
+                    <tr>
+                        <td><a href="http://featuredev.ua-ecm.com/report/team/velocity/${team['id']}">${name}</a></td>
+                        <td>${team['total_fulltime']}</td>
+                        <td>${team['total_consultants']}</td>
+                        <td>${len(team['members'])}</td>
+                        <td>${"{:.2f}".format(team['avg_pts_per_engineer'])}</td>
+                    </tr>
+                    % endfor
+                </tbody>
+            </table>
+
+            <h2 id="defects_this_week">This Week's Defects</h2>
+
+            <table class="squares">
+                <tr>
+                    <th>Last Week Created &#10132; This Week Created</th>
+                    <th>Last Week Resolved &#10132; This Week Resolved</th>
+                    <th>Opened Defects/Engineer</th>
+                </tr>
+                <tr>
+                    <td>${len(data['defects']['weekly_metrics'][1]['defects'])} &#10132; ${len(data['defects']['weekly_metrics'][0]['defects'])} </td>
+                    <td>${data['defects']['weekly_metrics'][1]['resolved_this_week_count']} &#10132; ${data['defects']['weekly_metrics'][0]['resolved_this_week_count']} </td>
+                    <td>${"{:.2f}".format(data['defects']['weekly_metrics'][0]['dev_defect_ratio'])}</td>
+                </tr>
+            </table>
+
+            <h3 id="defects_created_this_week">Created This Week</h3>
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Summary</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Severity</th>
+                        <th>Reporter</th>
+                        <th>Assignee</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    % for defect in data['defects']['weekly_metrics'][0]['defects']:
+                    <tr>
+                        <td><a href="http://underarmour.atlassian.net/browse/${defect['key']}">${defect['key']}</a></td>
+
+                        <td>${defect['fields']['summary']}</td>
+
+                        <td>${defect['fields']['status']['name']}</td>
+
+                        <td>${common.deep_get(defect,"fields","priority","name")}</td>
+
+                        <td>${common.deep_get(defect,"fields","severity","value")}</td>
+
+                        <td>${common.deep_get(defect,"fields","reporter","name")}</td>
+
+                        <td>${common.deep_get(defect,"fields","reporter","name")}</td>
+                    </tr>
+                    % endfor
+                </tbody>
+            </table>
+
+            <h2 id="all_defects">All Defects</h2>
+
+            <table class="squares">
+                <tr>
+                    <th>Open</th>
+                    <th>Open Blocker Priority</th>
+                    <th>Open Critical Severity</th>
+                </tr>
+                <tr>
+                    <td>${data['defects']['aggregate_metrics']['open']['total']}</td>
+                    <td>${len(common.deep_get(data,'defects','aggregate_metrics','open','priorities','Blocker') or [])}</td>
+                    <td>${len(common.deep_get(data,'defects','aggregate_metrics','open','severities','Critical') or [])}</td>
+                </tr>
+            </table>
+
+            <h3 id="qa_severe_tickets">Quality Engineering's Highest Severity Open Tickets</h3>
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Summary</th>
+                        <th>Priority</th>
+                        <th>Severity</th>
+                        <th>Reporter</th>
+                        <th>Assignee</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    % for defect in data['defects']['aggregate_metrics']['open']['severities']['Critical']:
+                    <tr>
+                        <td><a href="http://underarmour.atlassian.net/browse/${defect['key']}">${defect['key']}</a></td>
+
+                        <td>${defect['summary']}</td>
+
+                        <td>${defect['priority']}</td>
+
+                        <td>${defect['severity']}</td>
+
+                        <td>${defect['reporter']}</td>
+
+                        <td>${defect['assignee']}</td>
+                    </tr>
+                    % endfor
+                </tbody>
+            </table>
+
+            <h2 id="releases">Releases</h2>
+
+            <h3 id="released_this_week">Released this Week</h3>
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Type</th>
+                        <th>Priority</th>
+                        <th>Summary</th>
+                        <th>Assignee</th>
+                        <th>Team</th>
+                        <th>CM Ticket</th>
+                    </tr>
+                </thead>
+                <tbody>
+                % if 'issues' not in data['releases'] or len(data['releases']) == 0:
+                    <tr>
+                        <td colspan="5">There were no deployments during this period</td>
+                    </tr>
+                % else:
+                    % for issue in sort_issues_by_key(data['releases']['issues']):
+                    <tr>
+                        <td><a href="http://underarmour.atlassian.net/browse/${issue['key']}">${issue['key']}</a></td>
+                        <td>${issue['fields']['issuetype']['name']}</td>
+                        <td>${issue['fields']['priority']['name']}</td>
+                        <td>${issue['fields']['summary']}</td>
+                        <td>${common.deep_get(issue,'detail','fields','assignee','name')}</td>
+                        <td>${common.deep_get(issue,'detail','fields','customfield_13306','value')}</td>
+                        <td><a href="http://underarmour.atlassian.net/browse/${issue['cm']}">${issue['cm']}</a></td>
+                    </tr>
+                    % endfor
+                % endif
+                </tbody>
+            </table>
+
+            <h3 id="incomplete_tickets_from_last_sprint">Incomplete Tickets From Last Completed Sprint</h3>
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Summary</th>
+                        <th>Assignee</th>
+                        <th>Current Status</th>
+                        <th>Points</th>
+                        <th>Time In Progress</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    % for team_id,sprint in data['sprint'].iteritems():
+                        <tr><td colspan="6">${sprint['last']['team_name']['team_name']}</td></tr>
+                        <%
+                            issues = common.deep_get(sprint,'last','team_sprint_data','contents','incompleteIssuesFullDetail')
+                            if not issues:
+                                issues = []
+                        %>
+                        % for issue in issues:
+                        <tr>
+                            <td><a href="http://underarmour.atlassian.net/browse/${issue['key']}">${issue['key']}</a></td>
+
+                            <td>${issue['summary']}</td>
+
+                            <td>${issue['assignee']}</td>
+
+                            <td>${issue['fields']['status']['name']}</td>
+
+                            <td>${common.deep_get(issue,'fields','customfield_10002')}</td>
+
+                            <td>${duration(issue['time_in_progress'])}</td>
+
+                        </tr>
+                        % endfor
+                    % endfor
+                </tbody>
+            </table>
+        </td>
+        <td width="20%" class="toc_column">
+            <h3>Table of Contents</h3>
+            <ul>
+                <li>
+                    <a href="#most_recently_completed">Most Recently Completed</a>
+                    <ul>
+                        <li><a href="#performance">Performance</a></li>
+                        <li><a href="#epics_and_projects">Epics and Projects</a></li>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#staff">Staff</a>
+                </li>
+                <li>
+                    <a href="#defects_this_week">This Week's Defects</a>
+                    <ul>
+                        <li><a href="#defects_created_this_week">Created This Week</a></li>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#all_defects">All Defects</a>
+                    <ul>
+                        <li><a href="#qa_severe_tickets">QA Most Severe Top Tickets</a></li>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#most_recently_completed">Releases</a>
+                    <ul>
+                        <li><a href="#performance">Released this Week</a></li>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#incomplete_tickets_from_last_sprint">Incomplete Tickets From Last Sprint</a>
+                </li>
+            </ul>
+
+            <h3>Legend</h3>
+            <ul>
+                <li>
+                    <em>Added Points (Tickets)</em>: There are points that were added to the sprint <em>after</em> the sprint started.
+                    When adding points, it's a good practice to punt an equal number of points.
+                    If the points seem unusually high, it might be because the Scrum Master started the new sprint before
+                    closing the previous sprint.
+                </li>
+                <li>
+                    <em>Punted Points (Tickets)</em>: These are points or tickets that were in the sprint but were removed after
+                    the sprint started.  If points are added to a sprint it's good practice to punt an equal number of
+                    points to ensure that commitment can be met by the end of the end of the sprint.
+                </li>
+                <li>
+                    <em>Std. Deviation</em>: This is the spread of points among the developers who are members of that team.  This
+                    number should be as low as possible.  Higher numbers indicate that there are developers who are
+                    contributing significantly more or less than others on the team.  This is meant to help us ensure
+                    that the weight of team contributions are not being carried by individuals.
+                </li>
+            </ul>
+        </td>
+    </tr>
+</table>

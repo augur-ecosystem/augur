@@ -1,0 +1,102 @@
+<%!
+    def remove_spaces(text):
+        return text.replace(" ","_").lower()
+%>
+<html>
+<head>
+
+</head>
+<body>
+<style scoped>
+    a {
+        color: #41718c;
+        text-decoration: none;
+    }
+    body,th, td,p {
+        font-family: Helvetica, Arial, serif;
+        font-size:12px;
+        margin:0;
+    }
+
+    td,th {
+        padding:5px;
+    }
+
+    h1.top-level {
+        display:block;
+        background-color: #db001c;
+        margin:0;
+        color: #fff;
+    }
+
+    .report-content {
+        padding:10px;
+    }
+
+    h1.top-level div {
+        color:white;
+        padding:20px;
+    }
+
+    td {
+        text-align:center;
+        padding:10px;
+        border-bottom:1px solid #efefef;
+    }
+
+
+    th {
+        font-weight:bold;
+        background-color:#efefef;
+        text-align:center;
+        border-bottom:1px solid #8a8a8a;
+    }
+
+    th.average {
+        background-color:#8a8a8a;
+        color:white;
+        font-weight:bold;
+        border-bottom:1px solid #fff;
+    }
+    td.average {
+        background-color: #8a8a8a;
+        color:white;
+        font-weight:bold;
+    }
+</style>
+
+    <h1 class="top-level">
+        <div>Organization Sprint Report</div>
+    </h1>
+
+    <div class="report-content">
+        <table cellpadding="0" cellspacing="0">
+            <tr>
+                <th>Team</th>
+                <th>Dev Count</th>
+                <th>Last Sprint</th>
+                <th>Sprint Start/End</th>
+                <th>Sprint Velocity</th>
+                <th>Ticket Count</th>
+                <th class="average">Average Velocity</th>
+                <th class="average">Average Ticket Count</th>
+                <th class="average">Historical Sprint Count</th>
+            </tr>
+            % for team in data["teams"]:
+            <tr>
+                <td>${team['team_info']['full']}</td>
+                <td>${len(team['team_info']['members'])}</td>
+                <td>${team['sprint']['info']['name']}</td>
+                <td>${team['sprint']['info']['startDate'].strftime("%m/%d/%Y")} /
+                    ${team['sprint']['info']['endDate'].strftime("%m/%d/%Y")}</td>
+                <td>${team['sprint']['complete']}</td>
+                <td>${team['sprint']['ticket_count']}</td>
+                <td class="average">${team['sprint']['averages']['complete'] if team['sprint']['averages'] else "N/A"}</td>
+                <td class="average">${team['sprint']['averages']['ticket_count']  if team['sprint']['averages'] else "N/A"}</td>
+                <td class="average">${len(team['sprint']['history'])}</td>
+            </tr>
+            % endfor
+        </table>
+    </div>
+</body>
+</html>

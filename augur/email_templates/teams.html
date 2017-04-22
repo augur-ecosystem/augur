@@ -1,0 +1,61 @@
+<%! from time import strftime as time %>
+
+<%!
+    def remove_spaces(text):
+        return text.replace(" ","")
+%>
+
+<p>This page was automatically generated on ${"%d of %B" | time}</p>
+<div style="width:50%;float:left">
+            % for name,members in data['teams'].iteritems():
+                % if name != 'Team Leads':
+                    <h3 id="Underarmour.comDevTeams-${remove_spaces(name)}">${name}</h3>
+                    <table>
+                        <tr>
+                            <th>Full Name</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                        </tr>
+                        % for username,info in members.iteritems():
+                            <tr ${'style=\"font-weight:bold\"' if info['is_team_lead'] else ''}>
+                                <td>${info['fullname']}</td>
+                                <td>
+                                    ${username}
+                                </td>
+                                <td><a href="mailto:${info['email']}">${info['email']}</a></td>
+                            </tr>
+                        % endfor
+                    </table>
+                % endif
+            % endfor
+</div>
+<div style="width:50%;float:left">
+            <table>
+                <tr>
+                    <th>Team</th>
+                    <th># Developers</th>
+                    <th>Team Lead</th>
+                </tr>
+                % for name,members in data['teams'].iteritems():
+                    % if name != 'Team Leads':
+                    <tr>
+                        <!--
+                            Note: The way Confluence takes updates is it replaces anchors with an ID of
+                            <PageName>-<HeaderText> so this can change depending on the page being updated
+                        -->
+
+                        <td><a href="#Underarmour.comDevTeams-${name|remove_spaces}">${name}</a></td>
+                        <td>${len(members)}</td>
+                        <%
+                            tl = "<i>None specified</i>"
+                            for u,m in members.iteritems():
+                                if m['is_team_lead']:
+                                    tl = u
+                                    break
+                        %>
+                        <td>${tl}</td>
+                    </tr>
+                    % endif
+                % endfor
+            </table>
+</div>
