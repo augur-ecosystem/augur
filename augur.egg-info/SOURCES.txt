@@ -1,3 +1,4 @@
+README
 setup.py
 augur/__init__.py
 augur/audit.py

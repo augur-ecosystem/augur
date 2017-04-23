@@ -99,7 +99,7 @@ Description: # Augur Developer Metrics
             * Production Deployed (Resolution State)
             * Abandoned (Resolution State)
         * The following custom field exists: "Deployment Status"
-            * 
+            *
 Keywords: metrics jira github development
 Platform: UNKNOWN
 Classifier: Development Status :: 5 - Production/Stable
