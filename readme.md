@@ -65,3 +65,30 @@ This is to ensure that only sprints that are associated with the team are
 included in the metrics.  Due to the way Jira works, it is possible for a 
 sprint that is part of a different agile board to be included in the metrics
 if this formatting restriction is not used.
+
+### Workflow
+Augur also assumes a specific workflow within Jira that is used across all projects
+that are to be monitored The workflow includes the following status:
+
+* Open (Open State)
+* In Progress (In Progress State)
+* Quality Review (In Progress State)
+* Staging (In Progress State)
+* Production (In Progress State)
+* Resolved (Resolution State)
+
+### Deployment
+If using the Jira hook that enables the automatic creation and linking of work tickets
+with CM tickets, then a few things are assumed as well:
+
+* A project exists with the key "CM" that has the following statuses:
+    * Ready for Planning (Open State)
+    * Staging Pending (In Progress State)
+    * Staging Deployed (In Progress State)
+    * Staging Validated (In Progress State)
+    * Production Pending (In Progress State)
+    * Production Validated (In Progress State)
+    * Production Deployed (Resolution State)
+    * Abandoned (Resolution State)
+* The following custom field exists: "Deployment Status"
+    * 

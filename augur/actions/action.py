@@ -7,11 +7,12 @@ import urlparse
 from mako import exceptions
 from pyfluence import Confluence
 
-import distribution_lists
-import settings
-from common import const, comm, serializers, Struct
+from augur import distribution_lists
+from augur import settings
+from augur.common import const, comm, serializers, Struct
+from augur.integrations.uagithub import UaGithub
+
 from mako.template import Template
-from integrations.uagithub import UaGithub
 
 
 class AugurActionError(Exception):

@@ -1,9 +1,9 @@
 import StringIO
 import csv
 
-from actions.action import Action
-from common import const
-from integrations.uajira import get_jira
+from augur.actions.action import Action
+from augur.common import const
+from augur.integrations.uajira import get_jira
 
 
 class TeamReportAction(Action):

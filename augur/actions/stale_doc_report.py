@@ -1,9 +1,9 @@
 from pyfluence import Confluence
 
-import settings
-from actions.action import Action
-from common import const, comm
-from integrations.uajira import get_jira
+from augur import settings
+from augur.actions.action import Action
+from augur.common import const, comm
+from augur.integrations.uajira import get_jira
 
 INVALID_USERS = {
     'progers': "pbrown2@underarmour.com",

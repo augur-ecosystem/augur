@@ -1,10 +1,10 @@
 import StringIO
 import csv
 
-import common
-from actions.action import Action
-from common import const
-from integrations.uajira import get_jira
+from augur import common
+from augur.common import const
+from augur.actions.action import Action
+from augur.integrations.uajira import get_jira
 
 
 class TimesheetReportAction(Action):

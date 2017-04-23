@@ -1,3 +1,4 @@
+setup.py
 augur/__init__.py
 augur/audit.py
 augur/cache_store.py
@@ -6,6 +7,7 @@ augur/settings.py
 augur.egg-info/PKG-INFO
 augur.egg-info/SOURCES.txt
 augur.egg-info/dependency_links.txt
+augur.egg-info/pbr.json
 augur.egg-info/requires.txt
 augur.egg-info/top_level.txt
 augur/actions/__init__.py

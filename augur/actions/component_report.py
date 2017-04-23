@@ -1,7 +1,6 @@
-from actions.action import Action
-from common import const
-
-from integrations import uagithub
+from augur.actions.action import Action
+from augur.common import const
+from augur.integrations import uagithub
 
 
 class ComponentReportAction(Action):
