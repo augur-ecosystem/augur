@@ -24,7 +24,7 @@
 #                         action='append',
 #                         help='The mailing list to use (one of the keys from the DISTRIBUTION_LISTS '
 #                              'variable in configs/distribution_lists.py)')
-from actions.engineering_report import EngineeringReportAction
+from augur.actions.engineering_report import EngineeringReportAction
 
 
 def action_engineering_report(**options):

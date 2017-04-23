@@ -1,9 +1,7 @@
 import arrow
 
 from augur import cache_store
-from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
-
-JQL_RELEASE = "project in (ENG,POST,PDC,TOP,DEF) and status in (staging,production) order by updated asc"
+from augur.integrations.uajira.data import UaJiraDataFetcher
 
 
 class UaJiraRelease(UaJiraDataFetcher):

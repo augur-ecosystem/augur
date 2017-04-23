@@ -5,7 +5,11 @@ import arrow
 from augur import cache_store
 from augur import common
 from augur.common import const, teams
-from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
+from augur.integrations.uajira.data import UaJiraDataFetcher
+
+# TODO: I don't know why UaJiraRelease requires the full path to the release file even though
+#   it is include in the root __init__ for that package.
+from augur.integrations.uajira.data.release import UaJiraRelease
 
 
 class UaJiraEngineeringReport(UaJiraDataFetcher):
@@ -218,8 +222,6 @@ class UaJiraEngineeringReport(UaJiraDataFetcher):
             "weekly_metrics": self._get_defect_data_by_week(2),
             "aggregate_metrics": self._get_aggregate_metrics()
         }
-
-        from integrations.uajira.data import UaJiraRelease
 
         start, end = common.get_week_range(self._get_start_date_from_week_number(self.week_number))
         fetcher = UaJiraRelease(self.uajira)

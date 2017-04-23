@@ -1,5 +1,6 @@
 import logging
 
+
 class UaJiraDataFetcher(object):
     """
     Provides a convenient mechanism for returning a well-defined slice of data from Jira.  Supports fetching the

@@ -48,6 +48,12 @@ To upload a new version of augur, you can modify your .pypirc file with the foll
     username: <username> # must have publish rights
     password: <password>
 
+
+Then build and upload the new version from within the augur root directory:
+
+    python setup.py sdist upload -r local
+
+
 # Augur Integration
 
 ## Settings

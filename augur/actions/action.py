@@ -120,13 +120,7 @@ class Action(object):
     def handle(self, *args, **options):
         self.args = Struct(**options)
         self.validate_args()
-
-        self.action = self.create_action()
-
-        if not self.action:
-            logging.error("No action object given")
-
-        self.action.run()
+        self.run()
         self.outputs = self.generate_outputs()
 
         self.write_outputs()
@@ -149,14 +143,14 @@ class Action(object):
                 # iterate over the formats
                 for fmt, out in self.outputs.iteritems():
                     if t == const.OUTPUT_TYPE_EMAIL:
-                        self.output_email(str(self.action), fmt, out)
+                        self.output_email(str(self), fmt, out)
                     elif t == const.OUTPUT_TYPE_WIKI:
                         self.output_wiki(out)
                     elif t == const.OUTPUT_TYPE_FILE:
                         self.output_file(out, fmt)
 
     def generate_outputs(self):
-        supported_formats = self.action.supported_formats()
+        supported_formats = self.supported_formats()
         formats = []
         if not self.args.output_format or len(self.args.output_format) == 0:
             formats.append(const.OUTPUT_FORMAT_JSON)
@@ -167,7 +161,7 @@ class Action(object):
         outputs = {}
         for fmt in formats:
             if fmt in supported_formats:
-                outputs[fmt] = self.action.render(fmt)
+                outputs[fmt] = self.render(fmt)
             else:
                 if len(self.args.output_format) > 0:
                     print "Requested format %s but that output is not supported by this action. Support formats: %s" % \
