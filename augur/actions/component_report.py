@@ -4,7 +4,7 @@ from augur.integrations import uagithub
 
 
 class ComponentReportAction(Action):
-    def __init__(self, args):
+    def __init__(self, args=None):
         super(ComponentReportAction, self).__init__(args)
 
     def __str__(self):
@@ -22,3 +22,6 @@ class ComponentReportAction(Action):
         :return:
         """
         self.report_data_json = uagithub.UaGithub().get_org_component_data(self.args.org)
+
+def get_action():
+    return ComponentReportAction

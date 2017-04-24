@@ -33,7 +33,7 @@ class StaleDocReportAction(Action):
                             they have an article that hasn't been updated in over x weeks. (default = True)
     """
 
-    def __init__(self, args):
+    def __init__(self, args=None):
         super(StaleDocReportAction, self).__init__(args)
 
         if not hasattr(self.args, "stale_duration_weeks"):
@@ -95,3 +95,6 @@ class StaleDocReportAction(Action):
         self.report_data_json = {
             "pages_by_user": pages_by_user
         }
+
+def get_action():
+    return StaleDocReportAction

@@ -7,7 +7,7 @@ from augur.integrations.uajira import get_jira
 
 
 class TeamReportAction(Action):
-    def __init__(self, args):
+    def __init__(self, args=None):
         super(TeamReportAction, self).__init__(args)
 
     def __str__(self):
@@ -67,3 +67,5 @@ class TeamReportAction(Action):
             for username, user in team.iteritems():
                 user['is_team_lead'] = self._is_team_lead(username)
 
+def get_action():
+    return TeamReportAction

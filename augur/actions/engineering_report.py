@@ -4,7 +4,7 @@ from augur.integrations.uajira import get_jira
 
 
 class EngineeringReportAction(Action):
-    def __init__(self, args):
+    def __init__(self, args=None):
         super(EngineeringReportAction, self).__init__(args)
         self.subject = "Engineering Report"
 
@@ -25,3 +25,6 @@ class EngineeringReportAction(Action):
         self.report_data_json = get_jira().get_engineering_report(self.args.week_number)
         self.subject = "%d Engineering Report - Week %d" % (self.report_data_json['start'].year,
                                                             int(self.report_data_json['week_number']))
+
+def get_action():
+    return EngineeringReportAction

@@ -8,7 +8,7 @@ from augur.integrations.uajira import get_jira
 
 
 class TimesheetReportAction(Action):
-    def __init__(self, args):
+    def __init__(self, args=None):
         super(TimesheetReportAction, self).__init__(args)
         self.subject = "UA Timesheet"
         self.end = None
@@ -80,3 +80,5 @@ class TimesheetReportAction(Action):
         }
         self.subject = "UA Timesheet - %s to %s" % (self.start.strftime("%m-%d-%Y"), self.end.strftime("%m-%d-%Y"))
 
+def get_action():
+    return TimesheetReportAction

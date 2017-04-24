@@ -8,7 +8,7 @@ from augur.integrations.uajira import get_jira
 
 
 class ReleaseReportAction(Action):
-    def __init__(self, args):
+    def __init__(self, args=None):
         super(ReleaseReportAction, self).__init__(args)
         self.subject = "Released Tickets"
 
@@ -57,3 +57,5 @@ class ReleaseReportAction(Action):
         }
         self.subject = "UA.com Changes Released to Production on %s" % release_date
 
+def get_action():
+    return ReleaseReportAction

@@ -5,6 +5,8 @@ import urllib
 import urlparse
 
 from mako import exceptions
+from mako.template import Template
+
 from pyfluence import Confluence
 
 from augur import distribution_lists
@@ -12,7 +14,6 @@ from augur import settings
 from augur.common import const, comm, serializers, Struct
 from augur.integrations.uagithub import UaGithub
 
-from mako.template import Template
 
 
 class AugurActionError(Exception):
@@ -22,7 +23,7 @@ class AugurActionError(Exception):
 class Action(object):
     report_data_json = None
 
-    def __init__(self, args):
+    def __init__(self, args=None):
         self.uagithub = UaGithub()
         self.args = args
         self.outputs = None
@@ -82,7 +83,7 @@ class Action(object):
             return False
 
     def validate_args(self):
-        if self.args.output_type != const.OUTPUT_TYPE_NONE:
+        if self.args.output_type not in [const.OUTPUT_TYPE_NONE, const.OUTPUT_TYPE_STDOUT]:
 
             # Create recipients out of mailing lists
             if not self.args.recipients:
@@ -117,7 +118,7 @@ class Action(object):
         """
         raise NotImplemented()
 
-    def handle(self, *args, **options):
+    def handle(self, **options):
         self.args = Struct(**options)
         self.validate_args()
         self.run()
@@ -148,6 +149,8 @@ class Action(object):
                         self.output_wiki(out)
                     elif t == const.OUTPUT_TYPE_FILE:
                         self.output_file(out, fmt)
+                    elif t == const.OUTPUT_TYPE_STDOUT:
+                        self.output_stdout(out, fmt)
 
     def generate_outputs(self):
         supported_formats = self.supported_formats()
@@ -221,6 +224,15 @@ class Action(object):
             f.close()
         else:
             print "No output file path was given so nothing was written out"
+
+    def output_stdout(self, out, fmt):
+        """
+        Sends the output to stdout
+        :param out: The text of the output
+        :param fmt: One of the OUTPUT_FORMAT_XXX types
+        :return: None
+        """
+        print out
 
     def output_wiki_attachment(self, action_output):
         """
