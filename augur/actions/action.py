@@ -73,7 +73,7 @@ class Action(object):
             self.report_data_json = data
 
         self.report_data_json['_jira_instance'] = settings.main.integrations.jira.instance
-        template_dir = settings.main.project.augur_base_dir + "/email_templates"
+        template_dir = settings.main.project.augur_base_dir + "/templates"
         template_ob = Template(filename='%s/%s' % (template_dir, tpl))
         try:
             return template_ob.render(data=self.report_data_json)

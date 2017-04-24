@@ -23,7 +23,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='1.0.4',
+    version='1.0.5',
 
     description='A library for extracting actionable data from development tools ',
     long_description=long_description,
@@ -88,7 +88,10 @@ setup(
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
     package_data={
-        '': ['data/consultants/*.csv'],
+        '': [
+            'data/consultants/*.csv',
+            'templates/*.*'
+        ],
     },
 
     # Probably not necessary but trying it out anyway
