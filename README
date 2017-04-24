@@ -17,7 +17,7 @@ To install, you can do one of the following:
 
 ## Install on command line
 
-    pip install augur -i https://pypi-reader:hP8DNq5%F4x$@artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi/simple
+    pip install augur -i https://pypi-reader:ThOgrAVultiA@artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi/simple
 
 Without changing your global index, this will install augur using the custom index this once.
 
@@ -25,7 +25,7 @@ Without changing your global index, this will install augur using the custom ind
 
 Modify you requirements.txt file by including this at the top of the file:
 
-    --extra-index-url https://pypi-reader:hP8DNq5%F4x$@artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi/simple
+    --extra-index-url https://pypi-reader:ThOgrAVultiA@artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi/simple
 
 Then include augur as you would any other package:
 

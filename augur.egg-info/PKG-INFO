@@ -1,8 +1,8 @@
 Metadata-Version: 1.1
 Name: augur
-Version: 1.0.0
+Version: 1.0.3
 Summary: A library for extracting actionable data from development tools 
-Home-page: https://github.com/pypa/sampleproject
+Home-page: https://ua.github.com/deviant/augur
 Author: Karim Shehadeh
 Author-email: kshehadeh@underarmour.com
 License: MIT
@@ -14,6 +14,53 @@ Description: # Augur Developer Metrics
         
         This is a library that can be easily included into any client that wants to
         collect data using ADM.  
+        
+        # Augur Installation
+        
+        Augur is hosted in the UA Artifactory PyPI index because it contains some UA-specific
+         information (currently).  Access to only the pypi index on the artifactory host is given
+         to the following artifactory user: `pypi-reader`
+        
+        To install, you can do one of the following:
+        
+        ## Install on command line
+        
+            pip install augur -i https://pypi-reader:ThOgrAVultiA@artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi/simple
+        
+        Without changing your global index, this will install augur using the custom index this once.
+        
+        ## Install in requirements.txt
+        
+        Modify you requirements.txt file by including this at the top of the file:
+        
+            --extra-index-url https://pypi-reader:ThOgrAVultiA@artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi/simple
+        
+        Then include augur as you would any other package:
+        
+            augur==<version>
+            or
+            augur
+        
+        # Augur Development
+        
+        To upload a new version of augur, you can modify your .pypirc file with the following:
+        
+            [dist-utils]
+            .... # whatever indexes you already had in there
+            local
+        
+            ...
+        
+            [local]
+            repository: https://artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi
+            username: <username> # must have publish rights
+            password: <password>
+        
+        
+        Then build and upload the new version from within the augur root directory:
+        
+            python setup.py sdist upload -r local
+        
         
         # Augur Integration
         

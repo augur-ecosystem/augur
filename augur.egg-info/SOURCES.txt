@@ -28,6 +28,7 @@ augur/common/projects.py
 augur/common/serializers.py
 augur/common/teams.py
 augur/common/timer.py
+augur/data/consultants/engineering_consultants.csv
 augur/events/__init__.py
 augur/events/filter.py
 augur/events/handler.py
