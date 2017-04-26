@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: augur
-Version: 1.0.3
+Version: 1.0.6
 Summary: A library for extracting actionable data from development tools 
 Home-page: https://ua.github.com/deviant/augur
 Author: Karim Shehadeh

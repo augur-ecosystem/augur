@@ -4,6 +4,7 @@ augur/__init__.py
 augur/audit.py
 augur/cache_store.py
 augur/distribution_lists.py
+augur/reports.py
 augur/settings.py
 augur.egg-info/PKG-INFO
 augur.egg-info/SOURCES.txt
@@ -61,6 +62,19 @@ augur/integrations/uajira/data/uajiradata.py
 augur/integrations/uajira/data/worklog.py
 augur/signals/__init__.py
 augur/signals/cache_signals.py
+augur/templates/components.html
+augur/templates/developer_report.html
+augur/templates/docs_by_user.html
+augur/templates/engineering_report.html
+augur/templates/org_report.html
+augur/templates/release.html
+augur/templates/stale_page_email.html
+augur/templates/sync_results.html
+augur/templates/team_epics.html
+augur/templates/teams.html
+augur/templates/test_action.html
+augur/templates/timesheet.html
+augur/templates/velocity_report.html
 augur/tests/__init__.py
 augur/tests/action_tests.py
 augur/tests/env.py

@@ -23,7 +23,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='1.0.5',
+    version='1.0.6',
 
     description='A library for extracting actionable data from development tools ',
     long_description=long_description,
@@ -74,6 +74,28 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
+    install_requires=[
+        'arrow==0.7.0',
+        'boto3==1.2.6',
+        'botocore==1.4.49',
+        'Django==1.9.2',
+        'jira==1.0.3',
+        'Mako==1.0.3',
+        'oauthlib==1.0.3',
+        'pathspec==0.3.4',
+        'pyfluence==0.1.1',
+        'PyGithub==1.27.1',
+        'pymongo==3.2.1',
+        'python-dateutil==2.5.3',
+        'pytz==2015.7',
+        'urllib3==1.14',
+        'psycopg2==2.6.1',
+    ],
+
+    dependency_links=[
+       "https://pypi.python.org/simple/",
+       "http://example2.com/p/bar-1.0.tar.gz",
+    ],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
