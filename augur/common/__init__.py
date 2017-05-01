@@ -173,6 +173,7 @@ def get_week_range(date):
     end = start + datetime.timedelta(days=6)
     return start,end
 
+
 def standard_deviation(lst,population=True):
 
     sd = 0

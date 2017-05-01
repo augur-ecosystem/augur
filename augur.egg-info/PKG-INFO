@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: augur
-Version: 1.0.6
+Version: 1.0.12
 Summary: A library for extracting actionable data from development tools 
 Home-page: https://ua.github.com/deviant/augur
 Author: Karim Shehadeh
@@ -145,8 +145,10 @@ Description: # Augur Developer Metrics
             * Production Validated (In Progress State)
             * Production Deployed (Resolution State)
             * Abandoned (Resolution State)
-        * The following custom field exists: "Deployment Status"
-            *
+        * The following custom field exists: "Deployment Status" and it has the following options
+            * Pending
+            * Deployed
+            * Validated
 Keywords: metrics jira github development
 Platform: UNKNOWN
 Classifier: Development Status :: 5 - Production/Stable

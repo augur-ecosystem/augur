@@ -36,13 +36,6 @@ class StaleDocReportAction(Action):
     def __init__(self, args=None):
         super(StaleDocReportAction, self).__init__(args)
 
-        if not hasattr(self.args, "stale_duration_weeks"):
-            self.args.stale_duration_weeks = 24
-
-        # by default we email the most recent updaters of the pages that haven't been updated in over X weeks.
-        if not hasattr(self.args,"email_authors"):
-            self.args.email_authors = True
-
     def __str__(self):
         return "Stale Confluence Document Report"
 

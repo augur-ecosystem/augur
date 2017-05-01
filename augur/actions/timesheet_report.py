@@ -1,6 +1,9 @@
 import StringIO
 import csv
 
+import datetime
+from arrow import arrow
+
 from augur import common
 from augur.common import const
 from augur.actions.action import Action
@@ -8,6 +11,13 @@ from augur.integrations.uajira import get_jira
 
 
 class TimesheetReportAction(Action):
+    """
+    The TimeSheet report takes the following parameters
+    
+        * start - Can be a string, an Arrow object or a datetime object
+        * end - Can be a string, an Arrow object or a datetime object
+        * tempoteam - An integer or string
+    """
     def __init__(self, args=None):
         super(TimesheetReportAction, self).__init__(args)
         self.subject = "UA Timesheet"
@@ -44,12 +54,20 @@ class TimesheetReportAction(Action):
             return super(TimesheetReportAction, self).render(output_format)
 
     def run(self):
-        """
-        Gets all the stale docs organized by team
+        """        
         :return:
         """
         team_id = self.args.tempoteam
-        self.start, self.end = common.get_date_range_from_strings(self.args.start, self.args.end)
+
+        # convert the various types of datetimes into a python native datetime.
+        if isinstance(self.args.start, (str, unicode)):
+            self.start, self.end = common.get_date_range_from_strings(self.args.start, self.args.end)
+        elif isinstance(self.args.start, arrow.Arrow):
+            self.start = self.args.start.datetime
+            self.end = self.args.end.datetime
+        elif isinstance(self.args.start, datetime.datetime):
+            self.start = self.args.start
+            self.end = self.args.end.datetime
 
         worklogs = get_jira().get_user_worklog(self.start, self.end, int(team_id))
         timesheet = {}
@@ -79,6 +97,7 @@ class TimesheetReportAction(Action):
             "end": self.end
         }
         self.subject = "UA Timesheet - %s to %s" % (self.start.strftime("%m-%d-%Y"), self.end.strftime("%m-%d-%Y"))
+
 
 def get_action():
     return TimesheetReportAction

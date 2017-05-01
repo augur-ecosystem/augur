@@ -4,7 +4,6 @@ augur/__init__.py
 augur/audit.py
 augur/cache_store.py
 augur/distribution_lists.py
-augur/reports.py
 augur/settings.py
 augur.egg-info/PKG-INFO
 augur.egg-info/SOURCES.txt
