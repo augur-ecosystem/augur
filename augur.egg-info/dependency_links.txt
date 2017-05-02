@@ -1,2 +1,0 @@
-https://pypi.python.org/simple/
-http://example2.com/p/bar-1.0.tar.gz

@@ -4,4 +4,4 @@
 *.iml
 /augur/tests/env.py
 augur.egg-info/**
-dist/*/**
+dist/**
