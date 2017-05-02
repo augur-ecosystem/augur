@@ -17,7 +17,7 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README'), encoding='utf-8') as f:
     long_description = f.read()
 
-with open(path.join(here, 'VERSION'), encoding='utf-8') as f:
+with open(path.join(here, './augur/VERSION'), encoding='utf-8') as f:
     version = f.read()
 
 setup(
@@ -115,7 +115,8 @@ setup(
     package_data={
         '': [
             'data/consultants/*.csv',
-            'templates/*.*'
+            'templates/*.*',
+            'VERSION'
         ],
     },
 

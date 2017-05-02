@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
-echo "Bumping version..."
-./bumpversion.sh
+if [[ $* == *--bump_patch* ]]
+then
+    echo "Bumping version..."
+    ./bumpversion.sh
+fi
 
 echo "Publishing version to python index..."
 python setup.py sdist upload -r local

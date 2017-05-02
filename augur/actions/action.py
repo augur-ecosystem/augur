@@ -85,11 +85,10 @@ class Action(object):
     def validate_args(self):
         if self.args.output_type not in [const.OUTPUT_TYPE_NONE, const.OUTPUT_TYPE_STDOUT]:
 
-            # Create recipients out of mailing lists
-            if not self.args.recipients:
+            if not hasattr(self.args, 'recipients') or not self.args.recipients:
                 self.args.recipients = []
 
-            if not self.args.mailing_list:
+            if not hasattr(self.args, 'mailing_list') or not self.args.mailing_list:
                 self.args.mailing_list = []
             elif not isinstance(self.args.mailing_list, list):
                 self.args.mailing_list = [self.args.mailing_list]

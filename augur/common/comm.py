@@ -1,5 +1,6 @@
 import smtplib
 import boto3
+import logging
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -46,6 +47,7 @@ def send_email_aws(to_addresses=(), subject="", body_text="", body_html=""):
                       ]
                       )
 
+    logging.info("Attempt to send email to %s returned the following response: \n%s" % (";".join(to_addresses), str(res)))
     return res
 
 
