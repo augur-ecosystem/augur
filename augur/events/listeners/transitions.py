@@ -275,7 +275,7 @@ class JiraCmIssueTransitionHandler(WebhookListener):
                                          summary='Release %s - %s' % (
                                             event["issue"]["key"], event["issue"]["fields"]["summary"]),
                                          description=DESCRIPTION_TEMPLATE,
-                                         issuetype={'name': 'B2C v7 Release'},
+                                         issuetype={'name': 'V7 Harbour Release'},
                                          reporter=event['user']
                                          )
 
