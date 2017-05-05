@@ -21,6 +21,7 @@ else:
             "ptyng@underarmour.com",
             "jz@underarmour.com",
             "swalker1@underarmour.com",
+            "pnorton1@consultant.underarmour.com",
             "ecomm-pdm@underarmour.com"
         ]
 
@@ -34,7 +35,7 @@ else:
 
 
 DISTRIBUTION_LISTS["ALDERSON_LOOP_TIMESHEET"] = [
-        "lauren.asghari@aldersonloop.com",
+        "timesheets@aldersonloop.com",
         "kshehadeh@ua.com",
 ]
 
