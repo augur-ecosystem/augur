@@ -91,7 +91,6 @@ class UaJiraSprintDataFetcher(UaJiraDataFetcher):
                 stats = self.get_abridged_sprint_object_for_team(team_id, self.sprint_id)
                 results.append({
                     'team_id': team_id,
-                    'num_issues': len(stats['issues']) if stats else 0,
                     'success': stats is not None
                 })
 
