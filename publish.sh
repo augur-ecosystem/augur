@@ -12,6 +12,7 @@ cp README.md README
 
 # Update git
 echo "Updating in git"
+git add .
 git commit -m "version bump and prep for publish"
 git push
 
