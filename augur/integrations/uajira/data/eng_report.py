@@ -149,7 +149,7 @@ class UaJiraEngineeringReport(UaJiraDataFetcher):
                 issue_type = issue_inner['typeName']
                 done = issue_inner['done']
 
-            epic_key = common.deep_get(issue_inner, 'epicField', 'epic_key') or "NONE"
+            epic_key = common.deep_get(issue_inner, 'epicField', 'epicKey') or "NONE"
             if epic_key not in epic_inner:
                 epic_inner[epic_key] = {
                     "key": epic_key,
