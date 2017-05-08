@@ -6,9 +6,6 @@ from augur import cache_store
 from augur import common
 from augur.common import const, teams
 from augur.integrations.uajira.data import UaJiraDataFetcher
-
-# TODO: I don't know why UaJiraRelease requires the full path to the release file even though
-#   it is include in the root __init__ for that package.
 from augur.integrations.uajira.data.release import UaJiraRelease
 
 

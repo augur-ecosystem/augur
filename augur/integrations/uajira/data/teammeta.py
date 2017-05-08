@@ -5,10 +5,6 @@ from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
 
 
 class UaJiraTeamMetaDataFetcher(UaJiraDataFetcher):
-    """
-    Retrieves analyzed data returned from a filter that has been already created in Jira
-    """
-
     def init_cache(self):
         self.cache = cache_store.UaAllTeamsData(self.uajira.mongo)
 

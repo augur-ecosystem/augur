@@ -429,14 +429,14 @@ class UaJira(object):
     # EPICS
     #  Methods for gathering and reporting on JIRA epics
     ######################################################################
-    def get_epic_analysis(self, epic, force_update=False):
+    def get_epic_analysis(self, epic_key, force_update=False):
         """
         Gets the epic's details requested in the arguments
         :param:epic The epic key
         :return: A dictionary of epics keyed on the epic key
         """
         fetcher = epic.UaJiraEpicDataFetcher(self, force_update=force_update)
-        return fetcher.fetch(epic_key=epic)
+        return fetcher.fetch(epic_key=epic_key)
 
     def get_associated_epic(self, issue):
         """

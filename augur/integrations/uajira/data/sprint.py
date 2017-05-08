@@ -253,8 +253,22 @@ class UaJiraSprintDataFetcher(UaJiraDataFetcher):
                     "info": one_sprint['sprint']
                 }
 
+            # for some reason, there is no count of the # of *points* added during a sprint.  So we calculate
+            #   manually here.
+
+            added_during_sprint_points = 0.0
+            for issue_key in one_sprint['contents']['issueKeysAddedDuringSprint']:
+                added_during_sprint_points += float(common.deep_get(issue_key, 'fields', 'customfield_10002') or 0.0)
+            one_sprint['contents']['pointsAddedDuringSprintSum'] = {
+                "text": str(added_during_sprint_points),
+                "value": added_during_sprint_points
+            }
+
             # aggregate point value fields
-            point_keys = ['completedIssuesEstimateSum', 'issuesNotCompletedEstimateSum', 'puntedIssuesEstimateSum']
+            point_keys = ['completedIssuesEstimateSum',
+                          'issuesNotCompletedEstimateSum',
+                          'puntedIssuesEstimateSum',
+                          'pointsAddedDuringSprintSum']
 
             for key in point_keys:
 
