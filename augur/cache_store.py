@@ -582,7 +582,7 @@ class UaJiraEpicData(UaModel):
 
 class UaJiraOrgData(UaModel):
     def get_ttl(self):
-        return datetime.timedelta(hours=8)
+        return datetime.timedelta(hours=24)
 
     def clear_before_add(self):
         return True

@@ -654,12 +654,12 @@ class UaJira(object):
         return return_value
 
     @staticmethod
-    def get_all_dev_stats():
+    def get_all_dev_stats(force_update=False):
         """
         Gets all developer info plus some aggregate data for each user including total points completed.
         :return:
         """
-        return UaJiraOrgStatsFetcher(get_jira()).fetch()
+        return UaJiraOrgStatsFetcher(get_jira(),force_update=force_update).fetch()
 
     ###########################
     # TICKET CREATION/UPDATING
