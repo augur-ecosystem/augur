@@ -1,29 +1,14 @@
 import csv
 import datetime
-import os
 
-import arrow
+import os
 from dateutil.parser import parse
 from jira import JIRA, Issue
 
-from augur import audit
-from augur import cache_store
 from augur import common
 from augur import settings
-from augur.common import const, cycletimes
-from augur.integrations.uajira.data import epic,filter
-from augur.integrations.uajira.data.eng_report import UaJiraEngineeringReport
-from augur.integrations.uajira.data.org import UaJiraOrgStatsFetcher
+from augur.common import const, cycletimes, audit, cache_store
 from augur.integrations.uatempo import UaTempo
-
-from augur.integrations.uajira.data import UaJiraWorklogDataFetcher
-from augur.integrations.uajira.data import UaJiraSprintDataFetcher
-from augur.integrations.uajira.data import UaJiraDefectFetcher
-from augur.integrations.uajira.data import UaJiraDefectHistoryFetcher
-from augur.integrations.uajira.data import UaJiraRelease
-from augur.integrations.uajira.data import UaJiraIssueDataFetcher
-from augur.integrations.uajira.data import UaJiraTeamMetaDataFetcher
-from augur.integrations.uajira.data import UaJiraDevStatsDataFetcher
 
 __jira = None
 
@@ -71,13 +56,6 @@ class UaJira(object):
     #  on a team by team basis.
     ######################################################################
 
-    def get_engineering_report(self, week_number=None):
-        fetch = UaJiraEngineeringReport(self)
-
-        if not week_number:
-            week_number = int(datetime.datetime.now().strftime("%V"))
-
-        return fetch.fetch(week_number=week_number)
 
     ######################################################################
     # SPRINTS
@@ -85,56 +63,6 @@ class UaJira(object):
     #  on a team by team basis.
     ######################################################################
 
-    def get_sprint_info(self, sprint=None, team='f', force_update=False):
-        """
-        Returns a timedelta showing the remaining time
-        :param sprint: The sprint object returned from get_active_sprint_for_team - will call itself if this is none
-        :param team: The team id to get the sprint for.  Defaults to one of the teams if none is given.
-        :param force_update: If True, then this will skip the cache and pull from JIRA
-        :return: Returns timedelta object with the remaining time in sprint
-        """
-        fetcher = UaJiraSprintDataFetcher(self, force_update=force_update)
-        sprint = fetcher.fetch(team_id=team, sprint_id=sprint)
-
-        if sprint:
-            return {
-                "sprint": sprint['sprint'],
-                "timeLeftInSprint": sprint['sprint']['endDate'] - datetime.datetime.now()
-            }
-        else:
-            return None
-
-    def get_historic_sprint_stats(self, team, force_update=False):
-        """
-        Gets all the sprint objects for a team (decorated with other custom info) and runs them through the
-         analyzer to get specific ticket info for each sprint.  This caches both the sprint objects and the
-          converted sprint data.
-        """
-        fetcher = UaJiraSprintDataFetcher(self, force_update=force_update)
-        return fetcher.fetch(get_history=True, team_id=team)
-
-    def get_sprint_info_for_team(self, team_id, sprint_id=const.SPRINT_LAST_COMPLETED, force_update=False):
-        """
-        This will get sprint data for the the given team and sprint.  You can specify you want the current or the
-        most recently closed sprint for the team by using one of the SPRINT_XXX consts.  You can also specify an ID
-        of a sprint if you know what you want.  Or you can pass in a sprint object to confirm that it's a valid
-        sprint object.  If it is, it will be returned, otherwise a SprintNotFoundException will be thrown.
-        :param team_id: The ID of the team
-        :param sprint_id: The ID, const, or sprint object.
-        :param force_update: If True, then this will skip the cache and pull from JIRA
-        :return: Returns a sprint object
-        """
-
-        fetcher = UaJiraSprintDataFetcher(self, force_update=force_update)
-        return fetcher.fetch(team_id=team_id, sprint_id=sprint_id)
-
-    def update_current_sprint_stats(self, force_update=False):
-        """
-        Used to update the currently stored sprint data for all teams
-        :return: Returns a result array containing the teams updated and the number of issues found.
-        """
-        fetcher = UaJiraSprintDataFetcher(self, force_update=force_update)
-        return fetcher.fetch(sprint_id=const.SPRINT_CURRENT)
 
     ######################################################################
     # COMPONENTS AND VERSIONS
@@ -338,70 +266,17 @@ class UaJira(object):
 
         return result
 
-    def get_issue_details(self, key, force_update=False):
-        """
-        Return details about an issue based on an issue key.  This will pull from mongo if possible.
-        :param key: The key of the issue to retrieve
-        :param force_update: If True, then this will skip the cache and pull from JIRA
-        :return: The issue object
-        """
-        fetcher = UaJiraIssueDataFetcher(self, force_update=force_update)
-        return fetcher.fetch(issue_key=key)
-
-    def get_issues_details(self, keys, force_update=False):
-        """
-        Return details about more than one issue.  This will always pull from Jira
-        :param keys: The list of keys of the issues to retrieve
-        :param force_update: If True, then this will skip the cache and pull from JIRA
-        :return: A list of issue objects
-        """
-        fetcher = UaJiraIssueDataFetcher(self, force_update=force_update)
-        return fetcher.fetch(issue_keys=keys)
-
     ######################################################################
     # Defects
     #  Methods for retrieving defect data
     ######################################################################
-    def get_defect_data(self, lookback_days=14, force_update=False):
-        fetcher = UaJiraDefectFetcher(self, force_update=force_update)
-        return fetcher.fetch(lookback_days=lookback_days)
 
-    def get_historical_defect_data(self, num_weeks=8, force_update=False):
-        fetcher = UaJiraDefectHistoryFetcher(self, force_update=force_update)
-        return fetcher.fetch(num_weeks=num_weeks)
 
     ######################################################################
     # Releases
     #  Methods for retrieving release data
     ######################################################################
-    def get_release_pipeline_data(self, force_update=False):
-        """
-        Gets all information from Jira regarding the release pipeline organized
-        by state.
-        :return: A dictionary of of data describing the release pipeline
-        """
-        fetcher = UaJiraRelease(self, force_update=force_update)
-        return fetcher.fetch()
 
-    def get_releases_since(self, start, end, force_update=False):
-        """
-        Gets all information from Jira regarding the release pipeline organized
-        by state.
-        :return: A dictionary of of data describing the release pipeline
-        """
-
-        if not start:
-            # default to yesterday's releases
-            start = arrow.get(datetime.datetime.now()).replace(days=-1).floor()
-            end = start.ceil()
-
-        elif start and not end:
-            # default to the given start date and the end of that day
-            start = arrow.get(start).floor('day')
-            end = start.ceil('day')
-
-        fetcher = UaJiraRelease(self, force_update=force_update)
-        return fetcher.fetch(start=start, end=end)
 
     ######################################################################
     # FIELDS
@@ -416,27 +291,12 @@ class UaJira(object):
     # FILTERS
     #  Methods for gathering and reporting on JIRA filters
     ######################################################################
-    def get_filter_analysis(self, filter_id, force_update=False):
-        """
-        Gets the filter's details requested in the arguments
-        :param:filter The filter ID
-        :return: A dictionary of filter data
-        """
-        fetcher = filter.UaJiraFilterDataFetcher(self, force_update=force_update)
-        return fetcher.fetch(filter_id=filter_id)
 
     ######################################################################
     # EPICS
     #  Methods for gathering and reporting on JIRA epics
     ######################################################################
-    def get_epic_analysis(self, epic_key, force_update=False):
-        """
-        Gets the epic's details requested in the arguments
-        :param:epic The epic key
-        :return: A dictionary of epics keyed on the epic key
-        """
-        fetcher = epic.UaJiraEpicDataFetcher(self, force_update=force_update)
-        return fetcher.fetch(epic_key=epic_key)
+
 
     def get_associated_epic(self, issue):
         """
@@ -532,59 +392,6 @@ class UaJira(object):
 
         return consultants
 
-    def get_user_worklog(self, start, end, team_id, username=None, project_key=None, force_update=False):
-        """
-
-        :param start: The start date for the logs
-        :param end: The end date of the logs
-        :param team_id: The Temp Team ID to retrieve worklogs for
-        :param username: The username of the user to filter results on (optional)
-        :param project_key: The JIRA project to filter results on (optional)
-        :param force_update: If True, then this will skip the cache and pull from JIRA
-        :return:
-        """
-
-
-
-        fetcher = UaJiraWorklogDataFetcher(self, force_update=force_update)
-        data = fetcher.fetch(start=start, end=end, username=username, team_id=team_id, project_key=project_key)
-        return data[0] if isinstance(data, list) else data
-
-    def get_dashboard_data(self, force_update=False):
-        """
-        This will retrieve all data associated with the dashboard.  It will only return something if data has been
-        stored in the last two hours.  If nothing is returned, it will load the data automatically and return that.
-        :param force_update: If True, then this will skip the cache and pull from JIRA
-        :return: Returns the dashboard data.
-        """
-
-        from augur.integrations.uajira.data import UaJiraDashboardFetcher
-        fetcher = UaJiraDashboardFetcher(self, force_update=force_update)
-        data = fetcher.fetch()
-        return data[0] if isinstance(data, list) else data
-
-    def get_all_developer_info(self, force_update=False):
-        """
-        Retrieves all the developers organized by team along with some basic user info.
-        Looks something like this:
-
-        {
-            "devs" : {
-                "hnuss" : {
-                    "active" : true ,
-                    "team_id" : "hb" ,
-                    "fullname" : "Harley Nuss" ,
-                    "email" : "hnuss@underarmour.com" ,
-                    "team_name" : "Team Hamburglar"
-                }
-            },...
-
-        }
-        :return:
-        """
-        fetcher = UaJiraTeamMetaDataFetcher(self, force_update=force_update)
-        return fetcher.fetch()
-
     ###########################
     # WORKLOGS
     ###########################
@@ -609,19 +416,7 @@ class UaJira(object):
     ###########################
     # DEV STATS
     ###########################
-    def get_dev_stats(self, username, look_back_days=30, force_update=False):
-        """
-        This will get detailed developer stats for the given user.  The stats will go back the number of days
-        specified in look_back_days.  It will use the stats stored in the db if the same parameters were queried in
-        the past 12 hours.
-        :param username: The username of the dev
-        :param look_back_days:  The number of days to go back to look for developers details (in both github and jira)
-        :param force_update: If True, then this will skip the cache and pull from JIRA
-        :return:
-        """
 
-        fetcher = UaJiraDevStatsDataFetcher(self, force_update=force_update)
-        return fetcher.fetch(username=username, look_back_days=look_back_days)
 
     def get_team_devs_stats(self, team, look_back_days=30):
         """
@@ -652,14 +447,6 @@ class UaJira(object):
         print standard_dev_list
         return_value['standard_deviation'] = common.standard_deviation(standard_dev_list)
         return return_value
-
-    @staticmethod
-    def get_all_dev_stats(force_update=False):
-        """
-        Gets all developer info plus some aggregate data for each user including total points completed.
-        :return:
-        """
-        return UaJiraOrgStatsFetcher(get_jira(),force_update=force_update).fetch()
 
     ###########################
     # TICKET CREATION/UPDATING

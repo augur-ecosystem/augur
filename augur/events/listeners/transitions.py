@@ -1,7 +1,6 @@
 import logging
 
-from augur import audit
-from augur.common import projects
+from augur.common import projects, audit
 from augur.events.filters.jirawebhookfilter import JiraWebhookFilter
 from augur.events.listener import WebhookListener
 from augur.integrations.uajira import get_jira

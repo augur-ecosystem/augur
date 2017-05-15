@@ -4,17 +4,16 @@ import json
 import logging
 import re
 
-import yaml
-
 import github
+import yaml
 from github import Github
 from github.GithubObject import GithubObject
 
-from augur import settings
-from augur import cache_store
 from augur import common
-from augur.integrations.uajira.uajira import get_jira
+from augur import settings
+from augur.common import cache_store
 from augur.common.timer import Timer
+from augur.integrations.uajira.uajira import get_jira
 
 LOGIN_TOKEN = "1a764970a4a22d220bf416cbd5266d497f3d55a0"
 DEFAULT_LOOKBACK_DAYS = 90

@@ -1,4 +1,4 @@
-from augur import cache_store
+from augur.common import cache_store
 from augur.integrations.uajira import exceptions
 from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
 

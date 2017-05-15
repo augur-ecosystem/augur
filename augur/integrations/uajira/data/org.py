@@ -1,5 +1,5 @@
-from augur import cache_store
 from augur import common
+from augur.common import cache_store
 from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
 
 

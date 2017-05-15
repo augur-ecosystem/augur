@@ -1,5 +1,4 @@
-from augur import cache_store
-from augur.common import const, transform_status_string
+from augur.common import const, transform_status_string, cache_store
 from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
 
 

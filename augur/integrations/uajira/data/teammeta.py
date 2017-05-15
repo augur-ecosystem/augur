@@ -1,6 +1,5 @@
-from augur import cache_store
 from augur import settings
-from augur.common import const, teams
+from augur.common import const, teams, cache_store
 from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
 
 

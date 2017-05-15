@@ -3,9 +3,8 @@ from collections import defaultdict
 
 from dateutil.parser import parse
 
-from augur import cache_store
 from augur import common
-from augur.common import const, teams
+from augur.common import const, teams, cache_store
 from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
 
 SPRINT_SORTBY_ENDDATE = 'enddate'

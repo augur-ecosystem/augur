@@ -4,11 +4,11 @@ import dateutil
 import pymongo
 import pytz
 
-from common.timer import Timer
-import common.serializers
-import settings
+from augur.common.timer import Timer
+import augur.common.serializers
+import augur.settings
 
-import signals
+import augur.signals
 
 from dateutil.parser import parse
 
@@ -19,8 +19,8 @@ class UaNoDataException(Exception):
 
 class UaStatsDb(pymongo.MongoClient):
     def __init__(self,
-                 host=settings.main.datastores.cache.mongo.host,
-                 port=settings.main.datastores.cache.mongo.port,
+                 host=augur.settings.main.datastores.cache.mongo.host,
+                 port=augur.settings.main.datastores.cache.mongo.port,
                  document_class=dict,
                  tz_aware=False,
                  connect=True,
@@ -120,10 +120,10 @@ class UaModel(object):
             updates.append({unique_key: d[unique_key]})
             self.get_collection().update({
                 unique_key: d[unique_key]},
-                common.serializers.to_mongo(d), upsert=True)
+                augur.common.serializers.to_mongo(d), upsert=True)
 
-        signals.cache_updated.send(sender=self.__class__, cache_name=self.get_collection().name, update_info=updates,
-                                   key_count=len(data))
+        augur.signals.cache_updated.send(sender=self.__class__, cache_name=self.get_collection().name, update_info=updates,
+                                         key_count=len(data))
 
     def decorate_data(self):
         storage_type = self.get_unique_type()
@@ -163,15 +163,15 @@ class UaModel(object):
             unique_key = self.get_unique_key()
             for d in self.data:
                 updates.append({"id": d[unique_key]})
-                self.get_collection().find_one_and_replace({"id": d[unique_key]}, common.serializers.to_mongo(d), upsert=True)
+                self.get_collection().find_one_and_replace({"id": d[unique_key]}, augur.common.serializers.to_mongo(d), upsert=True)
 
-            signals.cache_updated.send(sender=self.__class__, cache_name=self.get_collection().name,
-                                       update_info=updates, key_count=len(self.data))
+            augur.signals.cache_updated.send(sender=self.__class__, cache_name=self.get_collection().name,
+                                             update_info=updates, key_count=len(self.data))
             success = True
         else:
-            result = self.get_collection().insert_many([common.serializers.to_mongo(d) for d in self.data])
-            signals.cache_updated.send(sender=self.__class__, cache_name=self.get_collection().name, update_info=None,
-                                       key_count=len(result.inserted_ids))
+            result = self.get_collection().insert_many([augur.common.serializers.to_mongo(d) for d in self.data])
+            augur.signals.cache_updated.send(sender=self.__class__, cache_name=self.get_collection().name, update_info=None,
+                                             key_count=len(result.inserted_ids))
             success = True
 
         return success
@@ -228,12 +228,12 @@ class UaModel(object):
             if 'storage_time' in self.data[0]:
                 storage_time = self.data[0]['storage_time']
 
-            signals.cache_item_loaded.send(sender=self.__class__,
-                                           ttl=ttl,
-                                           query_object=query_object,
-                                           cache_name=self.get_collection().name,
-                                           cache_date=storage_time,
-                                           key_count=len(self.data))
+            augur.signals.cache_item_loaded.send(sender=self.__class__,
+                                                 ttl=ttl,
+                                                 query_object=query_object,
+                                                 cache_name=self.get_collection().name,
+                                                 cache_date=storage_time,
+                                                 key_count=len(self.data))
 
         return self.data
 

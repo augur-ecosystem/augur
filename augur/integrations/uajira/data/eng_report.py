@@ -2,9 +2,9 @@ import datetime
 
 import arrow
 
-from augur import cache_store
+import augur.api
 from augur import common
-from augur.common import const, teams
+from augur.common import const, teams, cache_store
 from augur.integrations.uajira.data import UaJiraDataFetcher
 from augur.integrations.uajira.data.release import UaJiraRelease
 
@@ -35,8 +35,8 @@ class UaJiraEngineeringReport(UaJiraDataFetcher):
         sprints = {}
         for team_id in teams.get_all_teams().keys():
             sprints[team_id] = {
-                "last": self.uajira.get_sprint_info_for_team(team_id, const.SPRINT_LAST_COMPLETED),
-                "before_last": self.uajira.get_sprint_info_for_team(team_id, const.SPRINT_BEFORE_LAST_COMPLETED)
+                "last": augur.api.get_sprint_info_for_team(team_id, const.SPRINT_LAST_COMPLETED),
+                "before_last": augur.api.get_sprint_info_for_team(team_id, const.SPRINT_BEFORE_LAST_COMPLETED)
             }
 
         return sprints
@@ -198,7 +198,7 @@ class UaJiraEngineeringReport(UaJiraDataFetcher):
     def _fetch(self):
 
         # get developer and team data
-        self.staff = self.uajira.get_all_developer_info()
+        self.staff = augur.api.get_all_developer_info()
 
         # get data for the most recent sprint for all teams
         sprints = self._get_most_recent_completed_sprints()

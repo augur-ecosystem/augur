@@ -1,6 +1,7 @@
-from augur import cache_store
 from augur import common
 from augur import settings
+from augur import api
+from augur.common import cache_store
 from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
 
 FILTER_IDLE = 33280
@@ -34,7 +35,7 @@ class UaJiraDashboardFetcher(UaJiraDataFetcher):
         # and we don't have a cron job that updates the data in the background.  So it has to be updated by
         # visits to the page with the same user and the same look back days
 
-        devs = self.uajira.get_all_developer_info()
+        devs = api.get_all_developer_info()
 
         def get_issue_seconds_in_progress(idx, issue_iter):
             return issue_iter['time_in_progress'] + \
@@ -45,7 +46,7 @@ class UaJiraDashboardFetcher(UaJiraDataFetcher):
                    issue_iter['time_blocked']
 
         # For 7 day run of completed tickets, get more information than just the count of tickets
-        completed_tickets = self.uajira.get_filter_analysis("33690")
+        completed_tickets = api.get_filter_analysis("33690")
 
         real_tickets = []
         tickets_with_no_time_in_progress = []
@@ -66,10 +67,10 @@ class UaJiraDashboardFetcher(UaJiraDataFetcher):
         average_seconds_in_progress = \
             reduce(get_issue_seconds_in_progress, real_tickets, 0) / len(completed_tickets['issues'])
 
-        idle = self.uajira.get_filter_analysis(FILTER_IDLE)
-        super_idle = self.uajira.get_filter_analysis(FILTER_SUPER_IDLE)
-        no_epics = self.uajira.get_filter_analysis(FILTER_ORPHANED)
-        unpointed_in_progress = self.uajira.get_filter_analysis(FILTER_UNPOINTED)
+        idle = api.get_filter_analysis(FILTER_IDLE)
+        super_idle = api.get_filter_analysis(FILTER_SUPER_IDLE)
+        no_epics = api.get_filter_analysis(FILTER_ORPHANED)
+        unpointed_in_progress = api.get_filter_analysis(FILTER_UNPOINTED)
 
         def alert_type(low, medium, val):
             return "urgent" if val > medium else "notice" if val > low else "normal"
