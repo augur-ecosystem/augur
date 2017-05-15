@@ -1,5 +1,7 @@
 import logging
 
+import augur.api
+
 from augur.common import projects, audit
 from augur.events.filters.jirawebhookfilter import JiraWebhookFilter
 from augur.events.listener import WebhookListener
@@ -302,7 +304,6 @@ class JiraCmIssueTransitionHandler(WebhookListener):
                 accept either.(optional)
         :return: Return an array of tickets that are linked given the parameters given.
         """
-        j = get_jira()
         linked = event["issue"]['fields']["issuelinks"] or []
         tickets = []
         for l in linked:
@@ -321,6 +322,6 @@ class JiraCmIssueTransitionHandler(WebhookListener):
                                 continue
 
                         # a link between a CM and this ticket is already there so don't create one.
-                        tickets.append(j.get_issue_details(l[d]['key']))
+                        tickets.append(augur.api.get_issue_details(l[d]['key']))
 
         return tickets
