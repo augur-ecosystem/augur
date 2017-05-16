@@ -1,6 +1,7 @@
 import csv
 import datetime
 
+import logging
 import os
 from dateutil.parser import parse
 from jira import JIRA, Issue
@@ -8,6 +9,7 @@ from jira import JIRA, Issue
 from augur import common
 from augur import settings
 from augur.common import const, cycletimes, audit, cache_store
+from augur.common.timer import Timer
 from augur.integrations.uatempo import UaTempo
 
 __jira = None
@@ -24,6 +26,8 @@ class UaJira(object):
     jira = None
 
     def __init__(self, server=None, username=None, password=None):
+
+        self.logger = logging.getLogger("uajira")
 
         self.server = server or settings.main.integrations.jira.instance
         self.username = username or settings.main.integrations.jira.username
@@ -49,20 +53,6 @@ class UaJira(object):
 
     def get_password(self):
         return self.password
-
-    ######################################################################
-    # REPORTS
-    #  Get sprint related information including current and last sprint
-    #  on a team by team basis.
-    ######################################################################
-
-
-    ######################################################################
-    # SPRINTS
-    #  Get sprint related information including current and last sprint
-    #  on a team by team basis.
-    ######################################################################
-
 
     ######################################################################
     # COMPONENTS AND VERSIONS
@@ -102,8 +92,8 @@ class UaJira(object):
             #   and returns all the results.
             max_results = "0"
 
-        print "Executing jql: " + jql
-        return self.jira.search_issues(jql, expand=expand, maxResults=max_results)
+        with Timer("Executing jql: %s"%jql) as t:
+            return self.jira.search_issues(jql, expand=expand, maxResults=max_results)
 
     def execute_jql_with_team_analysis(self, query):
         """
@@ -444,7 +434,6 @@ class UaJira(object):
             return_value['devs'][username] = stats
             standard_dev_list.append(stats['recently_resolved']['total_points'])
 
-        print standard_dev_list
         return_value['standard_deviation'] = common.standard_deviation(standard_dev_list)
         return return_value
 

@@ -2,7 +2,7 @@ import augur.api
 from augur import common
 from augur.common import cache_store
 from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
-
+from augur.common.timer import Timer
 
 class UaJiraOrgStatsFetcher(UaJiraDataFetcher):
     """
@@ -28,20 +28,26 @@ class UaJiraOrgStatsFetcher(UaJiraDataFetcher):
         return True
 
     def _fetch(self):
-        # in this case we try to update the data in the data store since there are more possibilities
-        # and we don't have a cron job that updates the data in the background.  So it has to be updated by
-        # visits to the page with the same user and the same look back days
+
+        # We compose a single query to retrieve all resolved tickets by all assignees and iterate
+        #   over them in memory to reduce the number of calls to jira
 
         data = augur.api.get_all_developer_info()
 
-        for username, info in data['devs'].iteritems():
-            jql = "category = 'Ecommerce Workflows' and assignee = '%s' and " \
-                  "status = 'resolved' and resolution in (%s) order by assignee desc, updated desc" \
-                  % (username, ",".join(common.POSITIVE_RESOLUTIONS))
+        jql = "category = 'Ecommerce Workflows' and status changed to 'resolved' after startOfDay(-2M) and " \
+              "status = 'resolved' and resolution in (%s) order by assignee desc, updated desc" \
+              % (",".join(common.POSITIVE_RESOLUTIONS))
 
-            issues = self.uajira.execute_jql(jql)
-            info['total_points'] = reduce(lambda total, dev: total + (dev.fields.customfield_10002 if
-                                                                      dev.fields.customfield_10002 else 0.0), issues,
-                                          0.0)
+        issues = self.uajira.execute_jql(jql, max_results=1000)
+        for issue in issues:
+
+            # needs to have a point value and an assignee to proceed
+            if issue.fields.customfield_10002 and issue.fields.assignee and issue.fields.assignee.name:
+                if issue.fields.assignee.name in data['devs']:
+                    uname = issue.fields.assignee.name
+                    # the username is in our list of developers so we can update with info
+                    if 'total_points' not in data['devs'][uname]:
+                        data['devs'][uname]['total_points'] = 0.0
+                    data['devs'][uname]['total_points'] += issue.fields.customfield_10002
 
         return self.cache_data(data)

@@ -1,7 +1,7 @@
+import augur.api
 from augur.common import cache_store
 from augur.integrations.uajira import exceptions
 from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
-
 
 class UaJiraDevStatsDataFetcher(UaJiraDataFetcher):
     """
@@ -35,7 +35,7 @@ class UaJiraDevStatsDataFetcher(UaJiraDataFetcher):
         # and we don't have a cron job that updates the data in the background.  So it has to be updated by
         # visits to the page with the same user and the same look back days
 
-        devs = self.uajira.get_all_developer_info()
+        devs = augur.api.get_all_developer_info()
         user_details = None
         team_details = None
         for team, team_info in devs['teams'].iteritems():

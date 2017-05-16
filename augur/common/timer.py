@@ -19,9 +19,12 @@ class Timer(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.logger.info("------")
         self.logger.info("Timer: %s" % self.timer_name)
-        self.logger.info("Start time: %f" % self.start_time)
+        current_time = time.clock()
         last_time = self.start_time
         for split in self._splits:
-            self.logger.info(">> %s - %f (%f)" % (split[0], split[1], split[1] - last_time))
+            self.logger.info(">> %s - %f" % (split[0], split[1] - last_time))
             last_time = split[1]
+        total_time = current_time - self.start_time
+        self.logger.info("\nTotal time: %f" % total_time)
+
         self.logger.info("------")
