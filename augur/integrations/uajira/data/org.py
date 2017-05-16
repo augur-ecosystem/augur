@@ -1,3 +1,4 @@
+import augur.api
 from augur import common
 from augur.common import cache_store
 from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
@@ -31,7 +32,7 @@ class UaJiraOrgStatsFetcher(UaJiraDataFetcher):
         # and we don't have a cron job that updates the data in the background.  So it has to be updated by
         # visits to the page with the same user and the same look back days
 
-        data = self.uajira.get_all_developer_info()
+        data = augur.api.get_all_developer_info()
 
         for username, info in data['devs'].iteritems():
             jql = "category = 'Ecommerce Workflows' and assignee = '%s' and " \

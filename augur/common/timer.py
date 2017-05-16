@@ -1,8 +1,10 @@
 import time
+import logging
 
 
 class Timer(object):
     def __init__(self, name):
+        self.logger = logging.getLogger("timer")
         self.start_time = None
         self.timer_name = name
         self._splits = []
@@ -15,11 +17,11 @@ class Timer(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print "Timer: %s" % self.timer_name
-        print "------"
-        print "Start time: %f" % self.start_time
+        self.logger.info("------")
+        self.logger.info("Timer: %s" % self.timer_name)
+        self.logger.info("Start time: %f" % self.start_time)
         last_time = self.start_time
         for split in self._splits:
-            print ">> %s - %f (%f)" % (split[0], split[1], split[1] - last_time)
+            self.logger.info(">> %s - %f (%f)" % (split[0], split[1], split[1] - last_time))
             last_time = split[1]
-        print "######################################"
+        self.logger.info("------")

@@ -40,6 +40,7 @@ class UaGithub(object):
         self.permissions_data_store = cache_store.UaPermissionsOrgData(
             self.mongo)
         self.jira = get_jira()
+        self.logger = logging.getLogger("uagithub")
 
     def _cache_merged_prs_for_repo(self, repos, since):
         """
@@ -68,16 +69,16 @@ class UaGithub(object):
 
                 # add this repo to the cache
                 if len(filtered_prs) > 0:
-                    print repo.name + ": Found %d PRs" % len(filtered_prs)
+                    self.logger.info(repo.name + ": Found %d PRs" % len(filtered_prs))
                     self.prs_data_store.save_prs(filtered_prs)
                 else:
-                    print repo.name + ": No PRs since %s" % str(since)
+                    self.logger.info(repo.name + ": No PRs since %s" % str(since))
 
                 results[repo.full_name]['added_prs'] = len(filtered_prs)
                 results[repo.full_name]['since'] = str(since)
 
             except Exception as e:
-                print ">>>> error: " + e.message
+                self.logger.error("Errur during _cache_merged_prs_for_repo: %s"%e.message)
 
         return results
 
@@ -113,7 +114,7 @@ class UaGithub(object):
                 results[repo.full_name]['added_prs'] = len(filtered_prs)
 
             except Exception as e:
-                print ">>>> error: " + e.message
+                self.logger.error("Error during caching of open PRs: %s" % e.message)
 
         return results
 
@@ -234,7 +235,7 @@ class UaGithub(object):
                     t.split("Finished creating the stats object")
 
                 except Exception as e:
-                    print e.message
+                    self.logger.error("Error during get_all_user_stats: %s" % e.message)
                     return None
 
         return {
@@ -428,7 +429,7 @@ class UaGithub(object):
                     try:
                         further_review = yaml.load(yaml_str)
                         if 'reviews' not in further_review or not isinstance(further_review['reviews'], list):
-                            print "Unable to find reviews section in further-review file"
+                            self.logger.warning("Unable to find reviews section in further-review file")
                         else:
                             for index, review in enumerate(further_review['reviews']):
                                 if review['name'].lower() == 'general maintainers':
@@ -444,13 +445,13 @@ class UaGithub(object):
                             return result
 
                     except yaml.YAMLError, e:
-                        print "YAML error during processing of .further-review.yaml: %s" % e.message
+                        self.logger.info("YAML error during processing of .further-review.yaml: %s" % e.message)
                 else:
-                    print "Unable to retrieve .further-review.yaml"
+                    self.logger.warning("Unable to retrieve .further-review.yaml")
             else:
-                print "Unable to find further-review.yaml file"
+                self.logger.warning("Unable to find further-review.yaml file")
         except github.UnknownObjectException, e:
-            print "Exception occured: %s (%s)" % (e.message, str(e.__class__))
+            self.logger.error("Error occurred during further review analysis: %s (%s)" % (e.message, str(e.__class__)))
 
         result['owner'] = {
             "name": "Karim Shehadeh",
