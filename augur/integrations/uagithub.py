@@ -14,6 +14,7 @@ from augur import settings
 from augur.common import cache_store
 from augur.common.timer import Timer
 from augur.integrations.uajira.uajira import get_jira
+import augur.api
 
 LOGIN_TOKEN = "1a764970a4a22d220bf416cbd5266d497f3d55a0"
 DEFAULT_LOOKBACK_DAYS = 90
@@ -185,7 +186,7 @@ class UaGithub(object):
         most_recent_pr = None
 
         with Timer("get_all_user_stats") as t:
-            teams = self.jira.get_all_developer_info()
+            teams = augur.api.get_all_developer_info()
             t.split("Finished getting developer info")
 
             if teams:

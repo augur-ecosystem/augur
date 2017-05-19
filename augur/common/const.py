@@ -46,7 +46,8 @@ JIRA_TEAMS_BY_SHORT_NAME = {
     "vd": "Team Camden",
     "by": "Team Bayside",
     "lc": "Team Hon",
-    "bh": "Team Boh"
+    "bh": "Team Boh",
+    "at": "Team ATX"
 }
 
 CONSULTING_TEAM_IDS = {
@@ -65,7 +66,8 @@ JIRA_TEAMS_RAPID_BOARD = {
     "by": 700,
     "lc": 543,
     "mc": 789,
-    "bh": 741
+    "bh": 741,
+    "at": 819
 }
 
 FUNNELS = {
@@ -88,6 +90,11 @@ FUNNELS = {
         "title": "Platform",
         "pdm": "Ken Valencik",
         "teams": ['bh']
+    },
+    'apps': {
+        "title": "Apps",
+        "pdm": "Jeremy Zedell",
+        "teams": ['at']
     }
 }
 

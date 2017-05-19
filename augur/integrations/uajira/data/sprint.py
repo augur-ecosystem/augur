@@ -5,6 +5,7 @@ from dateutil.parser import parse
 
 from augur import common
 from augur.common import const, teams, cache_store
+from augur.common.timer import Timer
 from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
 
 SPRINT_SORTBY_ENDDATE = 'enddate'
@@ -95,7 +96,7 @@ class UaJiraSprintDataFetcher(UaJiraDataFetcher):
 
         elif self.get_history:
             # get the sprint history for a specific team
-            sprints = self.get_detailed_sprint_list_for_team(self.team_id)
+            sprints = self.get_detailed_sprint_list_for_team(self.team_id, limit=5)
             to_calculate = []
             separated_sprint_data = []
             for s in sprints:
@@ -137,83 +138,92 @@ class UaJiraSprintDataFetcher(UaJiraDataFetcher):
         :return: Returns a sprint object
         """
 
-        # We either don't have anything cached or we decided not to use it.  So start from scratch by retrieving
-        # the detailed sprint data from Jira
-        sprint_abridged = self.get_abridged_sprint_object_for_team(team_id, sprint_id)
+        with Timer("Detailed Sprint Data") as t:
 
-        if not sprint_abridged:
-            return None
+            # We either don't have anything cached or we decided not to use it.  So start from scratch by retrieving
+            # the detailed sprint data from Jira
+            sprint_abridged = self.get_abridged_sprint_object_for_team(team_id, sprint_id)
+            t.split("Retrieve abridged sprint data")
 
-        # see if it's in the cache.  If it is, then check if it's cached in the active state.  If it is,
-        #   then throw away the cached version and reload from JIRA
-        team_stats = self.cache.load_sprint(sprint_abridged['id'])
+            if not sprint_abridged:
+                return None
 
-        if team_stats and team_stats['team_sprint_data']['sprint']['state'] == 'CLOSED':
-            return team_stats
+            # see if it's in the cache.  If it is, then check if it's cached in the active state.  If it is,
+            #   then throw away the cached version and reload from JIRA
+            team_stats = self.cache.load_sprint(sprint_abridged['id'])
 
-        sprint_ob = self.uajira.sprint_info(const.JIRA_TEAMS_RAPID_BOARD[team_id], sprint_abridged['id'])
-        if not sprint_ob:
-            return None
+            if team_stats and team_stats['team_sprint_data']['sprint']['state'] == 'CLOSED':
+                return team_stats
 
-        # convert date strings to actual dates.
-        self._clean_detailed_sprint_info(sprint_ob)
+            sprint_ob = self.uajira.sprint_info(const.JIRA_TEAMS_RAPID_BOARD[team_id], sprint_abridged['id'])
+            t.split("Retrieve full sprint data")
 
-        now = datetime.datetime.now().replace(tzinfo=None)
+            if not sprint_ob:
+                return None
 
-        if sprint_ob['sprint']['state'] == 'ACTIVE':
-            sprint_ob['actual_length'] = now - sprint_ob['sprint']['startDate']
-            sprint_ob['overdue'] = sprint_ob['actual_length'] > datetime.timedelta(days=16)
-        else:
-            sprint_ob['actual_length'] = sprint_ob['sprint']['completeDate'] - sprint_ob['sprint']['startDate']
+            # convert date strings to actual dates.
+            self._clean_detailed_sprint_info(sprint_ob)
+            t.split("Cleaned sprint data")
 
-            # not applicable if the sprint is complete or happens in the future.
-            sprint_ob['overdue'] = False
+            now = datetime.datetime.now().replace(tzinfo=None)
 
-        fullname = teams.get_team_from_short_name(team_id)
-
-        # Get point completion standard deviation
-        standard_dev_map = defaultdict(int)
-        total_completed_points = 0
-        for issue in sprint_ob['contents']['completedIssues']:
-            points = issue['currentEstimateStatistic'].get('statFieldValue', {'value': 0}).get('value', 0)
-            total_completed_points += points
-            if 'assignee' in issue:
-                standard_dev_map[issue['assignee']] += points
+            if sprint_ob['sprint']['state'] == 'ACTIVE':
+                sprint_ob['actual_length'] = now - sprint_ob['sprint']['startDate']
+                sprint_ob['overdue'] = sprint_ob['actual_length'] > datetime.timedelta(days=16)
             else:
-                print "Found a completed issue without an assignee - %s" % issue['key']
+                sprint_ob['actual_length'] = sprint_ob['sprint']['completeDate'] - sprint_ob['sprint']['startDate']
 
-        std_dev = common.standard_deviation(standard_dev_map.values())
+                # not applicable if the sprint is complete or happens in the future.
+                sprint_ob['overdue'] = False
 
-        # Replace "null" with 0
-        for val in ('completedIssuesEstimateSum', 'issuesNotCompletedEstimateSum', 'puntedIssuesEstimateSum'):
-            if val in sprint_ob['contents'] and isinstance(sprint_ob['contents'][val], dict) and \
-                            sprint_ob['contents'][val]['text'] == 'null':
-                sprint_ob['contents'][val]['text'] = "0"
+            fullname = teams.get_team_from_short_name(team_id)
 
-        if sprint_ob['contents']['issueKeysAddedDuringSprint']:
-            jql = "key in ('%s')" % "','".join(sprint_ob['contents']['issueKeysAddedDuringSprint'].keys())
-            results = self.uajira.execute_jql(jql)
-            sprint_ob['contents']['issueKeysAddedDuringSprint'] = [r.raw for r in results]
+            # Get point completion standard deviation
+            standard_dev_map = defaultdict(int)
+            total_completed_points = 0
+            for issue in sprint_ob['contents']['completedIssues']:
+                points = issue['currentEstimateStatistic'].get('statFieldValue', {'value': 0}).get('value', 0)
+                total_completed_points += points
+                if 'assignee' in issue:
+                    standard_dev_map[issue['assignee']] += points
+                else:
+                    print "Found a completed issue without an assignee - %s" % issue['key']
 
-        if sprint_ob['contents']['issuesNotCompletedInCurrentSprint']:
-            incomplete_keys = [x['key'] for x in sprint_ob['contents']['issuesNotCompletedInCurrentSprint']]
-            jql = "key in ('%s')" % "','".join(incomplete_keys)
-            results = self.uajira.execute_jql_with_analysis(jql)
-            sprint_ob['contents']['issuesNotCompletedInCurrentSprint'] = results['issues'].values()
-            sprint_ob['contents']['incompleteIssuesFullDetail'] = results['issues'].values()
+            std_dev = common.standard_deviation(standard_dev_map.values())
+            t.split("Calculated standard deviation and point sums")
 
-        team_stats = {
-            "team_name": fullname,
-            "team_id": team_id,
-            "sprint_id": sprint_id,
-            "board_id": const.JIRA_TEAMS_RAPID_BOARD[team_id],
-            "std_dev": std_dev,
-            "contributing_devs": standard_dev_map.keys(),
-            "team_sprint_data": sprint_ob,
-            "total_completed_points": total_completed_points
-        }
+            # Replace "null" with 0
+            for val in ('completedIssuesEstimateSum', 'issuesNotCompletedEstimateSum', 'puntedIssuesEstimateSum'):
+                if val in sprint_ob['contents'] and isinstance(sprint_ob['contents'][val], dict) and \
+                                sprint_ob['contents'][val]['text'] == 'null':
+                    sprint_ob['contents'][val]['text'] = "0"
 
-        self.cache.update(team_stats)
+            if sprint_ob['contents']['issueKeysAddedDuringSprint']:
+                jql = "key in ('%s')" % "','".join(sprint_ob['contents']['issueKeysAddedDuringSprint'].keys())
+                results = self.uajira.execute_jql(jql)
+                sprint_ob['contents']['issueKeysAddedDuringSprint'] = [r.raw for r in results]
+                t.split("Got issue data for issues added during sprint")
+
+            if sprint_ob['contents']['issuesNotCompletedInCurrentSprint']:
+                incomplete_keys = [x['key'] for x in sprint_ob['contents']['issuesNotCompletedInCurrentSprint']]
+                jql = "key in ('%s')" % "','".join(incomplete_keys)
+                results = self.uajira.execute_jql_with_analysis(jql)
+                sprint_ob['contents']['issuesNotCompletedInCurrentSprint'] = results['issues'].values()
+                sprint_ob['contents']['incompleteIssuesFullDetail'] = results['issues'].values()
+                t.split("Got issue data for issues not completed during sprint")
+
+            team_stats = {
+                "team_name": fullname,
+                "team_id": team_id,
+                "sprint_id": sprint_id,
+                "board_id": const.JIRA_TEAMS_RAPID_BOARD[team_id],
+                "std_dev": std_dev,
+                "contributing_devs": standard_dev_map.keys(),
+                "team_sprint_data": sprint_ob,
+                "total_completed_points": total_completed_points
+            }
+
+            self.cache.update(team_stats)
 
         return team_stats
 
@@ -225,94 +235,98 @@ class UaJiraSprintDataFetcher(UaJiraDataFetcher):
         :param sprint_data: A list of sprint data objects
         :return: Nothing is returned.  The given data is updated.
         """
-        # we assume that the sprints came in descending chrono order so we reverse to be in ascending order
-        asc_sprint_data = list(reversed(sprint_data))
 
-        # so first iterate over the list in ascending order
+        with Timer("Sprint History Data Aggregation") as t:
+            # we assume that the sprints came in descending chrono order so we reverse to be in ascending order
+            asc_sprint_data = list(reversed(sprint_data))
+            t.split("Reversed sprint data list")
 
+            # so first iterate over the list in ascending order
 
-        aggregate_sprint_data = {
-            "asc_order": []
-        }
-
-        id = 0
-
-        for idx, one_sprint in enumerate(asc_sprint_data):
-
-            last_sprint_id = id
-
-            id = one_sprint['sprint']['id']
-
-            # maintain sprint order but still use a dict
-            aggregate_sprint_data['asc_order'].append(id)
-
-            # create the storage location for aggregate data (keyed on sprint id)
-            if id not in aggregate_sprint_data:
-                aggregate_sprint_data[id] = {
-                    "info": one_sprint['sprint']
-                }
-
-            # for some reason, there is no count of the # of *points* added during a sprint.  So we calculate
-            #   manually here.
-
-            added_during_sprint_points = 0.0
-            for issue_key in one_sprint['contents']['issueKeysAddedDuringSprint']:
-                added_during_sprint_points += float(common.deep_get(issue_key, 'fields', 'customfield_10002') or 0.0)
-            one_sprint['contents']['pointsAddedDuringSprintSum'] = {
-                "text": str(added_during_sprint_points),
-                "value": added_during_sprint_points
+            aggregate_sprint_data = {
+                "asc_order": []
             }
 
-            # aggregate point value fields
-            point_keys = ['completedIssuesEstimateSum',
-                          'issuesNotCompletedEstimateSum',
-                          'puntedIssuesEstimateSum',
-                          'pointsAddedDuringSprintSum']
+            id = 0
 
-            for key in point_keys:
+            for idx, one_sprint in enumerate(asc_sprint_data):
 
-                # get the actual value (raw)
-                orig_current = one_sprint['contents'][key]['text']
+                last_sprint_id = id
 
-                # convert the raw value to a number
-                current = float(orig_current if orig_current != 'null' else 0)
+                id = one_sprint['sprint']['id']
 
-                if idx == 0:
-                    # if the index is zero then there's nothing to compare to so the running average would
-                    #   be the same as the value.
-                    average = current
-                    running_sum = current
-                else:
-                    # Now that we have more than one, we can calculate the running average.
-                    running_sum = aggregate_sprint_data[last_sprint_id][key]['running_sum'] + current
-                    count = idx + 1
-                    average = (running_sum) / count
+                # maintain sprint order but still use a dict
+                aggregate_sprint_data['asc_order'].append(id)
 
-                aggregate_sprint_data[id][key] = {
-                    'actual': current,
-                    'running_avg': average,
-                    'running_sum': running_sum
+                # create the storage location for aggregate data (keyed on sprint id)
+                if id not in aggregate_sprint_data:
+                    aggregate_sprint_data[id] = {
+                        "info": one_sprint['sprint']
+                    }
+
+                # for some reason, there is no count of the # of *points* added during a sprint.  So we calculate
+                #   manually here.
+
+                added_during_sprint_points = 0.0
+                for issue_key in one_sprint['contents']['issueKeysAddedDuringSprint']:
+                    added_during_sprint_points += float(common.deep_get(issue_key, 'fields', 'customfield_10002') or 0.0)
+                one_sprint['contents']['pointsAddedDuringSprintSum'] = {
+                    "text": str(added_during_sprint_points),
+                    "value": added_during_sprint_points
                 }
 
-            # aggregate issue counts
-            issue_keys = ['completedIssues', 'issuesNotCompletedInCurrentSprint', 'puntedIssues',
-                          'issueKeysAddedDuringSprint']
+                # aggregate point value fields
+                point_keys = ['completedIssuesEstimateSum',
+                              'issuesNotCompletedEstimateSum',
+                              'puntedIssuesEstimateSum',
+                              'pointsAddedDuringSprintSum']
 
-            for key in issue_keys:
-                current = float(len(one_sprint['contents'][key]))
-                if idx == 0:
-                    average = current
-                    running_sum = current
-                else:
-                    count = idx + 1
-                    running_sum = aggregate_sprint_data[last_sprint_id][key]['running_sum'] + current
-                    average = (running_sum) / count
+                for key in point_keys:
 
-                aggregate_sprint_data[id][key] = {
-                    'actual': current,
-                    'running_avg': average,
-                    'running_sum': running_sum
-                }
+                    # get the actual value (raw)
+                    orig_current = one_sprint['contents'][key]['text']
+
+                    # convert the raw value to a number
+                    current = float(orig_current if orig_current != 'null' else 0)
+
+                    if idx == 0:
+                        # if the index is zero then there's nothing to compare to so the running average would
+                        #   be the same as the value.
+                        average = current
+                        running_sum = current
+                    else:
+                        # Now that we have more than one, we can calculate the running average.
+                        running_sum = aggregate_sprint_data[last_sprint_id][key]['running_sum'] + current
+                        count = idx + 1
+                        average = (running_sum) / count
+
+                    aggregate_sprint_data[id][key] = {
+                        'actual': current,
+                        'running_avg': average,
+                        'running_sum': running_sum
+                    }
+
+                # aggregate issue counts
+                issue_keys = ['completedIssues', 'issuesNotCompletedInCurrentSprint', 'puntedIssues',
+                              'issueKeysAddedDuringSprint']
+
+                for key in issue_keys:
+                    current = float(len(one_sprint['contents'][key]))
+                    if idx == 0:
+                        average = current
+                        running_sum = current
+                    else:
+                        count = idx + 1
+                        running_sum = aggregate_sprint_data[last_sprint_id][key]['running_sum'] + current
+                        average = (running_sum) / count
+
+                    aggregate_sprint_data[id][key] = {
+                        'actual': current,
+                        'running_avg': average,
+                        'running_sum': running_sum
+                    }
+
+                t.split("Finished aggregation for sprint index %d" % idx)
 
         return aggregate_sprint_data
 
@@ -340,9 +354,11 @@ class UaJiraSprintDataFetcher(UaJiraDataFetcher):
 
         return is_valid_sprint
 
-    def get_abridged_sprint_list_for_team(self, team):
+    def get_abridged_sprint_list_for_team(self, team, limit=None):
         """
-        Gets a list of sprints for the given team.  Will always load this from Jira.  It will also add some data
+        Gets a list of sprints for the given team.  Will always load this from Jira.  It will also add some data. The 
+        list is returned in sequence order which is usually the order in which the sprints occured in time.
+        :param limit: The number of sprints back to go (limit=5 would mean only the last 5 sprints.
         :param team: The ID of the team to retrieve sprints for.
         :return: Returns an array of sprint objects.
         """
@@ -355,16 +371,22 @@ class UaJiraSprintDataFetcher(UaJiraDataFetcher):
 
         # the initial list can contain sprints from other boards in cases where tickets spent time on
         # both boards.  So we filter out any that do not belong to the team.
-        return [sprint for sprint in self.team_sprints_abridged[team] if self._sprint_belongs_to_team(sprint, team)]
+        filtered_sprints = [sprint for sprint in self.team_sprints_abridged[team] if self._sprint_belongs_to_team(sprint, team)]
+        filtered_sorted_list = sorted(filtered_sprints, key=lambda k: k['sequence'])
 
-    def get_detailed_sprint_list_for_team(self, team, sort_by=SPRINT_SORTBY_ENDDATE, descending=True):
+        if limit:
+            return filtered_sorted_list[-limit:]
+        else:
+            return filtered_sorted_list
+
+    def get_detailed_sprint_list_for_team(self, team, sort_by=SPRINT_SORTBY_ENDDATE, descending=True, limit=None):
         """
         Gets a list of sprints for the given team.  This will load from cache in some cases and get the most recent
          when it makes to do so.
         :param team: The ID of the team to retrieve sprints for.
         :return: Returns an array of sprint objects.
         """
-        ua_sprints = self.get_abridged_sprint_list_for_team(team)
+        ua_sprints = self.get_abridged_sprint_list_for_team(team, limit)
         sprintdict_list = []
 
         for s in ua_sprints:
