@@ -4,7 +4,7 @@ from augur.common import cache_store
 from augur.fetchers.fetcher import UaDataFetcher
 
 
-class UaJiraOrgStatsFetcher(UaDataFetcher):
+class UaOrgStatsFetcher(UaDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """

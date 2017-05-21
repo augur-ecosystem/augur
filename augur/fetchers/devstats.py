@@ -4,7 +4,7 @@ from augur.integrations.uajira import DeveloperNotFoundException
 from augur.fetchers.fetcher import UaDataFetcher
 
 
-class UaJiraDevStatsDataFetcher(UaDataFetcher):
+class UaDevStatsDataFetcher(UaDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """

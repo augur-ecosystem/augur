@@ -12,7 +12,7 @@ PRIORITIES = ["Blocker", "Immediate", "High", "Medium", "Low"]
 IMPACTS = ["All", "Large", "Medium", "Small", "Tiny"]
 
 
-class UaJiraDefectFetcher(UaDataFetcher):
+class UaDefectFetcher(UaDataFetcher):
     """
     Retrieves defect data for a given period of time in the past.
     """
@@ -131,7 +131,7 @@ class UaJiraDefectFetcher(UaDataFetcher):
         return self.cache_data(stats)
 
 
-class UaJiraDefectHistoryFetcher(UaDataFetcher):
+class UaDefectHistoryFetcher(UaDataFetcher):
     """
     Retrieves defect data segmented by week over a period of weeks that is given as a parameter
     """

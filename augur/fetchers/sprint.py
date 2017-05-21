@@ -11,7 +11,7 @@ from augur.fetchers.fetcher import UaDataFetcher
 SPRINT_SORTBY_ENDDATE = 'enddate'
 
 
-class UaJiraSprintDataFetcher(UaDataFetcher):
+class UaSprintDataFetcher(UaDataFetcher):
     """
     Retrieves data associated with one or more sprints.  This class can fetch data associated with both a team and
     a sprint.  You can also specify no team in which case it returns all team data for either the current sprint or
@@ -31,7 +31,7 @@ class UaJiraSprintDataFetcher(UaDataFetcher):
         self.team_id = None
         self.get_history = None
         self.sprint_id = None
-        super(UaJiraSprintDataFetcher, self).__init__(uajira, force_update)
+        super(UaSprintDataFetcher, self).__init__(uajira, force_update)
 
     def init_cache(self):
         self.cache = cache_store.UaTeamSprintData(self.uajira.mongo)

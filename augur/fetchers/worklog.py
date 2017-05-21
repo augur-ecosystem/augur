@@ -4,7 +4,7 @@ from augur.common import cache_store
 from augur.fetchers.fetcher import UaDataFetcher
 
 
-class UaJiraWorklogDataFetcher(UaDataFetcher):
+class UaWorklogDataFetcher(UaDataFetcher):
     """
     Retrieves processed worklog data
     """
@@ -14,7 +14,7 @@ class UaJiraWorklogDataFetcher(UaDataFetcher):
         self.team_id = None
         self.username = None
         self.project = None
-        super(UaJiraWorklogDataFetcher, self).__init__(uajira,force_update)
+        super(UaWorklogDataFetcher, self).__init__(uajira, force_update)
 
     def init_cache(self):
         self.cache = cache_store.UaJiraWorklogData(self.uajira.mongo)

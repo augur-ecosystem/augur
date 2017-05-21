@@ -4,13 +4,13 @@ from augur.common import cache_store
 from augur.fetchers.fetcher import UaDataFetcher
 
 
-class UaJiraRelease(UaDataFetcher):
+class UaRelease(UaDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """
 
     def __init__(self, uajira, force_update=False):
-        super(UaJiraRelease, self).__init__(uajira, force_update)
+        super(UaRelease, self).__init__(uajira, force_update)
         self.start = None
         self.end = None
 

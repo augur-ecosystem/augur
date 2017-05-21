@@ -6,10 +6,10 @@ import augur.api
 from augur import common
 from augur.common import const, teams, cache_store
 from augur.fetchers.fetcher import UaDataFetcher
-from augur.fetchers.release import UaJiraRelease
+from augur.fetchers.release import UaRelease
 
 
-class UaJiraEngineeringReport(UaDataFetcher):
+class UaEngineeringReport(UaDataFetcher):
     def init_cache(self):
         self.cache = cache_store.UaEngineeringReportData(self.uajira.mongo)
 
@@ -221,7 +221,7 @@ class UaJiraEngineeringReport(UaDataFetcher):
         }
 
         start, end = common.get_week_range(self._get_start_date_from_week_number(self.week_number))
-        fetcher = UaJiraRelease(self.uajira)
+        fetcher = UaRelease(self.uajira)
         releases = fetcher.fetch(start=start, end=end)
 
         results = {

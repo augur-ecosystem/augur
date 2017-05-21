@@ -3,7 +3,7 @@ from augur.common import const, transform_status_string, cache_store
 from augur.fetchers.fetcher import UaDataFetcher
 
 
-class UaJiraEpicDataFetcher(UaDataFetcher):
+class UaEpicDataFetcher(UaDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """

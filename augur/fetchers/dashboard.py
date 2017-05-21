@@ -9,7 +9,7 @@ FILTER_ORPHANED = 32390
 FILTER_UNPOINTED = 32388
 
 
-class UaJiraDashboardFetcher(UaDataFetcher):
+class UaDashboardFetcher(UaDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """
