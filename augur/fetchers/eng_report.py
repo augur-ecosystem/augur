@@ -187,11 +187,12 @@ class UaEngineeringReport(UaDataFetcher):
 
         for team_id, info in sprints.iteritems():
             sprint_data = info['last']
-            for issue in sprint_data['team_sprint_data']['contents']['completedIssues']:
-                update_epic_data(epics, issue)
+            if sprint_data:
+                for issue in sprint_data['team_sprint_data']['contents']['completedIssues']:
+                    update_epic_data(epics, issue)
 
-            for issue in sprint_data['team_sprint_data']['contents']['issuesNotCompletedInCurrentSprint']:
-                update_epic_data(epics, issue)
+                for issue in sprint_data['team_sprint_data']['contents']['issuesNotCompletedInCurrentSprint']:
+                    update_epic_data(epics, issue)
 
         return epics
 
@@ -211,7 +212,7 @@ class UaEngineeringReport(UaDataFetcher):
             team['total_consultants'] = reduce(lambda x, y: x + 1 if y['is_consultant'] else x, members, 0)
             team['total_fulltime'] = reduce(lambda x, y: x + 1 if not y['is_consultant'] else x, members, 0)
             team_id = team['id']
-            if team_id in sprints and 'last' in sprints[team_id]:
+            if team_id in sprints and 'last' in sprints[team_id] and sprints[team_id]['last']:
                 team['avg_pts_per_engineer'] = sprints[team_id]['last']['total_completed_points'] / len(team['members'])
 
         # get defect data for the given week
