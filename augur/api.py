@@ -11,9 +11,13 @@ JSON as necessary.
 import datetime
 
 import arrow
-from augur.integrations.uajira import get_jira
+
+from augur import settings
+from augur.integrations.uajira import get_jira, os
 
 from augur.common import const
+from augur.models import AugurModel
+from augur.models.staff import Staff
 
 
 def get_historic_sprint_stats(team, force_update=False):
@@ -363,3 +367,21 @@ def get_engineering_report(week_number=None, force_update=False):
         week_number = int(datetime.datetime.now().strftime("%V"))
 
     return fetch.fetch(week_number=week_number)
+
+
+def get_consultants():
+    """
+    Retrieves a list of Staff model objects containing all the known consultants.
+    :return: An array of Staff objects. 
+    """
+    path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/staff/engineering_consultants.csv')
+    return AugurModel.import_from_csv(path_to_csv, Staff)
+
+
+def get_fulltime_staff():
+    """
+    Retrieves a list of Staff model objects containing all the known FTEs in the engineering group.
+    :return: An array of Staff objects. 
+    """
+    path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/staff/engineering_ftes.csv')
+    return AugurModel.import_from_csv(path_to_csv, Staff)

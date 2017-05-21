@@ -5,12 +5,15 @@ from bson import ObjectId
 from jira.resources import Component
 
 import cycletimes
+from augur.models import AugurModelProp
 
 
 class UaJsonEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, cycletimes.CycleViolation):
             return obj.to_dict()
+        if isinstance(obj, AugurModelProp):
+            return obj.value
         elif isinstance(obj, datetime.timedelta):
             return obj.total_seconds()
         elif isinstance(obj, datetime.datetime):
@@ -36,6 +39,8 @@ class UaMongoSerializer(object):
         for (key, value) in d.iteritems():
             if isinstance(value, cycletimes.CycleViolation):
                 d[key] = UaMongoSerializer._encode_cycle_violation(value)
+            if isinstance(value, AugurModelProp):
+                d[key] = value.value
             elif isinstance(value, datetime.timedelta):
                 d[key] = UaMongoSerializer._encode_timedelta(value)
             elif isinstance(value, dict):

@@ -1,13 +1,15 @@
+import augur
 from augur import settings
 from augur.common import const, teams, cache_store
 from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
+from augur.models import AugurModel
 
 
 class UaJiraTeamMetaDataFetcher(UaJiraDataFetcher):
     def init_cache(self):
         self.cache = cache_store.UaAllTeamsData(self.uajira.mongo)
 
-    def cache_data(self,data):
+    def cache_data(self, data):
         self.recent_data = data
         self.cache.save(self.recent_data)
         return self.recent_data
@@ -23,19 +25,22 @@ class UaJiraTeamMetaDataFetcher(UaJiraDataFetcher):
                 self.recent_data = None
             else:
                 # when retrieving from cache, we get a list back by default.  we don't want that.
-                if isinstance(self.recent_data,list):
+                if isinstance(self.recent_data, list):
                     self.recent_data = self.recent_data[0]
 
         return self.recent_data
 
-    def validate_input(self,**args):
+    def validate_input(self, **args):
         return True
 
     def _fetch(self):
         team_json = {'teams': {}}
         groups = self.uajira.get_group_data()
         flat = {}
-        csv_data = self.uajira.load_consultants()
+        consultants = augur.api.get_consultants()
+        fulltime = augur.api.get_fulltime_staff()
+        all_staff = consultants + fulltime
+
         team_json['consultant_count'] = 0
         team_json['fulltime_count'] = 0
         team_json['engineer_count'] = 0
@@ -45,13 +50,15 @@ class UaJiraTeamMetaDataFetcher(UaJiraDataFetcher):
             if group.startswith('Team'):
                 if group not in const.JIRA_TEAM_EXCLUSIONS and group in const.JIRA_TEAM_BY_FULL_NAME:
                     members = self.uajira.get_group_members(group)
-                    for username,member in members.iteritems():
+                    for username, member in members.iteritems():
                         team_id = const.JIRA_TEAM_BY_FULL_NAME[group]
                         member['funnel'] = FUNNELS_BY_TEAM[team_id]
-                        if username in csv_data:
-                            member['is_consultant'] = True
-                            member['vendor'] = csv_data[username]["company"]
-                            member['start_date'] = csv_data[username]["start_date"]
+                        staff_member = AugurModel.find_model_in_collection(all_staff, "jira_username", username)
+                        if staff_member:
+                            member['is_consultant'] = True if not staff_member.company or \
+                                                              staff_member.company == "Under Armour" else False
+                            member['vendor'] = staff_member.company
+                            member['start_date'] = staff_member.start_date
                         else:
                             member['is_consultant'] = False
                             member['vendor'] = ""
@@ -72,7 +79,8 @@ class UaJiraTeamMetaDataFetcher(UaJiraDataFetcher):
                     team_json['team_count'] += 1
 
                     board_id = const.JIRA_TEAMS_RAPID_BOARD[const.JIRA_TEAM_BY_FULL_NAME[group]]
-                    board_link = "%s/secure/RapidBoard.jspa?rapidView=%d"%(settings.main.integrations.jira.instance, board_id)
+                    board_link = "%s/secure/RapidBoard.jspa?rapidView=%d" % (
+                    settings.main.integrations.jira.instance, board_id)
                     team_json['teams'][group] = {
                         'members': members,
                         'board_id': board_id,

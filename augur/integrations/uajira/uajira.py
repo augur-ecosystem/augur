@@ -6,11 +6,13 @@ import os
 from dateutil.parser import parse
 from jira import JIRA, Issue
 
+import augur
 from augur import common
 from augur import settings
 from augur.common import const, cycletimes, audit, cache_store
 from augur.common.timer import Timer
 from augur.integrations.uatempo import UaTempo
+from augur.models import AugurModel
 
 __jira = None
 
@@ -322,65 +324,26 @@ class UaJira(object):
         result_json = tempo.get_worklogs(start, end, team_id, username=username, project_key=project_key)
         team_info = tempo.get_team_details(team_id)
 
-        consultants = UaJira.load_consultants()
+        consultants = augur.api.get_consultants()
 
         final_consultants = {}
+
         for log in result_json:
             username = log['author']['name']
-            if username in consultants:
-                log['author']['consultant_info'] = consultants[username]
-            else:
-                log['author']['consultant_info'] = None
+            staff_member = AugurModel.find_model_in_collection(consultants,"jira_username", username)
+            log['author']['consultant_info'] = staff_member.get_props_as_dict() if staff_member else None
 
             if username not in final_consultants:
-                if username not in consultants:
-                    consultants[username] = {
-                        "first_name": "",
-                        "last_name": "",
-                        "email": "",
-                        "active": "",
-                        "company": "",
-                        "rate": 0.0,
-                        "status": "",
-                        "role": "",
-                        "ua": "",
-                        "jira": "",
-                        "github": "",
-                        "start_date": None
-                    }
-                # keep a list of consultants in this result
-                consultants[username]['total_hours'] = 0.0
-                final_consultants[username] = consultants[username]
+                final_consultants[username] = log['author']['consultant_info'] or {}
+                final_consultants[username]['total_hours'] = 0.0
 
-            consultants[username]['total_hours'] += float(log['timeSpentSeconds'] / 3600.0)
+            final_consultants[username]['total_hours'] += float(log['timeSpentSeconds'] / 3600.0)
 
         return {
             "logs": result_json,
             "consultants": final_consultants,
             "tempo_team_info": team_info
         }
-
-    @staticmethod
-    def load_consultants():
-
-        path_to_consultants_csv = os.path.join(settings.main.project.augur_base_dir,
-                                               'data/consultants/engineering_consultants.csv')
-        with open(path_to_consultants_csv, 'rU') as csvfile:
-            reader = csv.DictReader(csvfile)
-            consultants = {}
-            for row in reader:
-                if row['status'].lower() == 'active':
-                    row['base_daily_cost'] = float(row['rate']) * 8
-                    row['base_weekly_cost'] = row['base_daily_cost'] * 5
-                    row['base_annual_cost'] = row['base_weekly_cost'] * 50  # assume two weeks of vacation
-                else:
-                    row['base_daily_cost'] = 0.0
-                    row['base_weekly_cost'] = 0.0
-                    row['base_annual_cost'] = 0.0
-
-                consultants[row['jira']] = row
-
-        return consultants
 
     ###########################
     # WORKLOGS

@@ -1,0 +1,25 @@
+first_name,last_name,email,company,status,role,ua_username,jira_username,github_username,start_date
+Alex,Olszewski,aolszewski@underarmour.com,Under Armour,Active,Developer,aolszewski,aolszewski,aolszewski,2015-09-08
+Sam,Giuliano,sgiuliano@underarmour.com,Under Armour,Active,Developer,sgiuliano,sgiuliano,sgiuliano,2016-08-22
+Joe,Feinour,jfeinour@underarmour.com,Under Armour,Active,Developer,jfeinour,jfeinour,jfeinour,2016-11-28
+Zach,Moore,zmoore@underarmour.com,Under Armour,Active,Developer,zmoore,zmoore,zmoore,2016-07-27
+Luke,Wilson,lwilson1@underarmour.com,Under Armour,Active,Developer,lwilson1,lwilson,lwilson,2015-03-18
+Thomas,Knickman,tknickman@underarmour.com,Under Armour,Active,Developer,tknickman,tknickman,tknickman,2017-04-17
+Lauren,Olasov,lolasov@underarmour.com,Under Armour,Active,Developer,lolasov,lolasov,lolasov,2017-04-17
+Lucero,Carmona,lcarmona@underarmour.com,Under Armour,Active,Developer,lcarmona,lcarmona,lcarmona,2017-04-17
+Bernard,McManus,bmcmanus1@underarmour.com,Under Armour,Active,Developer,bmcmanus1,bmcmanus,bmcmanus,2017-04-17
+Pat,Brown,pbrown2@underarmour.com,Under Armour,Active,Developer,pbrown2,pbrown,pbrown,2017-04-17
+Ken,Valencik,kvalencik@underarmour.com,Under Armour,Active,Developer,kvalencik,kvalencik,kvalencik,2017-04-17
+Harley,Nuss,hnuss@underarmour.com,Under Armour,Active,Developer,hnuss,hnuss,hnuss,2017-04-17
+Ron,Wilson,rwilson1@underarmour.com,Under Armour,Active,Developer,rwilson1,rwilson,rwilson,2017-04-17
+Stephen,Friend,sfriend@underarmour.com,Under Armour,Active,Developer,sfriend,sfriend,sfriend,2017-04-17
+Chris,Karper,ckarper@underarmour.com,Under Armour,Active,Developer,ckarper,ckarper,ckarper,2017-04-17
+Kevin,Chung,kchung3@underarmour.com,Under Armour,Active,Developer,kchung3,kchung,kchung,2017-04-17
+Jon,Aumann,jaumann@underarmour.com,Under Armour,Active,Developer,jaumann,jaumann,jaumann,2017-04-17
+Stephen,Schmidt,sschmidt@underarmour.com,Under Armour,Active,Developer,sschmidt,sschmidt,sschmidt,2017-04-17
+Colin,Gibbons,cgibbons@underarmour.com,Under Armour,Active,Developer,cgibbons,cgibbons,cgibbons,2017-04-17
+Dana,Ducharme,dducharme@underarmour.com,Under Armour,Active,Manager,dducharme,dducharme,dducharme,2017-04-17
+Joseph,Benitez,jbenitez@underarmour.com,Under Armour,Active,QE,jbenitez,jbenitez,jbenitez,2017-04-17
+Schrena,Walker,swalker1@underarmour.com,Under Armour,Active,QE,swalker1,swalker1,swalker1,2017-04-17
+Ben,Finnigan,bfinnigan@underarmour.com,Under Armour,Active,Director,bfinnigan,bfinnigan,bfinnigan,2017-04-17
+Karim,Shehadeh,kshehadeh@underarmour.com,Under Armour,Active,Director,kshehadeh,kshehadeh,kshehadeh,2017-04-17

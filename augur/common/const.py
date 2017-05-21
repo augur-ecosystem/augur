@@ -47,7 +47,8 @@ JIRA_TEAMS_BY_SHORT_NAME = {
     "by": "Team Bayside",
     "lc": "Team Hon",
     "bh": "Team Boh",
-    "at": "Team ATX"
+    "at": "Team ATX",
+    "mc": "Team McHenry"
 }
 
 CONSULTING_TEAM_IDS = {
