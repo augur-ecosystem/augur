@@ -114,7 +114,7 @@ setup(
     # have to be included in MANIFEST.in as well.
     package_data={
         '': [
-            'data/consultants/*.csv',
+            'data/staff/*.csv',
             'templates/*.*',
             'VERSION'
         ],
