@@ -1,7 +1,7 @@
 import logging
 
 
-class UaJiraDataFetcher(object):
+class UaDataFetcher(object):
     """
     Provides a convenient mechanism for returning a well-defined slice of data from Jira.  Supports fetching the
     data, caching the data, retrieving data from the cache, and validation of input
@@ -40,7 +40,7 @@ class UaJiraDataFetcher(object):
         pass
 
     def _fetch(self):
-        raise NotImplementedError("Derived class of UaJiraDataFetcher must implement the _fetch method")
+        raise NotImplementedError("Derived class of UaDataFetcher must implement the _fetch method")
 
     def validate_input(self, **args):
         return False

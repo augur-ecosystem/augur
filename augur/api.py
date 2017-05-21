@@ -11,9 +11,10 @@ JSON as necessary.
 import datetime
 
 import arrow
+import os
 
 from augur import settings
-from augur.integrations.uajira import get_jira, os
+from augur.integrations.uajira import get_jira
 
 from augur.common import const
 from augur.models import AugurModel
@@ -26,7 +27,7 @@ def get_historic_sprint_stats(team, force_update=False):
      analyzer to get specific ticket info for each sprint.  This caches both the sprint objects and the
       converted sprint data.
     """
-    from augur.integrations.uajira.data import UaJiraSprintDataFetcher
+    from augur.fetchers import UaJiraSprintDataFetcher
     fetcher = UaJiraSprintDataFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(get_history=True, team_id=team)
 
@@ -39,7 +40,7 @@ def get_sprint_info(sprint=None, team='f', force_update=False):
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return: Returns timedelta object with the remaining time in sprint
     """
-    from augur.integrations.uajira.data import UaJiraSprintDataFetcher
+    from augur.fetchers import UaJiraSprintDataFetcher
     fetcher = UaJiraSprintDataFetcher(force_update=force_update, uajira=get_jira())
     sprint = fetcher.fetch(team_id=team, sprint_id=sprint)
 
@@ -58,7 +59,7 @@ def get_historic_sprint_stats(team, force_update=False):
      analyzer to get specific ticket info for each sprint.  This caches both the sprint objects and the
       converted sprint data.
     """
-    from augur.integrations.uajira.data import UaJiraSprintDataFetcher
+    from augur.fetchers import UaJiraSprintDataFetcher
     fetcher = UaJiraSprintDataFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(get_history=True, team_id=team)
 
@@ -74,7 +75,7 @@ def get_sprint_info_for_team(team_id, sprint_id=const.SPRINT_LAST_COMPLETED, for
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return: Returns a sprint object
     """
-    from augur.integrations.uajira.data import UaJiraSprintDataFetcher
+    from augur.fetchers import UaJiraSprintDataFetcher
     fetcher = UaJiraSprintDataFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(team_id=team_id, sprint_id=sprint_id)
 
@@ -84,7 +85,7 @@ def update_current_sprint_stats(force_update=False):
     Used to update the currently stored sprint data for all teams
     :return: Returns a result array containing the teams updated and the number of issues found.
     """
-    from augur.integrations.uajira.data import UaJiraSprintDataFetcher
+    from augur.fetchers import UaJiraSprintDataFetcher
     fetcher = UaJiraSprintDataFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(sprint_id=const.SPRINT_CURRENT)
 
@@ -96,7 +97,7 @@ def get_issue_details(key, force_update=False):
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return: The issue object
     """
-    from augur.integrations.uajira.data import UaJiraIssueDataFetcher
+    from augur.fetchers import UaJiraIssueDataFetcher
     fetcher = UaJiraIssueDataFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(issue_key=key)
 
@@ -108,7 +109,7 @@ def get_issues_details(keys, force_update=False):
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return: A list of issue objects
     """
-    from augur.integrations.uajira.data import UaJiraIssueDataFetcher
+    from augur.fetchers import UaJiraIssueDataFetcher
     fetcher = UaJiraIssueDataFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(issue_keys=keys)
 
@@ -146,7 +147,7 @@ def get_defect_data(lookback_days=14, force_update=False):
     :param force_update: True to skip cache and retrieve data from source
     :return: 
     """
-    from augur.integrations.uajira.data import UaJiraDefectFetcher
+    from augur.fetchers import UaJiraDefectFetcher
     fetcher = UaJiraDefectFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(lookback_days=lookback_days)
 
@@ -158,7 +159,7 @@ def get_historical_defect_data(num_weeks=8, force_update=False):
     :param force_update:  True to skip cache and retrieve data from source
     :return: 
     """
-    from augur.integrations.uajira.data import UaJiraDefectHistoryFetcher
+    from augur.fetchers import UaJiraDefectHistoryFetcher
     fetcher = UaJiraDefectHistoryFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(num_weeks=num_weeks)
 
@@ -189,7 +190,7 @@ def get_releases_since(start, end, force_update=False):
         start = arrow.get(start).floor('day')
         end = start.ceil('day')
 
-    from augur.integrations.uajira.data import UaJiraRelease
+    from augur.fetchers import UaJiraRelease
     fetcher = UaJiraRelease(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(start=start, end=end)
 
@@ -200,7 +201,7 @@ def get_filter_analysis(filter_id, force_update=False):
     :param:filter The filter ID
     :return: A dictionary of filter data
     """
-    from augur.integrations.uajira.data import UaJiraFilterDataFetcher
+    from augur.fetchers import UaJiraFilterDataFetcher
     fetcher = UaJiraFilterDataFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(filter_id=filter_id)
 
@@ -211,7 +212,7 @@ def get_epic_analysis(epic_key, force_update=False):
     :param:epic The epic key
     :return: A dictionary of epics keyed on the epic key
     """
-    from augur.integrations.uajira.data import UaJiraEpicDataFetcher
+    from augur.fetchers import UaJiraEpicDataFetcher
     fetcher = UaJiraEpicDataFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(epic_key=epic_key)
 
@@ -228,7 +229,7 @@ def get_user_worklog(start, end, team_id, username=None, project_key=None, force
     :return:
     """
 
-    from augur.integrations.uajira.data import UaJiraWorklogDataFetcher
+    from augur.fetchers import UaJiraWorklogDataFetcher
     fetcher = UaJiraWorklogDataFetcher(force_update=force_update, uajira=get_jira())
     data = fetcher.fetch(start=start, end=end, username=username, team_id=team_id, project_key=project_key)
     return data[0] if isinstance(data, list) else data
@@ -241,7 +242,7 @@ def get_dashboard_data(force_update=False):
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return: Returns the dashboard data.
     """
-    from augur.integrations.uajira.data import UaJiraDashboardFetcher
+    from augur.fetchers import UaJiraDashboardFetcher
     fetcher = UaJiraDashboardFetcher(force_update=force_update, uajira=get_jira())
     data = fetcher.fetch()
     return data[0] if isinstance(data, list) else data
@@ -266,7 +267,7 @@ def get_all_developer_info(force_update=False):
     }
     :return:
     """
-    from augur.integrations.uajira.data import UaJiraTeamMetaDataFetcher
+    from augur.fetchers import UaJiraTeamMetaDataFetcher
     fetcher = UaJiraTeamMetaDataFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch()
 
@@ -281,7 +282,7 @@ def get_dev_stats(username, look_back_days=30, force_update=False):
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return:
     """
-    from augur.integrations.uajira.data import UaJiraDevStatsDataFetcher
+    from augur.fetchers import UaJiraDevStatsDataFetcher
     fetcher = UaJiraDevStatsDataFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(username=username, look_back_days=look_back_days)
 
@@ -291,7 +292,7 @@ def get_all_dev_stats(force_update=False):
     Gets all developer info plus some aggregate data for each user including total points completed.
     :return:
     """
-    from augur.integrations.uajira.data import UaJiraOrgStatsFetcher
+    from augur.fetchers import UaJiraOrgStatsFetcher
     return UaJiraOrgStatsFetcher(get_jira(), force_update=force_update).fetch()
 
 
@@ -360,7 +361,7 @@ def get_engineering_report(week_number=None, force_update=False):
             "week_number" : <int>
         }    
     """
-    from augur.integrations.uajira.data import UaJiraEngineeringReport
+    from augur.fetchers import UaJiraEngineeringReport
     fetch = UaJiraEngineeringReport(uajira=get_jira(), force_update=force_update)
 
     if not week_number:

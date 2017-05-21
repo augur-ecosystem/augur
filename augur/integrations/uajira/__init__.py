@@ -1,1 +1,0 @@
-from uajira import *

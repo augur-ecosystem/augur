@@ -13,7 +13,7 @@ from augur import common
 from augur import settings
 from augur.common import cache_store
 from augur.common.timer import Timer
-from augur.integrations.uajira.uajira import get_jira
+from augur.integrations.uajira import get_jira
 import augur.api
 
 LOGIN_TOKEN = "1a764970a4a22d220bf416cbd5266d497f3d55a0"

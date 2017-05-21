@@ -1,10 +1,10 @@
 import augur.api
 from augur import common
 from augur.common import cache_store
-from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
-from augur.common.timer import Timer
+from augur.fetchers.fetcher import UaDataFetcher
 
-class UaJiraOrgStatsFetcher(UaJiraDataFetcher):
+
+class UaJiraOrgStatsFetcher(UaDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """

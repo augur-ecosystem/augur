@@ -1,5 +1,5 @@
 
-from uajiradata import *
+from fetcher import *
 from dashboard import *
 from defects import *
 from devstats import *

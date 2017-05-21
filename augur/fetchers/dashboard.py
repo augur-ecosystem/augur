@@ -1,8 +1,7 @@
-from augur import common
 from augur import settings
 from augur import api
 from augur.common import cache_store
-from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
+from augur.fetchers.fetcher import UaDataFetcher
 
 FILTER_IDLE = 33280
 FILTER_SUPER_IDLE = 32389
@@ -10,7 +9,7 @@ FILTER_ORPHANED = 32390
 FILTER_UNPOINTED = 32388
 
 
-class UaJiraDashboardFetcher(UaJiraDataFetcher):
+class UaJiraDashboardFetcher(UaDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """

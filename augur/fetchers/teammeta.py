@@ -1,11 +1,11 @@
 import augur
 from augur import settings
 from augur.common import const, teams, cache_store
-from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
+from augur.fetchers.fetcher import UaDataFetcher
 from augur.models import AugurModel
 
 
-class UaJiraTeamMetaDataFetcher(UaJiraDataFetcher):
+class UaJiraTeamMetaDataFetcher(UaDataFetcher):
     def init_cache(self):
         self.cache = cache_store.UaAllTeamsData(self.uajira.mongo)
 

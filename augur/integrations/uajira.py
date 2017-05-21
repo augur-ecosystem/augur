@@ -1,8 +1,6 @@
-import csv
 import datetime
 
 import logging
-import os
 from dateutil.parser import parse
 from jira import JIRA, Issue
 
@@ -22,6 +20,14 @@ def get_jira():
     if not __jira:
         __jira = UaJira()
     return __jira
+
+
+class TeamSprintNotFoundException(Exception):
+    pass
+
+
+class DeveloperNotFoundException(Exception):
+    pass
 
 
 class UaJira(object):

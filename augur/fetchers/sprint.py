@@ -6,12 +6,12 @@ from dateutil.parser import parse
 from augur import common
 from augur.common import const, teams, cache_store
 from augur.common.timer import Timer
-from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
+from augur.fetchers.fetcher import UaDataFetcher
 
 SPRINT_SORTBY_ENDDATE = 'enddate'
 
 
-class UaJiraSprintDataFetcher(UaJiraDataFetcher):
+class UaJiraSprintDataFetcher(UaDataFetcher):
     """
     Retrieves data associated with one or more sprints.  This class can fetch data associated with both a team and
     a sprint.  You can also specify no team in which case it returns all team data for either the current sprint or

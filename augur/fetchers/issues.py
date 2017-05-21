@@ -1,7 +1,8 @@
 from augur.common import cache_store
-from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
+from augur.fetchers.fetcher import UaDataFetcher
 
-class UaJiraIssueDataFetcher(UaJiraDataFetcher):
+
+class UaJiraIssueDataFetcher(UaDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """

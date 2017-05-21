@@ -1,9 +1,10 @@
 import augur.api
 from augur.common import cache_store
-from augur.integrations.uajira import exceptions
-from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
+from augur.integrations.uajira import DeveloperNotFoundException
+from augur.fetchers.fetcher import UaDataFetcher
 
-class UaJiraDevStatsDataFetcher(UaJiraDataFetcher):
+
+class UaJiraDevStatsDataFetcher(UaDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """
@@ -51,7 +52,7 @@ class UaJiraDevStatsDataFetcher(UaJiraDataFetcher):
                 break
 
         if not user_details:
-            raise exceptions.DeveloperNotFoundException()
+            raise DeveloperNotFoundException()
 
         results2 = self.uajira.execute_jql_with_analysis(
             "category = 'Ecommerce Workflows' and assignee='%s' and status not in (\"closed\",\"resolved\")" %

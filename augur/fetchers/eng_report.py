@@ -5,11 +5,11 @@ import arrow
 import augur.api
 from augur import common
 from augur.common import const, teams, cache_store
-from augur.integrations.uajira.data import UaJiraDataFetcher
-from augur.integrations.uajira.data.release import UaJiraRelease
+from augur.fetchers.fetcher import UaDataFetcher
+from augur.fetchers.release import UaJiraRelease
 
 
-class UaJiraEngineeringReport(UaJiraDataFetcher):
+class UaJiraEngineeringReport(UaDataFetcher):
     def init_cache(self):
         self.cache = cache_store.UaEngineeringReportData(self.uajira.mongo)
 

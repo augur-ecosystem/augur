@@ -5,14 +5,14 @@ import arrow
 
 from augur import common
 from augur.common import cache_store
-from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
+from augur.fetchers.fetcher import UaDataFetcher
 
 SEVERITIES = ["Critical", "High", "Medium", "Low"]
 PRIORITIES = ["Blocker", "Immediate", "High", "Medium", "Low"]
 IMPACTS = ["All", "Large", "Medium", "Small", "Tiny"]
 
 
-class UaJiraDefectFetcher(UaJiraDataFetcher):
+class UaJiraDefectFetcher(UaDataFetcher):
     """
     Retrieves defect data for a given period of time in the past.
     """
@@ -131,7 +131,7 @@ class UaJiraDefectFetcher(UaJiraDataFetcher):
         return self.cache_data(stats)
 
 
-class UaJiraDefectHistoryFetcher(UaJiraDataFetcher):
+class UaJiraDefectHistoryFetcher(UaDataFetcher):
     """
     Retrieves defect data segmented by week over a period of weeks that is given as a parameter
     """

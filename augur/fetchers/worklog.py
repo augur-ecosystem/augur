@@ -1,10 +1,10 @@
 import arrow
 
 from augur.common import cache_store
-from augur.integrations.uajira.data.uajiradata import UaJiraDataFetcher
+from augur.fetchers.fetcher import UaDataFetcher
 
 
-class UaJiraWorklogDataFetcher(UaJiraDataFetcher):
+class UaJiraWorklogDataFetcher(UaDataFetcher):
     """
     Retrieves processed worklog data
     """
