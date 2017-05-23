@@ -131,7 +131,7 @@ class RecentEpicsDataFetcher(UaDataFetcher):
                                                 'and sprint in openSprints() '
                                                 'and sprint not in futureSprints() '
                                                 'and issuetype in (story,task,bug) '
-                                                'and status not in (open)')
+                                                'and status not in (resolved,open)')
 
         epics = {}
         total_active_issues = 0
