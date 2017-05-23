@@ -34,11 +34,13 @@ class UaDashboardFetcher(UaDataFetcher):
         # and we don't have a cron job that updates the data in the background.  So it has to be updated by
         # visits to the page with the same user and the same look back days
 
-        devs = api.get_all_developer_info()
+        devs = api.get_all_developer_info(self.force_update)
 
         idle = api.get_filter_analysis(FILTER_IDLE)
         super_idle = api.get_filter_analysis(FILTER_SUPER_IDLE)
         no_epics = api.get_filter_analysis(FILTER_ORPHANED)
+
+        active_epics = api.get_active_epics(self.force_update)
 
         def alert_type(low, medium, val):
             return "urgent" if val > medium else "notice" if val > low else "normal"
@@ -46,6 +48,7 @@ class UaDashboardFetcher(UaDataFetcher):
         data = {
             'devs': devs,
             'num_devs': len(devs['devs']),
+            'active_epics': active_epics,
             'idle': {
                 'filter': FILTER_IDLE,
                 'link': "%s/issues/?filter=%d" % (settings.main.integrations.jira.instance, FILTER_IDLE),

@@ -53,15 +53,12 @@ def get_sprint_info(sprint=None, team='f', force_update=False):
         return None
 
 
-def get_historic_sprint_stats(team, force_update=False):
+def get_abridged_team_sprint(team, sprint_id=const.SPRINT_CURRENT):
     """
-    Gets all the sprint objects for a team (decorated with other custom info) and runs them through the
-     analyzer to get specific ticket info for each sprint.  This caches both the sprint objects and the
-      converted sprint data.
+    Gets an abridged version of a team sprint - a quicker call than getting all the details.
     """
-    from augur.fetchers import UaSprintDataFetcher
-    fetcher = UaSprintDataFetcher(force_update=force_update, uajira=get_jira())
-    return fetcher.fetch(get_history=True, team_id=team)
+    j = get_jira()
+    return j.get_abridged_sprint_object_for_team(team, sprint_id)
 
 
 def get_sprint_info_for_team(team_id, sprint_id=const.SPRINT_LAST_COMPLETED, force_update=False):
@@ -386,3 +383,13 @@ def get_fulltime_staff():
     """
     path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/staff/engineering_ftes.csv')
     return AugurModel.import_from_csv(path_to_csv, Staff)
+
+
+def get_active_epics(force_update=False):
+    """
+    Retrieves epics that have been actively worked on in the past X days
+    :return: A dictionary of epics
+    """
+    from augur.fetchers import RecentEpicsDataFetcher
+    fetch = RecentEpicsDataFetcher(uajira=get_jira(), force_update=force_update)
+    return fetch.fetch()

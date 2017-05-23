@@ -556,6 +556,27 @@ class UaJiraDefectHistoryData(UaModel):
             return None
 
 
+class RecentEpicData(UaModel):
+    def get_ttl(self):
+        return datetime.timedelta(hours=24)
+
+    def clear_before_add(self):
+        return False
+
+    def get_collection(self):
+        return self.mongo_client.stats.recent_epics
+
+    def requires_transform(self):
+        return True
+
+    def load_recent_epics(self):
+        result = self.load()
+        if isinstance(result, list) and len(result) > 0:
+            return result[0]
+        else:
+            return result
+
+
 class UaJiraEpicData(UaModel):
     def get_ttl(self):
         return datetime.timedelta(hours=8)

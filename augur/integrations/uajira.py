@@ -37,6 +37,8 @@ class UaJira(object):
 
         self.logger = logging.getLogger("uajira")
 
+        self.team_sprints_abridged = {}
+
         self.server = server or settings.main.integrations.jira.instance
         self.username = username or settings.main.integrations.jira.username
         self.password = password or settings.main.integrations.jira.password
@@ -481,6 +483,104 @@ class UaJira(object):
     #  There was no way in the JIRA.sprints call to exclude historic sprints so
     #  I made a new one based on that implementation with only one change.
     ###########################
+
+    def get_abridged_sprint_object_for_team(self, team_id, sprint_id=const.SPRINT_LAST_COMPLETED):
+        """
+        Retrieves the sprint object identified by the given ID.  If the given object
+        is a sprint object already it will be returned.  Otherwise, the sprint ID will be looked up in JIRA
+        :param sprint_id: Either one of the SPRINT_XXX consts, an ID, or a sprint object.
+        :return: Returns a sprint object or throws a TeamSprintNotFoundException
+        """
+
+        def get_key(item):
+            return item['sequence']
+
+        sprints = self.get_abridged_sprint_list_for_team(team_id)
+        sprints = sorted(sprints, key=get_key, reverse=True)
+
+        sprint = None
+
+        if sprint_id == const.SPRINT_LAST_COMPLETED:
+            # Note: get_issue_sprints returns results that are sorted in descending order by end date
+            for s in sprints:
+                if s['state'] == 'FUTURE':
+                    continue
+                if s['state'] == 'ACTIVE' and not 'overdue' in s:
+                    # this is an active sprint that is not completed yet.
+                    continue
+                elif s['state'] == 'ACTIVE' and 'overdue' in s:
+                    # this is a sprint that should have been marked complete but hasn't been yet
+                    sprint = s
+                elif s['state'] == 'CLOSED':
+                    # this is the first sprint that is not marked as active so we can assume that it's the last
+                    # completed sprint.
+                    sprint = s
+                    break
+
+        elif sprint_id == const.SPRINT_BEFORE_LAST_COMPLETED:
+            # Note: get_issue_sprints returns results that are sorted in descending order by end date
+            sprint_last = None
+            sprint_before_last = None
+            for s in sprints:
+                if s['state'] == 'CLOSED':
+                    # this is the first sprint that is not marked as active so we can assume that it's the last
+                    # completed sprint.
+                    if not sprint_last:
+                        # so we've gotten to the most recently closed one but we're looking for the one before that.
+                        sprint_last = s
+                    else:
+                        # this is the one before the last one.
+                        sprint_before_last = s
+                        break
+
+            sprint = sprint_before_last
+
+        elif sprint_id == const.SPRINT_CURRENT:
+            # Note: get_issue_sprints returns results that are sorted in descending order by end date
+            for s in sprints:
+                if s['state'] == 'ACTIVE':
+                    # this is an active sprint that is not completed yet.
+                    sprint = s
+                    break
+                else:
+                    continue
+
+        elif isinstance(sprint_id, dict):
+            # a sprint object was given instead of just an id
+            sprint = sprint_id
+        else:
+            # Note: get_issue_sprints returns results that are sorted in descending order by end date
+            for s in sprints:
+                if s['id'] == sprint_id:
+                    sprint = s
+                    break
+                else:
+                    continue
+
+        return sprint
+
+    def get_abridged_sprint_list_for_team(self, team, limit=None):
+        """
+        Gets a list of sprints for the given team.  Will always load this from Jira.  It will also add some data. The 
+        list is returned in sequence order which is usually the order in which the sprints occured in time.
+        :param limit: The number of sprints back to go (limit=5 would mean only the last 5 sprints.
+        :param team: The ID of the team to retrieve sprints for.
+        :return: Returns an array of sprint objects.
+        """
+
+        self.team_sprints_abridged[team] = self._sprints(const.JIRA_TEAMS_RAPID_BOARD[team])
+
+        # the initial list can contain sprints from other boards in cases where tickets spent time on
+        # both boards.  So we filter out any that do not belong to the team.
+        filtered_sprints = [sprint for sprint in self.team_sprints_abridged[team]
+                            if common.sprint_belongs_to_team(sprint, team)]
+
+        filtered_sorted_list = sorted(filtered_sprints, key=lambda k: k['sequence'])
+
+        if limit:
+            return filtered_sorted_list[-limit:]
+        else:
+            return filtered_sorted_list
 
     def _sprints(self, boardid):
         """

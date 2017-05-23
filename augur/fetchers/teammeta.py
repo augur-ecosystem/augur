@@ -1,4 +1,5 @@
 import augur
+import augur.api
 from augur import settings
 from augur.common import const, teams, cache_store
 from augur.fetchers.fetcher import UaDataFetcher
@@ -78,6 +79,7 @@ class UaTeamMetaDataFetcher(UaDataFetcher):
 
                     team_json['team_count'] += 1
 
+                    sprint = augur.api.get_abridged_team_sprint(const.JIRA_TEAM_BY_FULL_NAME[group])
                     board_id = const.JIRA_TEAMS_RAPID_BOARD[const.JIRA_TEAM_BY_FULL_NAME[group]]
                     board_link = "%s/secure/RapidBoard.jspa?rapidView=%d" % (
                     settings.main.integrations.jira.instance, board_id)
@@ -85,6 +87,7 @@ class UaTeamMetaDataFetcher(UaDataFetcher):
                         'members': members,
                         'board_id': board_id,
                         'board_link': board_link,
+                        'sprint': sprint,
                         'id': const.JIRA_TEAM_BY_FULL_NAME[group],
                         'full': group
                     }

@@ -141,6 +141,32 @@ def parse_sprint_info(sprint_string):
 
     return None
 
+
+def sprint_belongs_to_team(sprint, team):
+    """
+    Makes a decision about whether the given sprint (represented by a dict returned by the _sprints method
+    :param sprint: The abridged version of the sprict dict.
+    :param team: The team id
+    :return: Returns the True if the sprint belongs to the given team, false otherwise
+    """
+    sprint_name_parts = sprint['name'].split('-')
+    team_from_sprint = ""
+    team_from_id = teams.get_team_from_short_name(team)
+    if len(sprint_name_parts) > 1:
+        team_from_sprint = sprint_name_parts[1].strip()
+
+    if not team_from_sprint:
+        is_valid_sprint = False
+    elif team_from_id['team_name'] not in team_from_sprint and team_from_sprint not in team_from_id['team_name']:
+        # this checks both directions because it might be that the sprint name uses a
+        #   shortened version of the team's name.
+        is_valid_sprint = False
+    else:
+        is_valid_sprint = True
+
+    return is_valid_sprint
+
+
 def utc_to_local(utc_dt):
     local_tz = pytz.timezone('America/New_York')
     return utc_dt.replace(tzinfo=pytz.utc).astimezone(local_tz)
