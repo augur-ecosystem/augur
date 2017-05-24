@@ -5,17 +5,6 @@ COLOR_OK = '#fff4cc'
 COLOR_BAD = '#ffd6d6'
 COLOR_QUESTIONABLE = '#e5c6f4'
 
-SYNC_TYPE_VERSION = 'versions'
-SYNC_TYPE_COMPONENT = 'components'
-SYNC_TYPES = [
-    SYNC_TYPE_VERSION,
-    SYNC_TYPE_COMPONENT
-]
-
-DEPLOY_PENDING = "pending"
-DEPLOY_DEPLOYED = "deployed"
-DEPLOY_VALIDATED = "validated"
-
 STATUS_INPROGRESS = "In Progress"
 STATUS_OPEN = "Open"
 STATUS_QUALITYREVIEW = "Quality Review"
@@ -48,7 +37,8 @@ JIRA_TEAMS_BY_SHORT_NAME = {
     "lc": "Team Hon",
     "bh": "Team Boh",
     "at": "Team ATX",
-    "mc": "Team McHenry"
+    "mc": "Team McHenry",
+    "p": "Team Poe"
 }
 
 CONSULTING_TEAM_IDS = {
@@ -68,7 +58,8 @@ JIRA_TEAMS_RAPID_BOARD = {
     "lc": 543,
     "mc": 789,
     "bh": 741,
-    "at": 819
+    "at": 819,
+    "p": 832
 }
 
 FUNNELS = {
@@ -83,9 +74,9 @@ FUNNELS = {
         "teams": ['rc', 'vd', 'sg', 'cm', 'mc']
     },
     'b2b': {
-        "title": "Team",
-        "pdm": "Sayan Chaki",
-        "teams": ['b']
+        "title": "B2B",
+        "pdm": "Dave Hartzell",
+        "teams": ['b','p']
     },
     'plat': {
         "title": "Platform",
@@ -103,17 +94,6 @@ JIRA_TEAM_BY_FULL_NAME = dict(zip(JIRA_TEAMS_BY_SHORT_NAME.values(), JIRA_TEAMS_
 
 JIRA_TEAM_EXCLUSIONS = ["Team Leads", "Team Sherlock", "Team Opstimus Prime", "Team Negasonic"]
 
-GITHUB_TOKEN = "cbaa82c171843afef8afd9dcbc212e0b54681aba"
-
-TEAM_SPRINT_JQL = '"Dev Team" = "{name}" and issuetype != "sub-task" AND Sprint in openSprints()'
-
 SPRINT_BEFORE_LAST_COMPLETED = "__BEFORELAST__"
 SPRINT_LAST_COMPLETED = "__LAST__"
 SPRINT_CURRENT = "__CURRENT__"
-
-ORG_HARBOUR = "harbour"
-
-FIELD_POINTS = "customfield_10002"
-
-PRIORITIES = ["Blocker", "Immediate", "High", "Low", "Critical", "Informational"]
-SEVERITIES = ["Critical", "High", "Medium", "Low", "None"]
