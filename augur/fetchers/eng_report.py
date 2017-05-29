@@ -214,6 +214,8 @@ class UaEngineeringReport(UaDataFetcher):
             team_id = team['id']
             if team_id in sprints and 'last' in sprints[team_id] and sprints[team_id]['last']:
                 team['avg_pts_per_engineer'] = sprints[team_id]['last']['total_completed_points'] / len(team['members'])
+            else:
+                team['avg_pts_per_engineer'] = 0.0
 
         # get defect data for the given week
         defects = {
