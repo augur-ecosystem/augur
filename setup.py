@@ -91,7 +91,7 @@ setup(
         'pymongo==3.2.1',
         'python-dateutil==2.5.3',
         'pytz==2015.7',
-        'urllib3==1.14',
+        'urllib3==1.21.1',
         'psycopg2==2.6.1',
     ],
 
