@@ -14,11 +14,21 @@ import arrow
 import os
 
 from augur import settings
+from augur.common.cache_store import UaCachedResultSets
 from augur.integrations.uajira import get_jira
 
-from augur.common import const
+from augur.common import const, cache_store
 from augur.models import AugurModel
 from augur.models.staff import Staff
+
+
+def get_jira_instance():
+    """
+    Gets access to the UaJira object that is used to retrieve data directly from Jira.  This is the same object
+    that is used for the other API calls
+    :return: Return UaJira
+    """
+    return get_jira()
 
 
 def get_historic_sprint_stats(team, force_update=False):
@@ -393,3 +403,28 @@ def get_active_epics(force_update=False):
     from augur.fetchers import RecentEpicsDataFetcher
     fetch = RecentEpicsDataFetcher(uajira=get_jira(), force_update=force_update)
     return fetch.fetch()
+
+
+def cache_data(document, key):
+    """
+    Store arbitrary data in the cache 
+    :param document: The data to store (json object)
+    :param key: The key to uniquely identify this object with
+    :return: None
+    """
+    mongo = cache_store.UaStatsDb()
+    cache = UaCachedResultSets(mongo)
+    cache.save_with_key(document, key)
+
+
+def get_cached_data(key, override_ttl=None):
+    """
+    Retrieved data cached using "cache_data" function
+    :param key: The unique key used to cache this data
+    :param override_ttl: The ttl for the data if different from default (this is the number of seconds to save)
+    :return: Returns a JSON object loaded from the cache or None if not found
+    """
+
+    mongo = cache_store.UaStatsDb()
+    cache = UaCachedResultSets(mongo)
+    return cache.load_from_key(key, override_ttl=override_ttl)

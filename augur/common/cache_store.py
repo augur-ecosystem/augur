@@ -662,10 +662,6 @@ class UaJiraSprintsData(UaModel):
 
 
 class UaCachedResultSets(UaModel):
-    def __init__(self, mongo_client, storage_type):
-        self.type = storage_type
-        super(UaCachedResultSets, self).__init__(mongo_client)
-
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -678,8 +674,18 @@ class UaCachedResultSets(UaModel):
     def requires_transform(self):
         return True
 
-    def get_unique_type(self):
-        return self.type
+    def load_from_key(self, key, override_ttl=None):
+        return self.load(query_object={
+            'key': key
+        }, override_ttl=override_ttl)
+
+    def save_with_key(self,data, key):
+
+        # first, remove anything with this key
+        self.mongo_client.stats.result_cache.remove({'key': key})
+
+        data['key'] = key
+        super(UaCachedResultSets, self).save(data)
 
 
 class UaProductReportData(UaModel):

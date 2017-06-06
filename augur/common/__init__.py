@@ -268,7 +268,7 @@ def simplify_issue(issue):
     }
 
 
-def deep_get(dictionary,*keys):
+def deep_get(dictionary, *keys):
     """
     Retrieves a deeply nested dictionary key checking for existing keys along the way.  Returns None if any key
     is not found.
@@ -277,4 +277,5 @@ def deep_get(dictionary,*keys):
     :param keys: Ordered parameters representing the keys (in the order they should be referenced)
     :return: Returns the value if found, None otherwise.
     """
-    return reduce(lambda d, key: d.get(key) if d else None, keys, dictionary)
+    default = None
+    return reduce(lambda d, key: d.get(key) if d else default, keys, dictionary)
