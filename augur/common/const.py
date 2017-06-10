@@ -45,6 +45,7 @@ CONSULTING_TEAM_IDS = {
     "catalyst": 25,
     "twin": 12,
     "tek": 22,
+    "mindgrub": 32,
     "all": 27
 }
 

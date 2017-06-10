@@ -19,7 +19,11 @@ from augur.integrations.uajira import get_jira
 
 from augur.common import const, cache_store
 from augur.models import AugurModel
+from augur.models.product import Product
 from augur.models.staff import Staff
+from augur.models.team import Team
+
+CACHE = dict()
 
 
 def get_jira_instance():
@@ -382,8 +386,12 @@ def get_consultants():
     Retrieves a list of Staff model objects containing all the known consultants.
     :return: An array of Staff objects. 
     """
-    path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/staff/engineering_consultants.csv')
-    return AugurModel.import_from_csv(path_to_csv, Staff)
+    cached = get_memory_cached_data("_CONSULTANT_STAFF_")
+    if not cached:
+        path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/staff/engineering_consultants.csv')
+        data = AugurModel.import_from_csv(path_to_csv, Staff)
+        cached = memory_cache_data(data,"_CONSULTANT_STAFF_")
+    return cached
 
 
 def get_fulltime_staff():
@@ -391,8 +399,38 @@ def get_fulltime_staff():
     Retrieves a list of Staff model objects containing all the known FTEs in the engineering group.
     :return: An array of Staff objects. 
     """
-    path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/staff/engineering_ftes.csv')
-    return AugurModel.import_from_csv(path_to_csv, Staff)
+    cached = get_memory_cached_data("_FULLTIME_STAFF_")
+    if not cached:
+        path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/staff/engineering_ftes.csv')
+        data = AugurModel.import_from_csv(path_to_csv, Staff)
+        cached = memory_cache_data(data,"_FULLTIME_STAFF_")
+    return cached
+
+
+def get_teams():
+    """
+    Retrieves a list of team objects containing all the known teams in e-comm
+    :return: An array of Team objects. 
+    """
+    cached = get_memory_cached_data("_TEAMS_")
+    if not cached:
+        path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/teams.csv')
+        data = AugurModel.import_from_csv(path_to_csv, Team)
+        cached = memory_cache_data(data, "_TEAMS_")
+    return cached
+
+
+def get_products():
+    """
+    Retrieves a list of product objects containing all the known product groups in e-comm
+    :return: An array of Product objects. 
+    """
+    cached = get_memory_cached_data("_PRODUCTS_")
+    if not cached:
+        path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/products.csv')
+        data = AugurModel.import_from_csv(path_to_csv, Product)
+        cached = memory_cache_data(data,"_PRODUCTS_")
+    return cached
 
 
 def get_active_epics(force_update=False):
@@ -404,6 +442,30 @@ def get_active_epics(force_update=False):
     fetch = RecentEpicsDataFetcher(uajira=get_jira(), force_update=force_update)
     return fetch.fetch()
 
+
+def memory_cache_data(data, key):
+    """
+    Cache data in memory
+    :param data: The data to cache
+    :param key: The key to store it under
+    :return: Returns the data given in <data>
+    """
+    global CACHE
+    CACHE[key] = data
+    return data
+
+
+def get_memory_cached_data(key):
+    """
+    Retrieves data stored in memory under <key>
+    :param key: The key to look for in the in-memory cache
+    :return: Returns the data or None if not found
+    """
+    global CACHE
+    if key in CACHE:
+        return CACHE[key]
+    else:
+        return None
 
 def cache_data(document, key):
     """
