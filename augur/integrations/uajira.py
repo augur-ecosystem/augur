@@ -37,8 +37,6 @@ class UaJira(object):
 
         self.logger = logging.getLogger("uajira")
 
-        self.team_sprints_abridged = {}
-
         self.server = server or settings.main.integrations.jira.instance
         self.username = username or settings.main.integrations.jira.username
         self.password = password or settings.main.integrations.jira.password
@@ -133,7 +131,6 @@ class UaJira(object):
             "config_issue": "",
             "ticket_count": len(issues),
             "unpointed_complete_issues": 0,
-            'color': const.COLOR_OK,
             'developer_stats': {}
         }
 
@@ -211,7 +208,6 @@ class UaJira(object):
             "ticket_count": len(issues),
             "remaining_ticket_count": 0,
             "unpointed_complete_issues": 0,
-            'color': const.COLOR_OK,
             'inprog_cycle_violations': {},
             'blocked_cycle_violations': {},
             'quality_review_cycle_violations': {},
@@ -375,40 +371,6 @@ class UaJira(object):
         return datetime.timedelta(seconds=total_time_spent_seconds)
 
     ###########################
-    # DEV STATS
-    ###########################
-
-
-    def get_team_devs_stats(self, team, look_back_days=30):
-        """
-        This will get information about an entire team including individual develeper stats
-        as well standard deviation in terms of point output.
-        :param team: The ID of the team to get info about
-        :param look_back_days: How many days to look back to pull stats.
-        :return:
-        """
-        devs = self.get_all_developer_info()
-        teams = common.teams.get_all_teams()
-        team = devs['teams'][teams[team]] if teams[team] in devs['teams'] else None
-
-        if not team:
-            return None
-
-        return_value = {
-            "standard_deviation": 0,
-            "devs": {}
-        }
-
-        standard_dev_list = []
-        for username, dev in team['members'].iteritems():
-            stats = self.get_dev_stats(username, look_back_days=look_back_days)
-            return_value['devs'][username] = stats
-            standard_dev_list.append(stats['recently_resolved']['total_points'])
-
-        return_value['standard_deviation'] = common.standard_deviation(standard_dev_list)
-        return return_value
-
-    ###########################
     # TICKET CREATION/UPDATING
     ###########################
     def link_issues(self, link_type, inward, outward, comment=None):
@@ -484,104 +446,6 @@ class UaJira(object):
     #  I made a new one based on that implementation with only one change.
     ###########################
 
-    def get_abridged_sprint_object_for_team(self, team_id, sprint_id=const.SPRINT_LAST_COMPLETED):
-        """
-        Retrieves the sprint object identified by the given ID.  If the given object
-        is a sprint object already it will be returned.  Otherwise, the sprint ID will be looked up in JIRA
-        :param sprint_id: Either one of the SPRINT_XXX consts, an ID, or a sprint object.
-        :return: Returns a sprint object or throws a TeamSprintNotFoundException
-        """
-
-        def get_key(item):
-            return item['sequence']
-
-        sprints = self.get_abridged_sprint_list_for_team(team_id)
-        sprints = sorted(sprints, key=get_key, reverse=True)
-
-        sprint = None
-
-        if sprint_id == const.SPRINT_LAST_COMPLETED:
-            # Note: get_issue_sprints returns results that are sorted in descending order by end date
-            for s in sprints:
-                if s['state'] == 'FUTURE':
-                    continue
-                if s['state'] == 'ACTIVE' and not 'overdue' in s:
-                    # this is an active sprint that is not completed yet.
-                    continue
-                elif s['state'] == 'ACTIVE' and 'overdue' in s:
-                    # this is a sprint that should have been marked complete but hasn't been yet
-                    sprint = s
-                elif s['state'] == 'CLOSED':
-                    # this is the first sprint that is not marked as active so we can assume that it's the last
-                    # completed sprint.
-                    sprint = s
-                    break
-
-        elif sprint_id == const.SPRINT_BEFORE_LAST_COMPLETED:
-            # Note: get_issue_sprints returns results that are sorted in descending order by end date
-            sprint_last = None
-            sprint_before_last = None
-            for s in sprints:
-                if s['state'] == 'CLOSED':
-                    # this is the first sprint that is not marked as active so we can assume that it's the last
-                    # completed sprint.
-                    if not sprint_last:
-                        # so we've gotten to the most recently closed one but we're looking for the one before that.
-                        sprint_last = s
-                    else:
-                        # this is the one before the last one.
-                        sprint_before_last = s
-                        break
-
-            sprint = sprint_before_last
-
-        elif sprint_id == const.SPRINT_CURRENT:
-            # Note: get_issue_sprints returns results that are sorted in descending order by end date
-            for s in sprints:
-                if s['state'] == 'ACTIVE':
-                    # this is an active sprint that is not completed yet.
-                    sprint = s
-                    break
-                else:
-                    continue
-
-        elif isinstance(sprint_id, dict):
-            # a sprint object was given instead of just an id
-            sprint = sprint_id
-        else:
-            # Note: get_issue_sprints returns results that are sorted in descending order by end date
-            for s in sprints:
-                if s['id'] == sprint_id:
-                    sprint = s
-                    break
-                else:
-                    continue
-
-        return sprint
-
-    def get_abridged_sprint_list_for_team(self, team, limit=None):
-        """
-        Gets a list of sprints for the given team.  Will always load this from Jira.  It will also add some data. The 
-        list is returned in sequence order which is usually the order in which the sprints occured in time.
-        :param limit: The number of sprints back to go (limit=5 would mean only the last 5 sprints.
-        :param team: The ID of the team to retrieve sprints for.
-        :return: Returns an array of sprint objects.
-        """
-
-        self.team_sprints_abridged[team] = self._sprints(const.JIRA_TEAMS_RAPID_BOARD[team])
-
-        # the initial list can contain sprints from other boards in cases where tickets spent time on
-        # both boards.  So we filter out any that do not belong to the team.
-        filtered_sprints = [sprint for sprint in self.team_sprints_abridged[team]
-                            if common.sprint_belongs_to_team(sprint, team)]
-
-        filtered_sorted_list = sorted(filtered_sprints, key=lambda k: k['sequence'])
-
-        if limit:
-            return filtered_sorted_list[-limit:]
-        else:
-            return filtered_sorted_list
-
     def _sprints(self, boardid):
         """
         Replaces the jira module version of the by the same name to prevent historic and future sprints from being
@@ -607,13 +471,11 @@ class UaJira(object):
     @staticmethod
     def _analytics_feedback(result):
         notes = []
-        questionable_state = False
 
         result["average_point_size"] = (result['total_points'] / result['ticket_count']) if result[
             'ticket_count'] else 0
 
         if result["percent_complete"] >= 99.0 and result['unpointed'] > 0:
-            questionable_state = True
             notes.append(
                 "There's a high completion rate but probably because there are some issues that are unpointed.")
         if result['unpointed'] > 8:
@@ -622,11 +484,6 @@ class UaJira(object):
             notes.append("There are less than three issues in this collection")
         if result['unpointed_complete_issues'] > 0:
             notes.append("There are unpointed issues that are marked as complete")
-        if not questionable_state:
-            result['color'] = const.COLOR_BAD if result["percent_complete"] < 50 else \
-                const.COLOR_OK if result["percent_complete"] < 75 else const.COLOR_GOOD
-        else:
-            result['color'] = const.COLOR_QUESTIONABLE
         result['notes'] = "<ul><li>" + "</li><li>".join(notes) + "</li></ul>"
 
     @staticmethod

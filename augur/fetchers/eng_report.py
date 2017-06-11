@@ -4,7 +4,7 @@ import arrow
 
 import augur.api
 from augur import common
-from augur.common import const, teams, cache_store
+from augur.common import const, cache_store
 from augur.fetchers.fetcher import UaDataFetcher
 from augur.fetchers.release import UaRelease
 
@@ -33,7 +33,7 @@ class UaEngineeringReport(UaDataFetcher):
     def _get_most_recent_completed_sprints(self):
 
         sprints = {}
-        for team_id in teams.get_all_teams().keys():
+        for team_id in augur.api.get_teams_as_dictionary().keys():
             sprints[team_id] = {
                 "last": augur.api.get_sprint_info_for_team(team_id, const.SPRINT_LAST_COMPLETED),
                 "before_last": augur.api.get_sprint_info_for_team(team_id, const.SPRINT_BEFORE_LAST_COMPLETED)

@@ -39,6 +39,9 @@ class AugurModelProp(object):
     def __unicode__(self):
         return unicode(self.value)
 
+    def __iter__(self):
+        return iter(self.value)
+
     def _set_special_type_handling(self, value):
         """
         If the type is special (not a builtin type) then we can use this method to do special value setting
@@ -86,7 +89,7 @@ class AugurModel(object):
 
     def __getattr__(self, key):
         if key in self.__dict__['_props']:
-            return self.__dict__['_props'][key]
+            return self.__dict__['_props'][key].value
         else:
             raise AttributeError(key)
 

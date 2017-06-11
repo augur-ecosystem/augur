@@ -13,7 +13,7 @@ import datetime
 import arrow
 import os
 
-from augur import settings
+from augur import settings, common
 from augur.common.cache_store import UaCachedResultSets
 from augur.integrations.uajira import get_jira
 
@@ -67,12 +67,105 @@ def get_sprint_info(sprint=None, team='f', force_update=False):
         return None
 
 
-def get_abridged_team_sprint(team, sprint_id=const.SPRINT_CURRENT):
+def get_abridged_sprint_list_for_team(team_id, limit=None):
     """
-    Gets an abridged version of a team sprint - a quicker call than getting all the details.
+    Gets a list of sprints for the given team.  Will always load this from Jira.  It will also add some data. The 
+    list is returned in sequence order which is usually the order in which the sprints occured in time.
+    :param team_id: The ID of the team to retrieve sprints for.
+    :param limit: The number of sprints back to go (limit=5 would mean only the last 5 sprints.
+    :return: Returns an array of sprint objects.
     """
-    j = get_jira()
-    return j.get_abridged_sprint_object_for_team(team, sprint_id)
+
+    team_ob = get_team_by_id(team_id)
+    team_sprints_abridged = get_jira()._sprints(team_ob.board_id)
+
+    # the initial list can contain sprints from other boards in cases where tickets spent time on
+    # both boards.  So we filter out any that do not belong to the team.
+    filtered_sprints = [sprint for sprint in team_sprints_abridged if common.sprint_belongs_to_team(sprint, team_id)]
+
+    filtered_sorted_list = sorted(filtered_sprints, key=lambda k: k['sequence'])
+
+    if limit:
+        return filtered_sorted_list[-limit:]
+    else:
+        return filtered_sorted_list
+
+
+def get_abridged_team_sprint(team_id, sprint_id=const.SPRINT_CURRENT):
+    """
+    Retrieves the sprint object identified by the given ID.  If the given object
+    is a sprint object already it will be returned.  Otherwise, the sprint ID will be looked up in JIRA
+    :param team_id: 
+    :param sprint_id: Either one of the SPRINT_XXX consts, an ID, or a sprint object.
+    :return: Returns a sprint object or throws a TeamSprintNotFoundException
+    """
+
+    def get_key(item):
+        return item['sequence']
+
+    sprints = get_abridged_sprint_list_for_team(team_id)
+    sprints = sorted(sprints, key=get_key, reverse=True)
+
+    sprint = None
+
+    if sprint_id == const.SPRINT_LAST_COMPLETED:
+        # Note: get_issue_sprints returns results that are sorted in descending order by end date
+        for s in sprints:
+            if s['state'] == 'FUTURE':
+                continue
+            if s['state'] == 'ACTIVE' and not 'overdue' in s:
+                # this is an active sprint that is not completed yet.
+                continue
+            elif s['state'] == 'ACTIVE' and 'overdue' in s:
+                # this is a sprint that should have been marked complete but hasn't been yet
+                sprint = s
+            elif s['state'] == 'CLOSED':
+                # this is the first sprint that is not marked as active so we can assume that it's the last
+                # completed sprint.
+                sprint = s
+                break
+
+    elif sprint_id == const.SPRINT_BEFORE_LAST_COMPLETED:
+        # Note: get_issue_sprints returns results that are sorted in descending order by end date
+        sprint_last = None
+        sprint_before_last = None
+        for s in sprints:
+            if s['state'] == 'CLOSED':
+                # this is the first sprint that is not marked as active so we can assume that it's the last
+                # completed sprint.
+                if not sprint_last:
+                    # so we've gotten to the most recently closed one but we're looking for the one before that.
+                    sprint_last = s
+                else:
+                    # this is the one before the last one.
+                    sprint_before_last = s
+                    break
+
+        sprint = sprint_before_last
+
+    elif sprint_id == const.SPRINT_CURRENT:
+        # Note: get_issue_sprints returns results that are sorted in descending order by end date
+        for s in sprints:
+            if s['state'] == 'ACTIVE':
+                # this is an active sprint that is not completed yet.
+                sprint = s
+                break
+            else:
+                continue
+
+    elif isinstance(sprint_id, dict):
+        # a sprint object was given instead of just an id
+        sprint = sprint_id
+    else:
+        # Note: get_issue_sprints returns results that are sorted in descending order by end date
+        for s in sprints:
+            if s['id'] == sprint_id:
+                sprint = s
+                break
+            else:
+                continue
+
+    return sprint
 
 
 def get_sprint_info_for_team(team_id, sprint_id=const.SPRINT_LAST_COMPLETED, force_update=False):
@@ -186,6 +279,7 @@ def get_releases_since(start, end, force_update=False):
             issues: <list>
         })
         
+    :param force_update: 
     :param start: An arrow object containing the start date/time
     :param end: An arrow object containing the end date/time
     :return: A dictionary of of data describing the release pipeline
@@ -301,6 +395,7 @@ def get_dev_stats(username, look_back_days=30, force_update=False):
 def get_all_dev_stats(force_update=False):
     """
     Gets all developer info plus some aggregate data for each user including total points completed.
+    :type force_update: bool
     :return:
     """
     from augur.fetchers import UaOrgStatsFetcher
@@ -311,6 +406,7 @@ def get_engineering_report(week_number=None, force_update=False):
     """
     Gets all the data that makes up the "Engineering Report" which contains a broad collection of data 
     ranging from sprint data across all team, defect data, epic information and much more.
+    :param force_update: 
     :param week_number: The week number to include in the report (1-52)
     :return: Returns an object that looks something like this:
     
@@ -388,9 +484,9 @@ def get_consultants():
     """
     cached = get_memory_cached_data("_CONSULTANT_STAFF_")
     if not cached:
-        path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/staff/engineering_consultants.csv')
+        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/staff/engineering_consultants.csv')
         data = AugurModel.import_from_csv(path_to_csv, Staff)
-        cached = memory_cache_data(data,"_CONSULTANT_STAFF_")
+        cached = memory_cache_data(data, "_CONSULTANT_STAFF_")
     return cached
 
 
@@ -401,10 +497,40 @@ def get_fulltime_staff():
     """
     cached = get_memory_cached_data("_FULLTIME_STAFF_")
     if not cached:
-        path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/staff/engineering_ftes.csv')
+        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/staff/engineering_ftes.csv')
         data = AugurModel.import_from_csv(path_to_csv, Staff)
-        cached = memory_cache_data(data,"_FULLTIME_STAFF_")
+        cached = memory_cache_data(data, "_FULLTIME_STAFF_")
     return cached
+
+
+def get_team_by_name(name):
+    """
+    Returns a team object keyed on the name of the team.  If there is more than one team with the same name it will
+    always returns only 1.  There is no guarantee which one, though.
+    :param name: The name to search for
+    :return: A Team object.
+    """
+    t = filter(lambda x: x.name == name, get_teams())
+    return t[0] if t else None
+
+
+def get_team_by_id(id):
+    """
+    Returns a team object keyed on the name of the team.  If there is more than one team with the same name it will
+    always returns only 1.  There is no guarantee which one, though.
+    :param id: The team id to search for
+    :return: A Team object.
+    """
+    t = filter(lambda x: x.id == id, get_teams())
+    return t[0] if t else None
+
+
+def get_teams_as_dictionary():
+    """
+    Gets all teams as dictionary instead of a list.  The keys of the dictionary are the team_ids
+    :return: Returns a dictionary of Team objects
+    """
+    return {o.id: o for o in get_teams()}
 
 
 def get_teams():
@@ -414,7 +540,7 @@ def get_teams():
     """
     cached = get_memory_cached_data("_TEAMS_")
     if not cached:
-        path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/teams.csv')
+        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/teams.csv')
         data = AugurModel.import_from_csv(path_to_csv, Team)
         cached = memory_cache_data(data, "_TEAMS_")
     return cached
@@ -427,9 +553,9 @@ def get_products():
     """
     cached = get_memory_cached_data("_PRODUCTS_")
     if not cached:
-        path_to_csv = os.path.join(settings.main.project.augur_base_dir,'data/products.csv')
+        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/products.csv')
         data = AugurModel.import_from_csv(path_to_csv, Product)
-        cached = memory_cache_data(data,"_PRODUCTS_")
+        cached = memory_cache_data(data, "_PRODUCTS_")
     return cached
 
 
@@ -466,6 +592,7 @@ def get_memory_cached_data(key):
         return CACHE[key]
     else:
         return None
+
 
 def cache_data(document, key):
     """

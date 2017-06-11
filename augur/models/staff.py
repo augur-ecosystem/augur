@@ -44,7 +44,7 @@ class Staff(AugurModel):
     def handle_field_import(self, key, value):
 
         if key == "rate":
-            self.rate.value = float(value)
+            self.rate = float(value)
             return
 
         if key == "status":
@@ -57,13 +57,13 @@ class Staff(AugurModel):
 
         # Calculate the cost of the employee post import
         if self.status == StaffStatus.Active:
-            self.base_daily_cost.set(self.rate * 8)
-            self.base_weekly_cost.set(self.base_daily_cost * 5)
-            self.base_annual_cost.set(self.base_weekly_cost * 50)  # assume two weeks of vacation
+            self.base_daily_cost = self.rate * 8
+            self.base_weekly_cost = self.base_daily_cost * 5
+            self.base_annual_cost = self.base_weekly_cost * 50  # assume two weeks of vacation
         else:
-            self.base_daily_cost.set(0.0)
-            self.base_weekly_cost.set(0.0)
-            self.base_annual_cost.set(0.0)
+            self.base_daily_cost = 0.0
+            self.base_weekly_cost = 0.0
+            self.base_annual_cost = 0.0
 
         super(Staff, self).handle_post_import()
 

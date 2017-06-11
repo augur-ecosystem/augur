@@ -3,8 +3,9 @@ from collections import defaultdict
 
 from dateutil.parser import parse
 
+import augur
 from augur import common
-from augur.common import const, teams, cache_store
+from augur.common import const, cache_store
 from augur.common.timer import Timer
 from augur.fetchers.fetcher import UaDataFetcher
 
@@ -86,8 +87,8 @@ class UaSprintDataFetcher(UaDataFetcher):
         if not self.team_id:
             # get current or last sprint for all teams
             results = []
-            for team_id in teams.get_all_teams().keys():
-                stats = self.uajira.get_abridged_sprint_object_for_team(team_id, self.sprint_id)
+            for team_id in augur.api.get_teams_as_dictionary().keys():
+                stats = augur.api.get_abridged_team_sprint(team_id, self.sprint_id)
                 results.append({
                     'team_id': team_id,
                     'success': stats is not None
@@ -141,7 +142,7 @@ class UaSprintDataFetcher(UaDataFetcher):
 
             # We either don't have anything cached or we decided not to use it.  So start from scratch by retrieving
             # the detailed sprint data from Jira
-            sprint_abridged = self.uajira.get_abridged_sprint_object_for_team(team_id, sprint_id)
+            sprint_abridged = augur.api.get_abridged_team_sprint(team_id, sprint_id)
             t.split("Retrieve abridged sprint data")
 
             if not sprint_abridged:
@@ -154,7 +155,8 @@ class UaSprintDataFetcher(UaDataFetcher):
             if team_stats and team_stats['team_sprint_data']['sprint']['state'] == 'CLOSED':
                 return team_stats
 
-            sprint_ob = self.uajira.sprint_info(const.JIRA_TEAMS_RAPID_BOARD[team_id], sprint_abridged['id'])
+            team_object = augur.api.get_team_by_id(team_id)
+            sprint_ob = self.uajira.sprint_info(team_object.board_id, sprint_abridged['id'])
             t.split("Retrieve full sprint data")
 
             if not sprint_ob:
@@ -174,8 +176,6 @@ class UaSprintDataFetcher(UaDataFetcher):
 
                 # not applicable if the sprint is complete or happens in the future.
                 sprint_ob['overdue'] = False
-
-            fullname = teams.get_team_from_short_name(team_id)
 
             # Get point completion standard deviation
             standard_dev_map = defaultdict(int)
@@ -212,10 +212,10 @@ class UaSprintDataFetcher(UaDataFetcher):
                 t.split("Got issue data for issues not completed during sprint")
 
             team_stats = {
-                "team_name": fullname,
+                "team_name": team_object.name,
                 "team_id": team_id,
                 "sprint_id": sprint_id,
-                "board_id": const.JIRA_TEAMS_RAPID_BOARD[team_id],
+                "board_id": team_object.board_id,
                 "std_dev": std_dev,
                 "contributing_devs": standard_dev_map.keys(),
                 "team_sprint_data": sprint_ob,
@@ -337,7 +337,7 @@ class UaSprintDataFetcher(UaDataFetcher):
         :param team: The ID of the team to retrieve sprints for.
         :return: Returns an array of sprint objects.
         """
-        ua_sprints = self.uajira.get_abridged_sprint_list_for_team(team, limit)
+        ua_sprints = augur.api.get_abridged_sprint_list_for_team(team, limit)
         sprintdict_list = []
 
         for s in ua_sprints:

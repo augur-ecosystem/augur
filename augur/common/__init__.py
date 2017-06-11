@@ -5,12 +5,13 @@ import arrow
 import datetime
 import pytz
 
+import augur
+
 __author__ = 'karim'
 
 
 import comm
 import const
-import teams
 import serializers
 import formatting
 import projects
@@ -69,21 +70,22 @@ def get_team_args(uajira, args):
     :return: A dictionary of teams
     """
     custom_teams = {}
+    teams = augur.api.get_teams_as_dictionary()
     if args.teams is not None and len(args.teams) > 0:
         for t in args.teams:
             t = t.strip()
-            team_data = teams.get_team_from_short_name(t)
+            team_data = teams[t]
             if team_data:
-                custom_teams[t] = team_data['team_name']
+                custom_teams[t] = team_data.name
     else:
-        custom_teams = teams.get_all_teams().copy()
+        custom_teams = augur.api.get_teams_as_dictionary().copy()
 
     # Now get the details for each of the selected teams from the automatically generated
     #   data pulled from JIRA
     team_info = uajira.get_all_developer_info()
-    for shortname, info in custom_teams.iteritems():
-        if info['team_name'] in team_info['teams']:
-            custom_teams[shortname] = team_info['teams'][info['team_name']]
+    for team_id, info in custom_teams.iteritems():
+        if info.name in team_info['teams']:
+            custom_teams[team_id] = team_info['teams'][info.name]
 
     return custom_teams
 
@@ -142,7 +144,7 @@ def parse_sprint_info(sprint_string):
     return None
 
 
-def sprint_belongs_to_team(sprint, team):
+def sprint_belongs_to_team(sprint, team_id):
     """
     Makes a decision about whether the given sprint (represented by a dict returned by the _sprints method
     :param sprint: The abridged version of the sprict dict.
@@ -151,13 +153,13 @@ def sprint_belongs_to_team(sprint, team):
     """
     sprint_name_parts = sprint['name'].split('-')
     team_from_sprint = ""
-    team_from_id = teams.get_team_from_short_name(team)
+    team_from_id = augur.api.get_team_by_id(team_id)
     if len(sprint_name_parts) > 1:
         team_from_sprint = sprint_name_parts[1].strip()
 
     if not team_from_sprint:
         is_valid_sprint = False
-    elif team_from_id['team_name'] not in team_from_sprint and team_from_sprint not in team_from_id['team_name']:
+    elif team_from_id.name not in team_from_sprint and team_from_sprint not in team_from_id.name:
         # this checks both directions because it might be that the sprint name uses a
         #   shortened version of the team's name.
         is_valid_sprint = False
