@@ -484,7 +484,7 @@ def get_consultants():
     """
     cached = get_memory_cached_data("_CONSULTANT_STAFF_")
     if not cached:
-        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/staff/engineering_consultants.csv')
+        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/engineering_consultants.csv')
         data = AugurModel.import_from_csv(path_to_csv, Staff)
         cached = memory_cache_data(data, "_CONSULTANT_STAFF_")
     return cached
@@ -497,7 +497,7 @@ def get_fulltime_staff():
     """
     cached = get_memory_cached_data("_FULLTIME_STAFF_")
     if not cached:
-        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/staff/engineering_ftes.csv')
+        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/engineering_ftes.csv')
         data = AugurModel.import_from_csv(path_to_csv, Staff)
         cached = memory_cache_data(data, "_FULLTIME_STAFF_")
     return cached
@@ -514,14 +514,14 @@ def get_team_by_name(name):
     return t[0] if t else None
 
 
-def get_team_by_id(id):
+def get_team_by_id(team_id):
     """
     Returns a team object keyed on the name of the team.  If there is more than one team with the same name it will
     always returns only 1.  There is no guarantee which one, though.
-    :param id: The team id to search for
+    :param team_id: The team id to search for
     :return: A Team object.
     """
-    t = filter(lambda x: x.id == id, get_teams())
+    t = filter(lambda x: x.id == team_id, get_teams())
     return t[0] if t else None
 
 

@@ -29,6 +29,7 @@ class Staff(AugurModel):
         self.add_prop("first_name", "", (str,unicode))
         self.add_prop("last_name", "",(str,unicode))
         self.add_prop("company", "",(str,unicode))
+        self.add_prop("avatar_url", "",(str,unicode))
         self.add_prop("role", "",(str,unicode))
         self.add_prop("email", "",(str,unicode))
         self.add_prop("rate", 0.0,float)
