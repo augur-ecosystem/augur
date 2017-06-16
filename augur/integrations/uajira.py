@@ -349,9 +349,6 @@ class UaJira(object):
             "tempo_team_info": team_info
         }
 
-    ###########################
-    # WORKLOGS
-    ###########################
     @staticmethod
     def get_total_time_for_user(issue, username):
         """

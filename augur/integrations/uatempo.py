@@ -1,3 +1,5 @@
+TEMPO_API_TOKEN="72c7fe70-eac9-4497-a3a1-e29ce4c47d41"
+
 class UaTempo(object):
 
     def __init__(self, uajira):
@@ -24,6 +26,8 @@ class UaTempo(object):
 
         if project_key:
             query["projectKey"] = project_key
+
+        query['tempoApiToken'] = TEMPO_API_TOKEN
 
         base = "{server}/rest/tempo-timesheets/3/{path}"
         return self.uajira.jira._get_json("worklogs/",params=query,base=base)
