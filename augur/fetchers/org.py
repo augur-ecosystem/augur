@@ -1,6 +1,6 @@
 import augur.api
 from augur import common
-from augur.common import cache_store
+from augur.common import cache_store, deep_get
 from augur.fetchers.fetcher import UaDataFetcher
 
 
@@ -39,15 +39,16 @@ class UaOrgStatsFetcher(UaDataFetcher):
               % (",".join(common.POSITIVE_RESOLUTIONS))
 
         issues = self.uajira.execute_jql(jql, max_results=1000)
+        point_value_field = self.uajira.get_issue_field_from_custom_name('Story Points')
         for issue in issues:
 
             # needs to have a point value and an assignee to proceed
-            if issue.fields.customfield_10002 and issue.fields.assignee and issue.fields.assignee.name:
-                if issue.fields.assignee.name in data['devs']:
-                    uname = issue.fields.assignee.name
+            assignee_name = deep_get(issue,'fields','assignee','name')
+            if issue['fields'][point_value_field] and assignee_name:
+                if assignee_name in data['devs']:
                     # the username is in our list of developers so we can update with info
-                    if 'total_points' not in data['devs'][uname]:
-                        data['devs'][uname]['total_points'] = 0.0
-                    data['devs'][uname]['total_points'] += issue.fields.customfield_10002
+                    if 'total_points' not in data['devs'][assignee_name]:
+                        data['devs'][assignee_name]['total_points'] = 0.0
+                    data['devs'][assignee_name]['total_points'] += issue['fields'][point_value_field]
 
         return self.cache_data(data)

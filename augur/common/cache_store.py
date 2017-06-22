@@ -178,7 +178,7 @@ class UaModel(object):
 
     def load(self, query_object=None, limit=None, order_by=None, sort_order=pymongo.DESCENDING, override_ttl=None):
 
-        with Timer("UaModel '%s' load" % type(self).__name__) as t:
+        with Timer("Cache load of '%s'" % type(self).__name__) as t:
 
             self.clear_data()
 
@@ -202,8 +202,6 @@ class UaModel(object):
                     'storage_type': self.get_unique_type()
                 })
 
-            t.split("Finished preparing query object")
-
             # now make the initial query
             cursor = self.get_collection().find(query_object)
 
@@ -214,13 +212,9 @@ class UaModel(object):
             if limit:
                 cursor.limit(1)
 
-            t.split("Finished preparing cursor")
-
             # turn the cursor results into an array suitable for return
             for result in cursor:
                 self.data.append(result)
-
-            t.split("Finished iterating over cursor")
 
         if self.data and len(self.data) > 0:
             # get the storage time of the first item to pass along with the signal for audit purposes.
@@ -679,7 +673,7 @@ class UaCachedResultSets(UaModel):
             'key': key
         }, override_ttl=override_ttl)
 
-    def save_with_key(self,data, key):
+    def save_with_key(self, data, key):
 
         # first, remove anything with this key
         self.mongo_client.stats.result_cache.remove({'key': key})

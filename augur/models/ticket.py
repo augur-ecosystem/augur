@@ -33,7 +33,7 @@ class TicketType(AugurModel):
     Bug = "bug",
 
     def _add_properties(self):
-        self.add_prop("id", unicode)
+        self.add_prop("id", "", unicode)
         self.add_prop("name", "", unicode)
         self.add_prop("type", "", unicode)
         self.add_prop("is_child", False, bool)

@@ -198,9 +198,11 @@ class UaSprintDataFetcher(UaDataFetcher):
                     sprint_ob['contents'][val]['text'] = "0"
 
             if sprint_ob['contents']['issueKeysAddedDuringSprint']:
-                jql = "key in ('%s')" % "','".join(sprint_ob['contents']['issueKeysAddedDuringSprint'].keys())
-                results = self.uajira.execute_jql(jql)
-                sprint_ob['contents']['issueKeysAddedDuringSprint'] = [r.raw for r in results]
+
+                results = self.uajira.execute_jql("key in ('%s')" % "','".join(
+                    sprint_ob['contents']['issueKeysAddedDuringSprint'].keys()))
+
+                sprint_ob['contents']['issueKeysAddedDuringSprint'] = results
                 t.split("Got issue data for issues added during sprint")
 
             if sprint_ob['contents']['issuesNotCompletedInCurrentSprint']:

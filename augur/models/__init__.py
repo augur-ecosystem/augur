@@ -59,7 +59,7 @@ class AugurModelProp(object):
             return False
 
     def set(self, value):
-        if not isinstance(value, self.type):
+        if not isinstance(value, self.type) and value:
             if not self._set_special_type_handling(value):
                 self.value = self.type(value)
         else:

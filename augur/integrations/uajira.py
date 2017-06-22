@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 
 import logging
 from dateutil.parser import parse
@@ -7,7 +8,7 @@ from jira import JIRA, Issue
 import augur
 from augur import common
 from augur import settings
-from augur.common import const, cycletimes, audit, cache_store
+from augur.common import const, cycletimes, audit, cache_store, deep_get
 from augur.common.timer import Timer
 from augur.integrations.uatempo import UaTempo
 from augur.models import AugurModel
@@ -100,64 +101,40 @@ class UaJira(object):
             #   and returns all the results.
             max_results = "0"
 
-        with Timer("Executing jql: %s"%jql) as t:
-            return self.jira.search_issues(jql, expand=expand, maxResults=max_results)
+        hashed_query = hashlib.md5(jql).hexdigest()
+        with Timer("Executing jql: %s" % jql):
+            result = augur.api.get_cached_data(hashed_query, override_ttl=datetime.timedelta(hours=2))
+            if not result:
+                result = self.jira.search_issues(jql, expand=expand, maxResults=max_results)
+                results_json = [r.raw for r in result]
 
-    def execute_jql_with_team_analysis(self, query):
-        """
-        Returns an object containing completed stories, incomplete stories and the percent complete
-        :param query: The JQL to return the tickets to get the stats for
-        :return: Return a dict with the following keys: complete, incomplete, total_points,percent_complete
-        """
-        issues = self.execute_jql(query, expand="changelog")
+                if len(results_json) < 250:
+                    augur.api.cache_data({
+                        "data": results_json
+                    }, hashed_query)
+                return results_json
+            else:
+                return result[0]['data']
 
-        result = {
-            "complete": 0.0,
-            "incomplete": 0.0,
-            "abandoned": 0,
-            "total_points": 0.0,
-            "percent_complete": 0,
-            "open": 0,
-            "blocked": 0,
-            "production": 0,
-            "staging": 0,
-            "integration": 0,
-            "remaining_ticket_count": 0,
-            "in_progress": 0,
-            "resolved": 0,
-            "closed": 0,
-            "quality_review": 0,
-            "unpointed": 0,
-            "config_issue": "",
-            "ticket_count": len(issues),
-            "unpointed_complete_issues": 0,
-            'developer_stats': {}
+    def simplify_issue(self, issue):
+        severity_field_name = self.get_issue_field_from_custom_name('Severity')
+        dev_team_field_name = self.get_issue_field_from_custom_name('Dev Team')
+        points_field_name = self.get_issue_field_from_custom_name('Story Points')
+        sprint_field_name = self.get_issue_field_from_custom_name('Sprint')
+        return {
+            "key": issue['key'],
+            "severity": deep_get(issue, 'fields', severity_field_name, 'value'),
+            "priority": deep_get(issue, 'fields', 'priority', 'name'),
+            "summary": deep_get(issue, 'fields', 'summary'),
+            "points": deep_get(issue, 'fields', points_field_name),
+            "description": deep_get(issue, 'fields', 'description'),
+            "devteam": deep_get(issue, 'fields', dev_team_field_name, 'value'),
+            "reporter": deep_get(issue, 'fields', 'reporter', 'key'),
+            "assignee": deep_get(issue, 'fields', 'assignee', 'key'),
+            "components": [x['name'] for x in issue['fields']['components']],
+            "sprints": deep_get(issue, 'fields', sprint_field_name),
+            "creator": deep_get(issue, 'fields', 'creator', 'key')
         }
-
-        for issue in issues:
-            new_issue = self._analytics_issue_details(issue)
-
-            ########
-            # Completion calculations
-            ########
-            self._analytics_point_completion(result, new_issue, include_dev_stats=False)
-
-            ########
-            # Status counts
-            ########
-            self._analytics_status_counts(result, new_issue)
-
-        ####
-        # COMPLETION STATUS
-        ####
-        self._analytics_completion_status(result, include_dev_stats=False)
-
-        ####
-        # SOME WARNINGS AND NOTES
-        ####
-        self._analytics_feedback(result)
-
-        return result
 
     def execute_jql_with_totals(self, query):
         """
@@ -221,7 +198,7 @@ class UaJira(object):
 
             if new_issue['assignee'] not in result['developer_stats']:
                 result['developer_stats'][UaJira._clean_username(new_issue['assignee'])] = {
-                    "info": issue.raw['fields']['assignee'] if issue.fields.assignee else {},
+                    "info": issue['fields']['assignee'] if issue['fields']['assignee']else {},
                     "complete": 0,
                     "incomplete": 0,
                     "abandoned": 0,
@@ -230,7 +207,7 @@ class UaJira(object):
                 }
 
             # Add this issue to the list of issues for the user
-            result['developer_stats'][UaJira._clean_username(new_issue['assignee'])]['issues'].append(issue.key)
+            result['developer_stats'][UaJira._clean_username(new_issue['assignee'])]['issues'].append(issue['key'])
 
             ########
             # Completion calculations
@@ -263,46 +240,38 @@ class UaJira(object):
         return result
 
     ######################################################################
-    # Defects
-    #  Methods for retrieving defect data
-    ######################################################################
-
-
-    ######################################################################
-    # Releases
-    #  Methods for retrieving release data
-    ######################################################################
-
-
-    ######################################################################
     # FIELDS
     ######################################################################
     def get_issue_field_from_custom_name(self, name):
-        for f in self.jira.fields():
-            if f['name'].lower() == name.lower():
-                return f['id']
-        return None
 
-    ######################################################################
-    # FILTERS
-    #  Methods for gathering and reporting on JIRA filters
-    ######################################################################
+        # if we have already stored fields, re-use
+        fields_json = augur.api.get_memory_cached_data('custom_fields')
+        if not fields_json:
+            # cache the fields for later
+            fields_json = augur.api.memory_cache_data(self.jira.fields(), 'custom_fields')
+
+        if fields_json:
+            for f in fields_json:
+                if f['name'].lower() == name.lower():
+                    return f['id']
+
+        return None
 
     ######################################################################
     # EPICS
     #  Methods for gathering and reporting on JIRA epics
     ######################################################################
-
-
     def get_associated_epic(self, issue):
         """
         Finds the epic issue associated with the given top level non-epic ticket.
         :param issue:  The issue object (in the form of a JIRA object)
         :return: Return an issue object as a dict
         """
-        key = issue.fields.customfield_10008
+        key = issue['fields'][self.get_issue_field_from_custom_name('Epic Link')]
         if key is not None:
-            return self.get_issue_details(key)
+            from augur.fetchers import UaIssueDataFetcher
+            fetcher = UaIssueDataFetcher(uajira=get_jira())
+            return fetcher.fetch(issue_key=key)
         else:
             return None
 
@@ -310,7 +279,6 @@ class UaJira(object):
     # WORKLOGS
     #  Gets worklog data based on certain input data
     ######################################################################
-
     def get_worklog_raw(self, start, end, team_id, username, project_key=None):
         """
         Gets worklogs as JSON for the given criteria
@@ -334,7 +302,7 @@ class UaJira(object):
 
         for log in result_json:
             username = log['author']['name']
-            staff_member = AugurModel.find_model_in_collection(consultants,"jira_username", username)
+            staff_member = AugurModel.find_model_in_collection(consultants, "jira_username", username)
             log['author']['consultant_info'] = staff_member.get_props_as_dict() if staff_member else None
 
             if username not in final_consultants:
@@ -531,18 +499,19 @@ class UaJira(object):
 
         return sprints
 
-    @staticmethod
-    def _analytics_issue_details(issue):
-        points = issue.fields.customfield_10002
+    def _analytics_issue_details(self, issue):
+        points = augur.common.deep_get(issue, 'fields,', self.get_issue_field_from_custom_name('Story Points'))
+        status = augur.common.deep_get(issue, 'fields', 'status', 'name') or ''
+        resolution = augur.common.deep_get(issue, 'fields', 'resolution', 'name') or ''
         new_issue = {
-            'key': issue.key,
-            'summary': issue.fields.summary,
-            'assignee': issue.fields.assignee.name if issue.fields.assignee else"unassigned",
-            'description': issue.fields.description,
-            'fields': common.remove_null_fields(issue.raw['fields']),
+            'key': issue['key'],
+            'summary': augur.common.deep_get(issue, 'fields', 'summary'),
+            'assignee': augur.common.deep_get(issue, 'fields', 'assignee', 'name') or 'unassigned',
+            'description': augur.common.deep_get(issue, 'fields', 'description'),
+            'fields': common.remove_null_fields(issue['fields']),
             'points': float(points if points else 0.0),
-            'status': str(issue.fields.status).lower(),
-            'resolution': str(issue.fields.resolution).lower(),
+            'status': status.lower(),
+            'resolution': resolution.lower(),
         }
         return new_issue
 
@@ -605,21 +574,21 @@ class UaJira(object):
 
     @staticmethod
     def get_time_in_status(issue, status):
-        history_list = issue.changelog.histories
+        history_list = issue['changelog']['histories']
         track_time = None
         total_time = datetime.timedelta()
 
         for history in history_list:
-            items = history.items
+            items = history['items']
 
             for item in items:
-                if item.field == 'status' and item.toString.lower() == status.lower():
+                if item['field'] == 'status' and item['toString'].lower() == status.lower():
                     # start status
-                    track_time = parse(history.created)
+                    track_time = parse(history['created'])
                     break
-                elif track_time and item.field == 'status' and item.fromString.lower() == status.lower():
+                elif track_time and item['field'] == 'status' and item['fromString'].lower() == status.lower():
                     # end status
-                    total_time += (parse(history.created) - track_time)
+                    total_time += (parse(history['created']) - track_time)
                     break
 
         if track_time and not total_time:

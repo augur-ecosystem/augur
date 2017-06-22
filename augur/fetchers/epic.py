@@ -1,5 +1,5 @@
 import augur.api
-from augur.common import const, transform_status_string, cache_store
+from augur.common import const, transform_status_string, cache_store,deep_get
 from augur.fetchers.fetcher import UaDataFetcher
 
 
@@ -137,19 +137,19 @@ class RecentEpicsDataFetcher(UaDataFetcher):
         total_active_issues = 0
         for issue in active_issues:
             total_active_issues += 1
-            epic_key = issue.fields.customfield_10800
+            epic_key = deep_get(issue, 'fields', self.uajira.get_issue_field_from_custom_name('Epic Link'))
             if epic_key:
                 if epic_key in epics:
-                    epics[epic_key]["issues"].append(issue.raw)
+                    epics[epic_key]["issues"].append(issue)
                 else:
                     epics[epic_key] = {
-                        "issues": [issue.raw],
+                        "issues": [issue],
                         "info": None
                     }
 
         active_epics = self.uajira.execute_jql('key in (%s)' % ",".join(epics.keys()))
         for epic in active_epics:
-            epics[epic.key]["info"] = epic.raw
+            epics[epic['key']]["info"] = epic
 
         return self.cache_data({
             'total_active_issues': total_active_issues,

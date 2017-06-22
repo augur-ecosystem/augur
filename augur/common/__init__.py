@@ -253,23 +253,6 @@ def get_date_range_from_strings(start,end, default_start=None, default_end=None)
     return start,end
 
 
-def simplify_issue(issue):
-    return {
-        "key": issue.key,
-        "severity": issue.fields.customfield_10300.value if issue.fields.customfield_10300 else None,
-        "priority": issue.fields.priority.name if issue.fields.priority else None,
-        "summary": issue.fields.summary,
-        "points": issue.fields.customfield_10002,
-        "description": issue.fields.description,
-        "devteam":issue.fields.customfield_13306.value if issue.fields.customfield_13306 else None,
-        "reporter": issue.fields.reporter.key if issue.fields.reporter else None,
-        "assignee": issue.fields.assignee.key if issue.fields.assignee else None,
-        "components": [x.name for x in issue.fields.components],
-        "sprints": issue.fields.customfield_10401,
-        "creator": issue.fields.creator.key
-    }
-
-
 def deep_get(dictionary, *keys):
     """
     Retrieves a deeply nested dictionary key checking for existing keys along the way.  Returns None if any key

@@ -2,7 +2,8 @@ import datetime
 import json
 
 from bson import ObjectId
-from jira.resources import Component
+from jira.client import ResultList
+from jira.resources import Component, Issue
 
 import cycletimes
 from augur.models import AugurModelProp
@@ -22,6 +23,9 @@ class UaJsonEncoder(json.JSONEncoder):
             return str(obj)
         elif isinstance(obj, Component):
             return obj.raw
+        elif isinstance(obj, Issue):
+            return obj.raw
+
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
 
@@ -37,6 +41,10 @@ class UaMongoSerializer(object):
             return d
 
         for (key, value) in d.iteritems():
+            if isinstance(value, Issue):
+                d[key] = value.raw
+            if isinstance(value, ResultList):
+                d[key] = [v.raw for v in value]
             if isinstance(value, cycletimes.CycleViolation):
                 d[key] = UaMongoSerializer._encode_cycle_violation(value)
             if isinstance(value, AugurModelProp):

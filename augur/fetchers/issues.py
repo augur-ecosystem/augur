@@ -37,13 +37,13 @@ class UaIssueDataFetcher(UaDataFetcher):
         if self.issue_key:
             issues = self.uajira.execute_jql("issue={key}".format(key=self.issue_key), expand='changelog')
             if len(issues) > 0:
-                self.cache_data(issues[0].raw)
-                return issues[0].raw
+                self.cache_data(issues[0])
+                return issues[0]
             return None
 
         elif self.issue_keys:
             issues = self.uajira.execute_jql("issue in ({keys})".format(keys=",".join(self.issue_keys)))
             if len(issues) > 0:
-                return filter(lambda x: x.raw, issues)
+                return issues
             return None
 

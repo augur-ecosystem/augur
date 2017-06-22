@@ -4,7 +4,7 @@ from collections import defaultdict
 import arrow
 
 from augur import common
-from augur.common import cache_store
+from augur.common import cache_store, deep_get
 from augur.fetchers.fetcher import UaDataFetcher
 
 SEVERITIES = ["Critical", "High", "Medium", "Low"]
@@ -54,8 +54,6 @@ class UaDefectFetcher(UaDataFetcher):
                              for (key, value) in data['grouped_by_severity_current'].iteritems()},
                 "priority": {key: generate_link_from_issues(value)
                              for (key, value) in data['grouped_by_priority_current'].iteritems()},
-                "impact": {key: generate_link_from_issues(value)
-                           for (key, value) in data['grouped_by_impact_current'].iteritems()},
             },
             "previous_period": {
                 "all": generate_link_from_issues(data['previous_period']),
@@ -63,8 +61,6 @@ class UaDefectFetcher(UaDataFetcher):
                              for (key, value) in data['grouped_by_severity_previous'].iteritems()},
                 "priority": {key: generate_link_from_issues(value)
                              for (key, value) in data['grouped_by_priority_previous'].iteritems()},
-                "impact": {key: generate_link_from_issues(value)
-                           for (key, value) in data['grouped_by_impact_previous'].iteritems()},
 
             }
         }
@@ -88,31 +84,27 @@ class UaDefectFetcher(UaDataFetcher):
         grouped_by_priority_current = defaultdict(list)
         grouped_by_priority_previous = defaultdict(list)
 
-        grouped_by_impact_current = defaultdict(list)
-        grouped_by_impact_previous = defaultdict(list)
-
         defects_json = []
         defects_previous_period_json = []
 
+        severity_field_name = self.uajira.get_issue_field_from_custom_name('Severity')
+
         def get_bug_info(issue):
-            sev = issue.fields.customfield_10300.value if issue.fields.customfield_10300 else "NotSet"
-            prior = issue.fields.priority.name if issue.fields.priority else "NotSet"
-            imp = issue.fields.customfield_16200.value if issue.fields.customfield_16200 else "NotSet"
-            return sev, prior, imp
+            sev = deep_get(issue,'fields',severity_field_name,'value') or "NotSet"
+            prior = deep_get(issue,'fields','priority','name') or "NotSet"
+            return sev, prior
 
         for defect in defects:
-            defects_json.append(defect.raw)
-            severity, priority, impact = get_bug_info(defect)
-            grouped_by_severity_current[severity].append(defect.key)
-            grouped_by_priority_current[priority].append(defect.key)
-            grouped_by_impact_current[impact].append(defect.key)
+            defects_json.append(defect)
+            severity, priority = get_bug_info(defect)
+            grouped_by_severity_current[severity].append(defect['key'])
+            grouped_by_priority_current[priority].append(defect['key'])
 
         for defect in defects_previous_period:
-            defects_previous_period_json.append(defect.raw)
-            severity, priority, impact = get_bug_info(defect)
-            grouped_by_severity_previous[severity].append(defect.key)
-            grouped_by_priority_previous[priority].append(defect.key)
-            grouped_by_impact_previous[impact].append(defect.key)
+            defects_previous_period_json.append(defect)
+            severity, priority = get_bug_info(defect)
+            grouped_by_severity_previous[severity].append(defect['key'])
+            grouped_by_priority_previous[priority].append(defect['key'])
 
         stats = {
             "lookback_days": self.lookback_days,
@@ -122,8 +114,6 @@ class UaDefectFetcher(UaDataFetcher):
             "grouped_by_severity_previous": dict(grouped_by_severity_previous),
             "grouped_by_priority_current": dict(grouped_by_priority_current),
             "grouped_by_priority_previous": dict(grouped_by_priority_previous),
-            "grouped_by_impact_current": dict(grouped_by_impact_current),
-            "grouped_by_impact_previous": dict(grouped_by_impact_previous)
         }
 
         stats['links'] = self._generate_links(stats)
@@ -172,7 +162,7 @@ class UaDefectHistoryFetcher(UaDataFetcher):
             weeks.append({
                 "start": start_str,
                 "end": end_str,
-                "defects": [d.raw for d in defects]
+                "defects": defects
             })
 
             # shift to previous week.

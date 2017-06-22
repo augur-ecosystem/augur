@@ -241,7 +241,7 @@ class JiraCmIssueTransitionHandler(WebhookListener):
                             issue_ob.update(fields=fields)
                             update_success = True
                         except Exception, e:
-                            audit.error(
+                            logging.error(
                                 "Unable to update issue with field changes after transition due to error: %s" %
                                 e.message)
                             update_success = False

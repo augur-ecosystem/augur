@@ -1,6 +1,6 @@
 import arrow
 
-from augur.common import cache_store
+from augur.common import cache_store, deep_get
 from augur.fetchers.fetcher import UaDataFetcher
 
 
@@ -51,23 +51,20 @@ class UaRelease(UaDataFetcher):
         released_tickets = {}
 
         for issue in issues:
-            links = issue.fields.issuelinks
+            links = issue['fields']['issuelinks']
 
             if isinstance(links, list) and len(links) > 0:
                 for link in links:
-                    if int(link.type.id) == 10653:
+                    if int(link['type']['id']) == 10653:
 
                         # append the associated cm to the ticket.
-                        linkedIssue = None
-                        if hasattr(link, 'outwardIssue'):
-                            linkedIssue = link.outwardIssue
-                        elif hasattr(link, 'inwardIssue'):
-                            linkedIssue = link.inwardIssue
+                        linkedIssue = deep_get(link,'outwardIssue')
+                        if not linkedIssue:
+                            linkedIssue = deep_get(link,'inwardIssue')
 
                         if linkedIssue:
-                            rawLinkedIssue = linkedIssue.raw
-                            rawLinkedIssue['cm'] = issue.key
-                            released_tickets[linkedIssue.key] = rawLinkedIssue
+                            linkedIssue['cm'] = issue['key']
+                            released_tickets[linkedIssue['key']] = linkedIssue
 
         # get complete issue info
         fully_released_tickets = []
@@ -77,8 +74,8 @@ class UaRelease(UaDataFetcher):
                 "key in (%s) order by \"Dev Team\" asc, key asc" % (comma_separated_keys))
         final_ticket_list = []
         for t in fully_released_tickets:
-            final_ob = released_tickets[t.key]
-            final_ob['detail'] = t.raw
+            final_ob = released_tickets[t['key']]
+            final_ob['detail'] = t
             final_ticket_list.append(final_ob)
 
         return self.cache_data({

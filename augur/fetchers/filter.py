@@ -58,11 +58,12 @@ class UaFilterDataFetcher(UaDataFetcher):
                 transform_status_string(const.STATUS_RESOLVED):0
             }
 
+            points_field_name = self.uajira.get_issue_field_from_custom_name('Story Points')
             for key,issue in stats['issues'].iteritems():
 
                 story_points = 0
-                if 'customfield_10002' in issue['fields']:
-                    story_points = issue['fields']['customfield_10002']
+                if points_field_name in issue['fields']:
+                    story_points = issue['fields'][points_field_name]
 
                 # get a list of all the issues in progress
                 if self.uajira._analytics_is_inprogress(issue['status']):

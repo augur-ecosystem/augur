@@ -4,7 +4,7 @@ import arrow
 
 import augur.api
 from augur import common
-from augur.common import const, cache_store
+from augur.common import const, cache_store, deep_get
 from augur.fetchers.fetcher import UaDataFetcher
 from augur.fetchers.release import UaRelease
 
@@ -55,32 +55,26 @@ class UaEngineeringReport(UaDataFetcher):
     def _get_defect_metrics(self, jql, devs, count_only=False):
         defects = self.uajira.execute_jql(jql, max_results=("0" if count_only else 1000))
         results = {
-            "total": defects.total,
+            "total": len(defects),
             "priorities": {},
             "severities": {},
             "devs": devs,
-            "dev_defect_ratio": defects.total / len(devs['devs'])
+            "dev_defect_ratio": len(defects) / len(devs['devs'])
         }
 
+        severity_field_name = self.uajira.get_issue_field_from_custom_name('Severity')
         if not count_only:
             for defect in defects:
-                if defect.fields.customfield_10300:
-                    severity = defect.fields.customfield_10300.value
-                else:
-                    severity = "Not Given"
-
-                if defect.fields.priority:
-                    priority = defect.fields.priority.name
-                else:
-                    priority = "Not Given"
+                severity = deep_get(defect,'fields',severity_field_name,'value') or "Not Given"
+                priority = deep_get(defect,'fields','priority','name') or "Not Given"
 
                 if priority not in results['priorities']:
                     results['priorities'][priority] = []
                 if severity not in results['severities']:
                     results['severities'][severity] = []
 
-                results['priorities'][priority].append(common.simplify_issue(defect))
-                results['severities'][severity].append(common.simplify_issue(defect))
+                results['priorities'][priority].append(self.uajira.simplify_issue(defect))
+                results['severities'][severity].append(self.uajira.simplify_issue(defect))
 
         return results
 
@@ -116,7 +110,7 @@ class UaEngineeringReport(UaDataFetcher):
                 "dev_defect_ratio": dev_defect_ratio,
                 "opened_this_week_count": opened_this_week_count,
                 "resolved_this_week_count": resolved_this_week_count,
-                "defects": [d.raw for d in defects]
+                "defects": defects
             })
 
             # move it back to the previous week.
