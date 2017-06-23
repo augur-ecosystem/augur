@@ -161,7 +161,7 @@ class JiraCmIssueTransitionHandler(WebhookListener):
                 success = self._handle_non_cm_transition(action, event)
 
         except Exception, e:
-            logging.error(e.message)
+            self.logger.error("Problem during execution: %s"%e.message)
             success = False
 
         finally:
@@ -277,7 +277,8 @@ class JiraCmIssueTransitionHandler(WebhookListener):
                                             event["issue"]["key"], event["issue"]["fields"]["summary"]),
                                          description=DESCRIPTION_TEMPLATE,
                                          issuetype={'name': 'V7 Harbour Release'},
-                                         reporter=event['user']
+                                         reporter=event['user'],
+                                         watchers=[event['user']['name']]
                                          )
 
                 if ticket:

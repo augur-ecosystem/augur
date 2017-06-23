@@ -370,7 +370,7 @@ class UaJira(object):
         assert (isinstance(outward, (str, unicode)))
         self.jira.create_issue_link(link_type, inward_key, outward_key, comment)
 
-    def create_ticket(self, project_key, summary, description, issuetype, reporter, **kwargs):
+    def create_ticket(self, project_key, summary, description, issuetype, reporter, watchers, **kwargs):
         """
         Create the ticket with the required fields above.  The other keyword arguments can be used for other fields
            although the values must be in the correct format.
@@ -379,6 +379,7 @@ class UaJira(object):
         :param description: A string
         :param issuetype: A dictionary containing issuetype info (see Jira API docs)
         :param reporter: A dictionary containing reporter info  (see Jira API docs)
+        :param watchers: A list of usernames that will be added to the watch list.
         :param kwargs:
         :return:
         """
@@ -399,10 +400,13 @@ class UaJira(object):
                         **kwargs
                     )
 
+                if watchers and isinstance(watchers, (list, tuple)):
+                    [self.jira.add_watcher(ticket, w) for w in watchers]
+
             return ticket
 
         except Exception, e:
-            audit.error("Failed to create ticket: %s", e.message)
+            self.logger.error("Failed to create ticket: %s", e.message)
             return None
 
     ###########################
