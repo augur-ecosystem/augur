@@ -89,7 +89,10 @@ class AugurModel(object):
 
     def __getattr__(self, key):
         if key in self.__dict__['_props']:
-            return self.__dict__['_props'][key].value
+            if isinstance(self.__dict__['_props'][key],AugurModelProp):
+                return self.__dict__['_props'][key].value
+            else:
+                return self.__dict__['_props'][key]
         else:
             raise AttributeError(key)
 

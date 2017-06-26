@@ -1,5 +1,6 @@
 import arrow
 
+import augur # required - do not remove
 from augur.common import cache_store
 from augur.fetchers.fetcher import UaDataFetcher
 

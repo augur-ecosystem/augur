@@ -13,6 +13,8 @@ import datetime
 import arrow
 import os
 
+import copy
+
 from augur import settings, common
 from augur.common.cache_store import UaCachedResultSets
 from augur.integrations.uajira import get_jira
@@ -577,8 +579,8 @@ def memory_cache_data(data, key):
     :return: Returns the data given in <data>
     """
     global CACHE
-    CACHE[key] = data
-    return data
+    CACHE[key] = copy.deepcopy(data)
+    return CACHE[key]
 
 
 def get_memory_cached_data(key):
@@ -589,7 +591,7 @@ def get_memory_cached_data(key):
     """
     global CACHE
     if key in CACHE:
-        return CACHE[key]
+        return copy.deepcopy(CACHE[key])
     else:
         return None
 

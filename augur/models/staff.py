@@ -68,13 +68,6 @@ class Staff(AugurModel):
 
         super(Staff, self).handle_post_import()
 
-    def get_jira_username(self):
-        if 'jira' in self.usernames:
-            return self.usernames['jira']
-        else:
-            return ''
-
-
 if __name__ == '__main__':
     models = AugurModel.import_from_csv(
         "/Users/karim/dev/tools/augur-tools/augur/augur/data/staff/engineering_ftes.csv"
