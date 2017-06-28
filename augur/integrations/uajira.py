@@ -108,7 +108,7 @@ class UaJira(object):
                 result = self.jira.search_issues(jql, expand=expand, maxResults=max_results)
                 results_json = [r.raw for r in result]
 
-                if len(results_json) < 250:
+                if len(results_json) < 100:
                     augur.api.cache_data({
                         "data": results_json
                     }, hashed_query)
