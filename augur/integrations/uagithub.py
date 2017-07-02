@@ -310,22 +310,29 @@ class UaGithub(object):
         total_comments = 0
 
         commit_objects = []
-        for c in commits:
-            if c.author.login not in by_author:
-                by_author[c.author.login] = {
-                    "count": 0,
-                    "commits": []
-                }
-            by_author[c.author.login]['count'] += 1
-            by_author[c.author.login]['commits'].append(c.raw_data)
+        try:
+            for c in commits:
+                try:
+                    if c.author.login not in by_author:
+                        by_author[c.author.login] = {
+                            "count": 0,
+                            "commits": []
+                        }
+                    by_author[c.author.login]['count'] += 1
+                    by_author[c.author.login]['commits'].append(c.raw_data)
 
-            comments = c.get_comments()
-            comment_objects = []
-            for cmt in comments:
-                comment_objects.append(cmt.raw_data)
+                    comments = c.get_comments()
+                    comment_objects = []
+                    for cmt in comments:
+                        comment_objects.append(cmt.raw_data)
 
-            total_comments += len(comment_objects)
-            commit_objects.append(c.raw_data)
+                    total_comments += len(comment_objects)
+                    commit_objects.append(c.raw_data)
+                except Exception,e:
+                    self.logger.error("Encountered error when reviewing commits for repo %s: %s" % (repo_ob.name, e.message))
+                    continue
+        except github.GithubException,e:
+            self.logger.error("Encountered an error while iterating over commits: %s"%e.message)
 
         total_commits = len(commit_objects)
 
@@ -342,7 +349,7 @@ class UaGithub(object):
 
     def get_org_and_repo_from_params(self, repo, org=None):
         if not org and not isinstance(repo, GithubObject):
-            raise Exception(
+            raise TypeError(
                 "If repo given is not a github object then organization must be specified")
 
         repo_ob = None
@@ -352,7 +359,7 @@ class UaGithub(object):
             repo_ob = repo
 
         if org and isinstance(repo, GithubObject):
-            raise Exception(
+            raise TypeError(
                 "If org is given then repo should be a string otherwise there's no reason to pass the org")
 
         if org and isinstance(org, str):
@@ -362,7 +369,7 @@ class UaGithub(object):
             org_ob = org
 
         elif org:
-            raise Exception("Org must be a github object or a string")
+            raise TypeError("Org must be a github object or a string")
 
         if not repo_ob:
             repo_ob = org_ob.get_repo(repo)
@@ -373,6 +380,14 @@ class UaGithub(object):
         return org_ob, repo_ob
 
     def get_org_component_data(self, org):
+        """
+        Gets all repos in an org and retrieves information about each that comes from github along with additional
+        info including further review data, additional aggregate data and the readme summary.  Note that this
+        will use cached data if available.
+
+        :param org: The organization object or name
+        :return: Returns a dict containing the data.
+        """
         ds = cache_store.UaComponentOwnership(self.mongo)
         data = ds.load_org(org)
         if not data:
@@ -384,14 +399,12 @@ class UaGithub(object):
 
             for repo in repos:
 
-                try:
-                    further_review = self.get_repo_further_review(repo)
-                    repo.raw_data["further_review"] = further_review or {}
-                    repo.raw_data["ua_stats"] = self.get_repo_commit_stats(
-                        repo)
+                further_review = self.get_repo_further_review(repo)
+                readme_summary_list = self.get_repo_readme_summary(repo)
 
-                except Exception, e:
-                    repo.raw_data["further_review"] = {}
+                repo.raw_data["further_review"] = further_review or {}
+                repo.raw_data['readme_summary'] = readme_summary_list[0] if len(readme_summary_list) else ""
+                repo.raw_data["ua_stats"] = self.get_repo_commit_stats(repo)
 
                 data['repos'].append(repo.raw_data)
                 if not data['org']:
@@ -401,6 +414,36 @@ class UaGithub(object):
             ds.save(data)
 
         return data
+
+    def get_repo_readme_summary(self, repo, org=None):
+        """
+        Finds the text between the h1 and h2 in the readme file for a repo and returns it in the form of an array
+        of strings (one for each line)
+        :param repo: The repo object or name
+        :param org: The org object or name
+        :return: Returns a list of strings.
+        """
+        org_ob, repo_ob = self.get_org_and_repo_from_params(repo, org)
+        result = []
+        try:
+            content_ob = repo_ob.get_file_contents("README.md")
+            if content_ob:
+                readme_str = content_ob.decoded_content
+                if readme_str:
+                    try:
+                        result = re.findall('#.*\n([^#]*)', readme_str, re.MULTILINE)
+                        return result
+                    except Exception as e:
+                        self.logger.info("Parse error during processing of README.md: %s" % e.message)
+                else:
+                    self.logger.warning("Unable to retrieve README.md")
+            else:
+                self.logger.warning("Unable to find README.md file")
+        except github.UnknownObjectException, e:
+            self.logger.error("Error occurred during README analysis: %s (%s)" % (e.message, str(e.__class__)))
+        except github.GithubException, e:
+            self.logger.error("Error occurred during further review analysis: %s (%s)" % (e.message, str(e.__class__)))
+        return result
 
     def get_repo_further_review(self, repo, org=None):
 
@@ -452,6 +495,8 @@ class UaGithub(object):
             else:
                 self.logger.warning("Unable to find further-review.yaml file")
         except github.UnknownObjectException, e:
+            self.logger.error("Got a github error indicating that we were unable to find a file in the repo: %s (%s)" % (e.message, str(e.__class__)))
+        except github.GithubException, e:
             self.logger.error("Error occurred during further review analysis: %s (%s)" % (e.message, str(e.__class__)))
 
         result['owner'] = {
