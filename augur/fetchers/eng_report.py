@@ -122,7 +122,7 @@ class UaEngineeringReport(UaDataFetcher):
 
         epics = {}
 
-        def update_epic_data(epic_inner, issue_inner):
+        def update_epic_data(epics_inner, issue_inner):
 
             if 'currentEstimateStatistic' not in issue_inner:
                 # this is the full blow issue_inner dict
@@ -141,8 +141,8 @@ class UaEngineeringReport(UaDataFetcher):
                 done = issue_inner['done']
 
             epic_key = common.deep_get(issue_inner, 'epicField', 'epicKey') or "NONE"
-            if epic_key not in epic_inner:
-                epic_inner[epic_key] = {
+            if epic_key not in epics_inner:
+                epics_inner[epic_key] = {
                     "key": epic_key,
                     "text": issue_inner['epicField']['text'] if epic_key != "NONE" else "No epic assigned",
                     "completed_points": 0.0,
@@ -154,7 +154,7 @@ class UaEngineeringReport(UaDataFetcher):
                 }
 
             assignee = issue_inner['assigneeKey'] if 'assigneeKey' in issue_inner else ""
-            epic_inner[epic_key]['issues'].append({
+            epics_inner[epic_key]['issues'].append({
                 "key": issue_inner['key'],
                 "summary": issue_inner['summary'],
                 "assignee": assignee,
@@ -164,29 +164,37 @@ class UaEngineeringReport(UaDataFetcher):
             })
 
             if assignee:
-                if assignee not in epic_inner[epic_key]["devs"]:
-                    epic_inner[epic_key]["devs"].append(assignee)
+                if assignee not in epics_inner[epic_key]["devs"]:
+                    epics_inner[epic_key]["devs"].append(assignee)
 
                 if assignee in self.staff['devs']:
                     team = self.staff['devs'][assignee]["team_name"]
-                    if team not in epic_inner[epic_key]["teams"]:
-                        epic_inner[epic_key]["teams"].append(team)
+                    if team not in epics_inner[epic_key]["teams"]:
+                        epics_inner[epic_key]["teams"].append(team)
 
             if done:
-                epic_inner[epic_key]['completed_points'] += points
+                epics_inner[epic_key]['completed_points'] += points
             else:
-                epic_inner[epic_key]['incomplete_points'] += points
+                epics_inner[epic_key]['incomplete_points'] += points
 
-            epic_inner[epic_key]['total_points'] += points
+            epics_inner[epic_key]['total_points'] += points
+
+            # return the epic that was created/updated.
+            return epics_inner[epic_key]
 
         for team_id, info in sprints.iteritems():
+
+            sprint_epics = {}
             sprint_data = info['last']
             if sprint_data:
+                sprint_data['epics'] = {}
                 for issue in sprint_data['team_sprint_data']['contents']['completedIssues']:
-                    update_epic_data(epics, issue)
+                    epic = update_epic_data(epics, issue)
+                    sprint_data['epics'][epic['key']] = epic
 
                 for issue in sprint_data['team_sprint_data']['contents']['issuesNotCompletedInCurrentSprint']:
-                    update_epic_data(epics, issue)
+                    epic = update_epic_data(epics, issue)
+                    sprint_data['epics'][epic['key']] = epic
 
         return epics
 
