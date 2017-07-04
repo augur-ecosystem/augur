@@ -39,7 +39,7 @@ class UaOrgStatsFetcher(UaDataFetcher):
               % (",".join(common.POSITIVE_RESOLUTIONS))
 
         issues = self.uajira.execute_jql(jql, max_results=1000)
-        point_value_field = self.uajira.get_issue_field_from_custom_name('Story Points')
+        point_value_field = augur.api.get_issue_field_from_custom_name('Story Points')
         for issue in issues:
 
             # needs to have a point value and an assignee to proceed

@@ -116,26 +116,6 @@ class UaJira(object):
             else:
                 return result[0]['data']
 
-    def simplify_issue(self, issue):
-        severity_field_name = self.get_issue_field_from_custom_name('Severity')
-        dev_team_field_name = self.get_issue_field_from_custom_name('Dev Team')
-        points_field_name = self.get_issue_field_from_custom_name('Story Points')
-        sprint_field_name = self.get_issue_field_from_custom_name('Sprint')
-        return {
-            "key": issue['key'],
-            "severity": deep_get(issue, 'fields', severity_field_name, 'value'),
-            "priority": deep_get(issue, 'fields', 'priority', 'name'),
-            "summary": deep_get(issue, 'fields', 'summary'),
-            "points": deep_get(issue, 'fields', points_field_name),
-            "description": deep_get(issue, 'fields', 'description'),
-            "devteam": deep_get(issue, 'fields', dev_team_field_name, 'value'),
-            "reporter": deep_get(issue, 'fields', 'reporter', 'key'),
-            "assignee": deep_get(issue, 'fields', 'assignee', 'key'),
-            "components": [x['name'] for x in issue['fields']['components']],
-            "sprints": deep_get(issue, 'fields', sprint_field_name),
-            "creator": deep_get(issue, 'fields', 'creator', 'key')
-        }
-
     def execute_jql_with_totals(self, query):
         """
         This is a very of analytics that returns less information but will run more quickly.
@@ -240,24 +220,6 @@ class UaJira(object):
         return result
 
     ######################################################################
-    # FIELDS
-    ######################################################################
-    def get_issue_field_from_custom_name(self, name):
-
-        # if we have already stored fields, re-use
-        fields_json = augur.api.get_memory_cached_data('custom_fields')
-        if not fields_json:
-            # cache the fields for later
-            fields_json = augur.api.memory_cache_data(self.jira.fields(), 'custom_fields')
-
-        if fields_json:
-            for f in fields_json:
-                if f['name'].lower() == name.lower():
-                    return f['id']
-
-        return None
-
-    ######################################################################
     # EPICS
     #  Methods for gathering and reporting on JIRA epics
     ######################################################################
@@ -267,7 +229,7 @@ class UaJira(object):
         :param issue:  The issue object (in the form of a JIRA object)
         :return: Return an issue object as a dict
         """
-        key = issue['fields'][self.get_issue_field_from_custom_name('Epic Link')]
+        key = issue['fields'][augur.api.get_issue_field_from_custom_name('Epic Link')]
         if key is not None:
             from augur.fetchers import UaIssueDataFetcher
             fetcher = UaIssueDataFetcher(uajira=get_jira())
@@ -504,7 +466,7 @@ class UaJira(object):
         return sprints
 
     def _analytics_issue_details(self, issue):
-        points = augur.common.deep_get(issue, 'fields,', self.get_issue_field_from_custom_name('Story Points'))
+        points = augur.common.deep_get(issue, 'fields,', augur.api.get_issue_field_from_custom_name('Story Points'))
         status = augur.common.deep_get(issue, 'fields', 'status', 'name') or ''
         resolution = augur.common.deep_get(issue, 'fields', 'resolution', 'name') or ''
         new_issue = {

@@ -137,7 +137,7 @@ class RecentEpicsDataFetcher(UaDataFetcher):
         total_active_issues = 0
         for issue in active_issues:
             total_active_issues += 1
-            epic_key = deep_get(issue, 'fields', self.uajira.get_issue_field_from_custom_name('Epic Link'))
+            epic_key = deep_get(issue, 'fields', augur.api.get_issue_field_from_custom_name('Epic Link'))
             if epic_key:
                 if epic_key in epics:
                     epics[epic_key]["issues"].append(issue)

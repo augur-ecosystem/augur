@@ -1,3 +1,4 @@
+import augur
 from augur.common import const, transform_status_string, cache_store
 from augur.fetchers.fetcher import UaDataFetcher
 
@@ -58,7 +59,7 @@ class UaFilterDataFetcher(UaDataFetcher):
                 transform_status_string(const.STATUS_RESOLVED):0
             }
 
-            points_field_name = self.uajira.get_issue_field_from_custom_name('Story Points')
+            points_field_name = augur.api.get_issue_field_from_custom_name('Story Points')
             for key,issue in stats['issues'].iteritems():
 
                 story_points = 0

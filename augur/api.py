@@ -37,6 +37,45 @@ def get_jira_instance():
     return get_jira()
 
 
+def jql(jql_string, expand=None, max_results=500):
+    """
+    Does a JIRA jql search on the active instance
+    :param jql_string: The JQL string
+    :param expand: The fields that should be expanded.
+    :param max_results: The maximum number of results to return
+    :return: A dictionary containing the issues found.
+    """
+    return get_jira().execute_jql(jql_string, expand, max_results)
+
+
+def get_group(id_or_name):
+    """
+    Gets a group by integer ID or name
+    :param id_or_name: The ID or name of the group to retrieve
+    :return: Returns a Group object or None if not found
+    """
+    if isinstance(id_or_name,(int,float)):
+        t = filter(lambda x: x.id == id, get_groups())
+    else:
+        t = filter(lambda x: x.name.lower() == id_or_name.lower(), get_groups())
+
+    return t[0] if t else None
+
+
+def get_groups():
+    """
+    Gets a group by integer ID or name
+    :param id_or_name: The ID or name of the group to retrieve
+    :return: Returns a Group object or None if not found
+    """
+    cached = get_memory_cached_data("_GROUPS_")
+    if not cached:
+        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/groups.csv')
+        data = AugurModel.import_from_csv(path_to_csv, Group)
+        cached = memory_cache_data(data, "_GROUPS_")
+    return cached
+
+
 def get_historic_sprint_stats(team, force_update=False):
     """
     Gets all the sprint objects for a team (decorated with other custom info) and runs them through the
@@ -404,81 +443,6 @@ def get_all_dev_stats(force_update=False):
     return UaOrgStatsFetcher(get_jira(), force_update=force_update).fetch()
 
 
-def get_engineering_report(week_number=None, force_update=False):
-    """
-    Gets all the data that makes up the "Engineering Report" which contains a broad collection of data 
-    ranging from sprint data across all team, defect data, epic information and much more.
-    :param force_update: 
-    :param week_number: The week number to include in the report (1-52)
-    :return: Returns an object that looks something like this:
-    
-        {
-            "releases" : {
-                "release_date_end" : <datetime>,
-                "release_date_start" : <datetime>,
-                "issues" : []
-            },
-            "epics" : {},
-            "defects" : {
-                "aggregate_metrics" : {},
-                "weekly_metrics" : []
-            },
-            "sprint" : {
-                "b" : {
-                    "last" : {},
-                    "before_last" : {}
-                },
-        
-            },
-            "staff" : {
-                "engineer_count" : <int>,
-                "storage_time" : <datetime>,
-                "teams" : {
-                    "Team Sagamore" : {
-                        "board_id" : <int>,
-                        "full" : <string>,
-                        "total_fulltime" : <int>,
-                        "board_link" : <string>,
-                        "total_consultants" : int,
-                        "members" : {                    
-                            "aolszewski" : {}
-                        },
-                        "avg_pts_per_engineer" : 4.2,
-                        "id" : "rc"
-                    },
-                },
-                "devs" : {
-                    "npishchykava" : {
-                        "funnel" : "<string>",
-                        "vendor" : "<string>",
-                        "is_consultant" : <bool>,
-                        "fullname" : "<string>",
-                        "email" : "<string>",
-                        "team_id" : "<string>",
-                        "active" : <bool>,
-                        "team_name" : "<string>",
-                        "start_date" : "<string>"
-                    }
-                },
-                "consultant_count" : <int>,
-                "fulltime_count" : <int>,
-                "team_count" :<int>8,
-            },
-            "end" : <datetime>,
-            "storage_time" : <datetime>,
-            "start" : <datetime>,
-            "week_number" : <int>
-        }    
-    """
-    from augur.fetchers import UaEngineeringReport
-    fetch = UaEngineeringReport(uajira=get_jira(), force_update=force_update)
-
-    if not week_number:
-        week_number = int(datetime.datetime.now().strftime("%V"))
-
-    return fetch.fetch(week_number=week_number)
-
-
 def get_consultants():
     """
     Retrieves a list of Staff model objects containing all the known consultants.
@@ -606,6 +570,7 @@ def cache_data(document, key):
     mongo = cache_store.UaStatsDb()
     cache = UaCachedResultSets(mongo)
     cache.save_with_key(document, key)
+    return document
 
 
 def get_cached_data(key, override_ttl=None):
@@ -619,3 +584,50 @@ def get_cached_data(key, override_ttl=None):
     mongo = cache_store.UaStatsDb()
     cache = UaCachedResultSets(mongo)
     return cache.load_from_key(key, override_ttl=override_ttl)
+
+
+def simplify_issue(issue):
+    """
+    Removes unnecessary data from JIRA issue object and returns a simplified dictionary
+    :param issue:
+    :return:
+    """
+    severity_field_name = get_issue_field_from_custom_name('Severity')
+    dev_team_field_name = get_issue_field_from_custom_name('Dev Team')
+    points_field_name = get_issue_field_from_custom_name('Story Points')
+    sprint_field_name = get_issue_field_from_custom_name('Sprint')
+    return {
+        "key": issue['key'],
+        "severity": common.deep_get(issue, 'fields', severity_field_name, 'value'),
+        "priority": common.deep_get(issue, 'fields', 'priority', 'name'),
+        "summary": common.deep_get(issue, 'fields', 'summary'),
+        "points": common.deep_get(issue, 'fields', points_field_name),
+        "description": common.deep_get(issue, 'fields', 'description'),
+        "devteam": common.deep_get(issue, 'fields', dev_team_field_name, 'value'),
+        "reporter": common.deep_get(issue, 'fields', 'reporter', 'key'),
+        "assignee": common.deep_get(issue, 'fields', 'assignee', 'key'),
+        "components": [x['name'] for x in issue['fields']['components']],
+        "sprints": common.deep_get(issue, 'fields', sprint_field_name),
+        "creator": common.deep_get(issue, 'fields', 'creator', 'key')
+    }
+
+
+def get_issue_field_from_custom_name(name):
+    """
+    Returns the true field name of a jira field based on its friendly name
+    :param name: The friendly name of the field
+    :return: A string with the true name of a field.
+    """
+
+    # if we have already stored fields, re-use
+    fields_json = get_memory_cached_data('custom_fields')
+    if not fields_json:
+        # cache the fields for later
+        fields_json = memory_cache_data(get_jira().jira.fields(), 'custom_fields')
+
+    if fields_json:
+        for f in fields_json:
+            if f['name'].lower() == name.lower():
+                return f['id']
+
+    return None

@@ -233,7 +233,7 @@ class JiraCmIssueTransitionHandler(WebhookListener):
 
                     if len(custom_fields):
                         for name, value in custom_fields.iteritems():
-                            actual_name = j.get_issue_field_from_custom_name(name)
+                            actual_name = augur.api.get_issue_field_from_custom_name(name)
                             fields[actual_name] = value
 
                         try:

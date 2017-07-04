@@ -68,8 +68,8 @@ def transform_jira_issue_to_augur_ticket(issue):
         # convert to raw format (dictionary)
         issue = issue.raw
 
-    story_point_field = jira.get_issue_field_from_custom_name("Story Points")
-    dev_team_field = jira.get_issue_field_from_custom_name("Dev Team")
+    story_point_field = augur.api.get_issue_field_from_custom_name("Story Points")
+    dev_team_field = augur.api.get_issue_field_from_custom_name("Dev Team")
 
     ticket.summary = issue.get('summary',"")
     ticket.description = deep_get(issue, 'fields','description') or ""

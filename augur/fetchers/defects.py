@@ -3,6 +3,7 @@ from collections import defaultdict
 
 import arrow
 
+import augur
 from augur import common
 from augur.common import cache_store, deep_get
 from augur.fetchers.fetcher import UaDataFetcher
@@ -87,7 +88,7 @@ class UaDefectFetcher(UaDataFetcher):
         defects_json = []
         defects_previous_period_json = []
 
-        severity_field_name = self.uajira.get_issue_field_from_custom_name('Severity')
+        severity_field_name = augur.api.get_issue_field_from_custom_name('Severity')
 
         def get_bug_info(issue):
             sev = deep_get(issue,'fields',severity_field_name,'value') or "NotSet"
