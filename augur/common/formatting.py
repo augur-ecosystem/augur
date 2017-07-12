@@ -4,6 +4,7 @@ from math import floor
 
 REGEX_TIMEDELTA = re.compile(r'(?P<days>[\d.]+)d,(?P<hours>[\d.]+)h$')
 
+
 def unformat_timedelta(value):
     out = re.match(REGEX_TIMEDELTA, value).groupdict({"days": "0", "hours": "0"})
     return datetime.timedelta(days=int(out['days']), minutes=int(out['hours']))

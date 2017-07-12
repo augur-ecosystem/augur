@@ -14,7 +14,6 @@ import comm
 import const
 import serializers
 import formatting
-import projects
 
 import json
 import dateutil
@@ -42,106 +41,36 @@ class Struct:
         self.__dict__.update(entries)
 
 
-def set_cache(namespace, key, value):
-    global _CACHE
-
-    if namespace not in _CACHE:
-        _CACHE[namespace] = {key: value}
-    else:
-        _CACHE[namespace][key] = value
-
-
-def get_cache(namespace, key):
-    global _CACHE
-
-    if not isinstance(key, (str, unicode)):
-        return None
-
-    return _CACHE[namespace][key] if (namespace in _CACHE and key in _CACHE[namespace]) else None
-
-
-def get_team_args(uajira, args):
+def remove_null_fields(d):
     """
-    Gets the teams that are specified on the command line (in a form that is useable by actions).  Or it returns all
-    teams if no team was specified.  The information about the teams is pulled from JIRA but the short name associations
-    are hard coded as constants in the script
-    :param uajira: The UaJira object representing the Jira instance
-    :param args: The args that were parsed on the command line
-    :return: A dictionary of teams
+    Takes a dictionary and returns a new dictionary with fields that have null values.
+    :param d: A dictionary to remove null fields from
+    :return:
     """
-    custom_teams = {}
-    teams = augur.api.get_teams_as_dictionary()
-    if args.teams is not None and len(args.teams) > 0:
-        for t in args.teams:
-            t = t.strip()
-            team_data = teams[t]
-            if team_data:
-                custom_teams[t] = team_data.name
-    else:
-        custom_teams = augur.api.get_teams_as_dictionary().copy()
-
-    # Now get the details for each of the selected teams from the automatically generated
-    #   data pulled from JIRA
-    team_info = uajira.get_all_developer_info()
-    for team_id, info in custom_teams.iteritems():
-        if info.name in team_info['teams']:
-            custom_teams[team_id] = team_info['teams'][info.name]
-
-    return custom_teams
+    return dict((k, v) for k, v in d.iteritems() if v is not None)
 
 
-def remove_null_fields(issue_fields):
-    return dict((k, v) for k, v in issue_fields.iteritems() if v)
-    # return {k: v for (k, v) in issue_fields.iteritems() if v}
-
-
-def jira_store(jira, key, data):
-    issue = jira.issue(key)
-
-    try:
-        import serializers
-        ob_str = json.dumps(data, cls=serializers.UaJsonEncoder)
-        issue.update(description=ob_str)
-    except TypeError, e:
-        print "Invalid JSON: " + e.message
-    except ValueError, e:
-        print "Invalid JSON: " + e.message
-
-
-def jira_load(uajira, key):
-    issue = uajira.get_jira().issue(key)
-    ob_str = issue.fields.description
-    try:
-        return json.loads(ob_str)
-    except TypeError, e:
-        print "Invalid JSON: " + e.message
-    except ValueError, e:
-        print "Invalid JSON: " + e.message
-
-def parse_sprint_info(sprint_string):
-    m = re.match(".*\[(.*)\]", sprint_string)
-    if m and m.groups() > 1:
-        props = m.group(1)
-        sprint_ob = {}
-        for prop in props.split(","):
-            key, value = prop.split("=")
-
-            try:
-                # if it's a date, convert it.
-                if key in ['startDate', 'endDate', 'completeDate']:
-                    sprint_ob[key] = dateutil.parser.parse(value)
-            except ValueError:
-                pass
-            finally:
-                if key not in sprint_ob:
-                    if value == '<null>':
-                        sprint_ob[key] = None
-                    else:
-                        sprint_ob[key] = value
-
-        return sprint_ob
-
-    return None
+def clean_issue(issue):
+    """
+    This will put commonly used fields at the root of the dictionary and remove all of the custom fields that are
+    empty.
+    :param issue: A dict that is the the issue to clean
+    :return: Returns a dictionary.
+    """
+    points = augur.common.deep_get(issue, 'fields,', augur.api.get_issue_field_from_custom_name('Story Points'))
+    status = augur.common.deep_get(issue, 'fields', 'status', 'name') or ''
+    resolution = augur.common.deep_get(issue, 'fields', 'resolution', 'name') or ''
+    return {
+        'key': issue['key'],
+        'summary': augur.common.deep_get(issue, 'fields', 'summary'),
+        'assignee': augur.common.deep_get(issue, 'fields', 'assignee', 'name') or 'unassigned',
+        'description': augur.common.deep_get(issue, 'fields', 'description'),
+        'fields': remove_null_fields(issue['fields']),
+        'points': float(points if points else 0.0),
+        'status': status.lower(),
+        'changelog': augur.common.deep_get(issue,'changelog'),
+        'resolution': resolution.lower(),
+    }
 
 
 def sprint_belongs_to_team(sprint, team_id):

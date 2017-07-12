@@ -6,7 +6,7 @@ import augur
 from augur import api
 from augur.common import deep_get
 from augur.common import timer
-from augur.integrations.uajira import get_jira
+from augur.api import get_jira
 from augur.models.staff import Staff
 from augur.models.ticket import Ticket, TicketType
 

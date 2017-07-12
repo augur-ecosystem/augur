@@ -2,10 +2,9 @@ import logging
 
 import augur.api
 
-from augur.common import projects, audit
 from augur.events.filters.jirawebhookfilter import JiraWebhookFilter
 from augur.events.listener import WebhookListener
-from augur.integrations.uajira import get_jira
+from augur.api import get_jira
 
 EXCLUSIONS = ["team", "b2bdef", "ueb2b", "tsc"]
 
@@ -142,10 +141,15 @@ class JiraCmIssueTransitionHandler(WebhookListener):
 
     def __init__(self):
 
+        # we have to assume that the group is b2c since it's the only one that uses
+        #   transitions.  But this doesn't belong in the augur library.
+        self.group = augur.api.get_group('b2c')
+        self.workflow = augur.api.get_workflow(self.group.workflow_id)
+
         super(JiraCmIssueTransitionHandler, self).__init__(
             JiraWebhookFilter(
                 actions=["issue:transitioned"],
-                projects=projects.get_all_jira_projects(),
+                projects=self.workflow.get_projects(key_only=True),
                 fields=["status"]
             )
         )

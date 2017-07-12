@@ -1,0 +1,6 @@
+export GITHUB_CLIENT_ID="e3d808650b0df159ac03"
+export JIRA_USERNAME="automation"
+export JIRA_PASSWORD="d5mtVvKmVwrU"
+export GITHUB_CLIENT_SECRET="61b4964e37ba4966d29b6eb97e5d6cb9f4f645d5"
+export JIRA_INSTANCE="https://underarmour.atlassian.net"
+export JIRA_API_REL="rest/api/2"

@@ -34,9 +34,11 @@ class UaOrgStatsFetcher(UaDataFetcher):
 
         data = augur.api.get_all_developer_info()
 
-        jql = "category = 'Ecommerce Workflows' and status changed to 'resolved' after startOfDay(-2M) and " \
-              "status = 'resolved' and resolution in (%s) order by assignee desc, updated desc" \
-              % (",".join(common.POSITIVE_RESOLUTIONS))
+        jql = "%s and status changed to %s after startOfDay(-2M) and " \
+              "status = 'resolved' and resolution in %s order by assignee desc, updated desc" \
+              % (self.workflow.get_projects_jql(),
+                 self.workflow.get_resolved_statuses_jql(),
+                 self.workflow.get_positive_resolutions_jql())
 
         issues = self.uajira.execute_jql(jql, max_results=1000)
         point_value_field = augur.api.get_issue_field_from_custom_name('Story Points')

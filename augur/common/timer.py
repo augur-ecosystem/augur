@@ -1,6 +1,5 @@
 import time
 import logging
-import sys
 
 
 class Timer(object):

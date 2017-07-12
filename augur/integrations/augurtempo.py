@@ -1,6 +1,7 @@
 TEMPO_API_TOKEN="72c7fe70-eac9-4497-a3a1-e29ce4c47d41"
 
-class UaTempo(object):
+
+class AugurTempo(object):
 
     def __init__(self, uajira):
         self.uajira = uajira

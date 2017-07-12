@@ -17,24 +17,37 @@ import copy
 
 from augur import settings, common
 from augur.common.cache_store import UaCachedResultSets
-from augur.integrations.uajira import get_jira
 
 from augur.common import const, cache_store
 from augur.models import AugurModel
 from augur.models.product import Product
 from augur.models.staff import Staff
 from augur.models.team import Team
+from augur.models.group import Group
+from augur.models.workflow import Workflow
 
 CACHE = dict()
 
+__jira = None
+__github = None
 
-def get_jira_instance():
-    """
-    Gets access to the UaJira object that is used to retrieve data directly from Jira.  This is the same object
-    that is used for the other API calls
-    :return: Return UaJira
-    """
-    return get_jira()
+
+def get_github():
+    from augur.integrations.augurgithub import AugurGithub
+
+    global __github
+    if not __github:
+        __github = AugurGithub()
+    return __github
+
+
+def get_jira():
+    from augur.integrations.augurjira import AugurJira
+
+    global __jira
+    if not __jira:
+        __jira = AugurJira()
+    return __jira
 
 
 def jql(jql_string, expand=None, max_results=500):
@@ -48,24 +61,42 @@ def jql(jql_string, expand=None, max_results=500):
     return get_jira().execute_jql(jql_string, expand, max_results)
 
 
-def get_group(id_or_name):
+def get_workflow(workflow_id):
     """
-    Gets a group by integer ID or name
-    :param id_or_name: The ID or name of the group to retrieve
+    Gets a workflow by ID
+    :param workflow_id: The ID of the workflow to retrieve
     :return: Returns a Group object or None if not found
     """
-    if isinstance(id_or_name,(int,float)):
-        t = filter(lambda x: x.id == id, get_groups())
-    else:
-        t = filter(lambda x: x.name.lower() == id_or_name.lower(), get_groups())
+    g = filter(lambda x: x.id == workflow_id, get_workflows())
+    return g[0] if g else None
 
-    return t[0] if t else None
+
+def get_workflows():
+    """
+    Get a list of all workflows
+    :return: Returns a Group object or None if not found
+    """
+    cached = get_memory_cached_data("_WORKFLOWS_")
+    if not cached:
+        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/workflows.yaml')
+        data = AugurModel.import_from_yaml(path_to_csv, Workflow)
+        cached = memory_cache_data(data, "_WORKFLOWS_")
+    return cached
+
+
+def get_group(group_id):
+    """
+    Gets a group by id
+    :param group_id: The ID or name of the group to retrieve
+    :return: Returns a Group object or None if not found
+    """
+    g = filter(lambda x: x.id == group_id, get_groups())
+    return g[0] if g else None
 
 
 def get_groups():
     """
-    Gets a group by integer ID or name
-    :param id_or_name: The ID or name of the group to retrieve
+    Gets all groups
     :return: Returns a Group object or None if not found
     """
     cached = get_memory_cached_data("_GROUPS_")
@@ -118,7 +149,7 @@ def get_abridged_sprint_list_for_team(team_id, limit=None):
     """
 
     team_ob = get_team_by_id(team_id)
-    team_sprints_abridged = get_jira()._sprints(team_ob.board_id)
+    team_sprints_abridged = get_jira().get_sprints_from_board(team_ob.board_id)
 
     # the initial list can contain sprints from other boards in cases where tickets spent time on
     # both boards.  So we filter out any that do not belong to the team.
@@ -347,8 +378,8 @@ def get_filter_analysis(filter_id, force_update=False):
     :param:filter The filter ID
     :return: A dictionary of filter data
     """
-    from augur.fetchers import UaFilterDataFetcher
-    fetcher = UaFilterDataFetcher(force_update=force_update, uajira=get_jira())
+    from augur.fetchers import UaMilestoneDataFetcher
+    fetcher = UaMilestoneDataFetcher(force_update=force_update, uajira=get_jira())
     return fetcher.fetch(filter_id=filter_id)
 
 
@@ -394,7 +425,7 @@ def get_dashboard_data(force_update=False):
     return data[0] if isinstance(data, list) else data
 
 
-def get_all_developer_info(force_update=False):
+def get_all_developer_info(group_id=None, force_update=False):
     """
     Retrieves all the developers organized by team along with some basic user info.
     Looks something like this:
@@ -411,10 +442,12 @@ def get_all_developer_info(force_update=False):
         },...
 
     }
+    :param group_id: The ID of the group to limit results to.
+    :param force_update: If True, then this will skip the cache and pull fresh data
     :return:
     """
     from augur.fetchers import UaTeamMetaDataFetcher
-    fetcher = UaTeamMetaDataFetcher(force_update=force_update, uajira=get_jira())
+    fetcher = UaTeamMetaDataFetcher(group_id=group_id, force_update=force_update, uajira=get_jira())
     return fetcher.fetch()
 
 

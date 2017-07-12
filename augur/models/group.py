@@ -1,4 +1,5 @@
 
+import augur
 from augur.models import AugurModel
 
 
@@ -15,7 +16,14 @@ class Group(AugurModel):
         self.add_prop("name", "", unicode)
         self.add_prop("teams", [], list)
         self.add_prop("products", [], list)
-        self.add_prop("workflow", 0, int)
+        self.add_prop("workflow_id", "", unicode)
+
+    def get_workflow(self):
+
+        if self.workflow_id:
+            return augur.api.get_workflow(self.workflow_id)
+        else:
+            return None
 
     def handle_field_import(self, key, value):
         if key == "teams":

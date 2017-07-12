@@ -6,14 +6,13 @@ import re
 
 import github
 import yaml
-from github import Github
+from github import Github, GithubException
 from github.GithubObject import GithubObject
 
-from augur import common
 from augur import settings
 from augur.common import cache_store
 from augur.common.timer import Timer
-from augur.integrations.uajira import get_jira
+from augur.api import get_jira
 import augur.api
 
 LOGIN_TOKEN = "1a764970a4a22d220bf416cbd5266d497f3d55a0"
@@ -28,11 +27,11 @@ class GitFileNotFoundError(exceptions.Exception):
     pass
 
 
-class UaGithub(object):
+class AugurGithub(object):
     def __init__(self):
         self.github = Github(login_or_token=settings.main.integrations.github.login_token,
-                         password="x-oauth-basic",
-                         base_url=settings.main.integrations.github.base_url)
+                             password="x-oauth-basic",
+                             base_url=settings.main.integrations.github.base_url)
 
         self.mongo = cache_store.UaStatsDb()
         self.prs_data_store = cache_store.UaTeamPullRequestsData(self.mongo)
@@ -43,264 +42,137 @@ class UaGithub(object):
         self.jira = get_jira()
         self.logger = logging.getLogger("uagithub")
 
-    def _cache_merged_prs_for_repo(self, repos, since):
+    def fetch_further_reviews(self, org):
         """
-        Retrieves all PRs that have been merged since the "since" date and stores them in mongo.
-
-        :param repos:
-        :param since:
-        :return:
+        Gets all the further review information for each repo in the given org
+        :param org: The name of the org to return further review info from
+        :return: Returns a dictionary containing further review information
         """
-        results = dict()
-        for repo in repos:
-            results[repo.full_name] = {
-                "added_prs": 0,
-            }
-            filtered_prs = []
-            prs = repo.get_pulls(
-                state="closed", sort="created", direction="desc")
-            try:
-                for p in prs:
-                    if p.created_at > since:
-                        if p.merged:
-                            filtered_prs.append(p.raw_data)
-                            results[repo.full_name]['added_prs'] += 1
-                    else:
-                        break
+        repos = self.get_repos_in_org(org)
+        org_further_reviews = {}
+        for r in repos:
+            org_further_reviews[r.name] = self.get_repo_further_review(r)
 
-                # add this repo to the cache
-                if len(filtered_prs) > 0:
-                    self.logger.info(repo.name + ": Found %d PRs" % len(filtered_prs))
-                    self.prs_data_store.save_prs(filtered_prs)
-                else:
-                    self.logger.info(repo.name + ": No PRs since %s" % str(since))
+        return org_further_reviews
 
-                results[repo.full_name]['added_prs'] = len(filtered_prs)
-                results[repo.full_name]['since'] = str(since)
-
-            except Exception as e:
-                self.logger.error("Errur during _cache_merged_prs_for_repo: %s"%e.message)
-
-        return results
-
-    def _cache_open_prs_for_repo(self, repos):
+    def fetch_prs(self, org, state, since=None, sort="created", order="desc"):
         """
-        Retrieves all PRs that have been opened against upstream repos
-        :param repos:
-        :return:
+        Gets the PRs for the given repo(s) of the given type.  You can specify PRs of certain types
+        :param order: The sort order can be asc or desc
+        :param sort: The sort order.  Can be comments, created, or updated
+        :param state: The state of the pr (open, closed, merged)
+        :param org: The name of the organization (as a string)
+        :param since: The earliest date when the PRs were first opened
+        :return: Returns a list of search results
         """
-        results = dict()
-        for repo in repos:
-            results[repo.full_name] = {
-                "added_prs": 0,
-            }
-            filtered_prs = []
-            prs = repo.get_pulls(state="open", sort="created", direction="asc")
-            try:
-                for p in prs:
-                    fr = common.get_cache('FR_OPR', repo.full_name)
-                    if not fr:
-                        fr = self.get_repo_further_review(repo)
-                        common.set_cache('FR_OPR', repo.full_name, fr)
-
-                    fpr = p.raw_data
-                    fpr['further_review'] = fr
-                    filtered_prs.append(fpr)
-                    results[repo.full_name]['added_prs'] += 1
-
-                # add this repo to the cache
-                if len(filtered_prs) > 0:
-                    self.open_prs_data_store.save_prs(filtered_prs)
-
-                results[repo.full_name]['added_prs'] = len(filtered_prs)
-
-            except Exception as e:
-                self.logger.error("Error during caching of open PRs: %s" % e.message)
-
-        return results
-
-    def refresh_open_pr_cache(self):
-        results = {}
-
-        # clear out all stored open prs.
-        self.open_prs_data_store.empty()
 
         try:
-            # for each org, retrieve and store the open prs (they are both
-            # returned and stored in mongo
-            for org in GITHUB_ORGS:
-                results.update(self._cache_open_prs_for_repo(
-                    self.github.get_organization(org).get_repos()))
-        except Exception, e:
-            logging.error(
-                "Encountered an error during github cache refresh: %s" % e.message)
+            # Convert to list if it's not already
+            orgs = org if isinstance(org,list) else [org]
 
-    def get_maintainer_prs(self, username=None):
-        open_prs = self.open_prs_data_store.load_open_prs()
-        responsible_prs = []
-        for pr in open_prs:
-            maintainer_usernames = map(lambda x: x.get('username', ''),
-                                       pr['further_review'].get('maintainers', []))
+            local_repo_obs = []
+            # for o in orgs:
+            #     repos = self.get_repos_in_org(o)
+            #     local_repo_obs += [r.raw_data for r in repos]
 
-            if not username or (username in maintainer_usernames):
-                responsible_prs.append(pr)
+            # build a list of all the repos to search (no way to filter by org apparently)
+            # query = "+".join(["repo:%s/%s" % (org, r.name) for r in repos])
+            # query = "repo:harbour/service-search"
+            query = "test"
 
-        return responsible_prs
+            results = self.github.search_issues(query=query, sort=sort, order=order)
 
-    def get_user_prs(self, username):
-        return self.open_prs_data_store.load_open_prs(username)
+            return [r.raw_data for r in results]
 
-    def get_all_prs(self, since=None):
-        return self.prs_data_store.load_prs_since(since=since)
+        except GithubException as e:
+            self.logger.error(
+                "Error while retrieving %s PRs since %s from %s: %s" % (state, str(since), org, e.message))
 
-    def refresh_pr_cache(self):
+        return []
+
+    def fetch_prs_to_review(self, username, sort, order):
         """
-        Updates the PRs for all repos that have been merged and returns a result list that shows the number of PRs
-        that were added for each repo.
-        :return: A list of all the repos with the number of PRs that were added for each.
-        """
-        since = self.get_cache_update_since_date()
-        results = {}
-
-        # get all the prs for all repos in each organization
-        for org in GITHUB_ORGS:
-            results.update(self._cache_merged_prs_for_repo(
-                self.github.get_organization(org).get_repos(), since))
-
-        return results
-
-    def get_cache_update_since_date(self):
-        """
-        Looks for the most recent pr and gets when it was created then returns the
+        Searches for all PRs that the given user is responsible for reviewing or has already
+        started reviewing and the PR is still open.
+        :param username: The github username
+        :param sort: Can be one of comments,created or updated
+        :param order: Can be one of asc or desc
         :return:
         """
-        pr = self.prs_data_store.get_most_recent_pr()
-        if pr:
-            return pr['created_at'] - datetime.timedelta(days=14)
+        results = self.github.search_issues(query="", sort=sort, order=order, qualifiers={
+            "type": "pr",
+            "is": "open",
+            "review-requested": username,
+            "review-by": username
+        })
 
-        else:
-            return datetime.datetime.now() - datetime.timedelta(days=60)
+        return [r.raw_data() for r in results]
 
-    def get_all_user_stats(self, since=None):
-        stats = {}
-        most_recent_pr = None
-
-        with Timer("get_all_user_stats") as t:
-            teams = augur.api.get_all_developer_info()
-            t.split("Finished getting developer info")
-
-            if teams:
-                # holds the UaGithubDevStats objects keyed on username
-                dev_stats_obs = {}
-
-                # this will either pull straight from Github or grab whatever was recently
-                #   stored in mongo.
-                all_prs = self.get_all_prs(since)
-                t.split("Finished getting all PRs")
-
-                try:
-                    # iterate over all prs and add to our collection of github dev objects that will
-                    #   gather statistics across all PRs as they're added.
-                    for pr in all_prs:
-
-                        # check when one of the PRs was stored and use that as the storage time
-                        #   since they are refreshed entirely with each update.
-                        if not most_recent_pr or pr['created_at'] > most_recent_pr:
-                            most_recent_pr = pr['created_at']
-
-                        if 'user' in pr and pr['user']:
-                            username = pr['user']['login']
-                        else:
-                            username = 'undefined'
-                            pr['user'] = {'login': username}
-
-                        if username not in dev_stats_obs:
-                            dev_stats_obs[username] = cache_store.UaGithubDevStats(
-                                username)
-                        dev_stats_obs[username].add_pr(pr)
-
-                    t.split("Finished iterating over %d PRs" % len(all_prs))
-
-                    # create the final dictionary of stats keyed by username with basic dev info
-                    #   plus anything gathered from the dev_stats_obs
-                    for team, info in teams['teams'].iteritems():
-                        for user, user_info in info['members'].iteritems():
-                            stats[user] = user_info
-                            if user in dev_stats_obs:
-                                github_stats_ob = dev_stats_obs[user].as_dict()
-                            else:
-                                github_stats_ob = cache_store.UaGithubDevStats(
-                                    user).as_dict()
-
-                            stats[user].update(github_stats_ob)
-                    t.split("Finished creating the stats object")
-
-                except Exception as e:
-                    self.logger.error("Error during get_all_user_stats: %s" % e.message)
-                    return None
-
-        return {
-            'developers': stats,
-            'most_recent_pr_time': most_recent_pr
-        }
-
-    def get_user_stats(self, user, all_prs=None, since=None):
+    def fetch_author_prs(self, username, state, sort, order):
         """
-        Get github status for a single user.  This will retrieve the most recent data if not already
-        stored in the database.  So at this point, this call could take 20 minutes to complete
-        :param user:
-        :param all_prs:
-        :param since: How far back to look.
-        :return: Returns a dict with github stats info in it
+        This will retrieve one or more authors prs in the given state
+        :param username: A string or list of usernames
+        :param state: Can be one of open, closed, merged
+        :param sort: The sort order can be one of comments, created or updated
+        :param order: Can be one of asc or desc
+        :return: Returns a list of search results as a list of dictionaries
         """
-        if not all_prs:
-            all_prs = self.get_all_prs(since)
+        usernames = username if isinstance(username,list) else [username]
+        query = "+".join(["author:%s" % (u) for u in usernames])
 
-        user_prs = []
+        results = self.github.search_issues(query=query, sort=sort, order=order, qualifiers={
+            "type": "pr",
+            "is": "merged",
+            "author": username
+        })
+        return [r.raw_data for r in results]
 
-        dev_stats_ob = cache_store.UaGithubDevStats(user)
-        for pr in all_prs:
-            dev_stats_ob.add_pr(pr)
-            if pr['user']['login'] == user and pr['merged']:
-                if 'links' not in pr:
-                    pr['links'] = pr['_links']
+    def fetch_organization_members(self, organization):
+        """
+        Gets a list of all organization members as a lits of dictionaries
+        :param organization: The name of the organization
+        :return: Returns a list of organization Member objects
+        """
+        org_ob = self.get_organization(organization)
+        return [m for m in org_ob.get_members()] if org_ob else []
 
-                user_prs.append(pr)
-
-        return dev_stats_ob
-
-    def get_repos_in_org(self, org):
-
+    def get_organization(self, org):
+        """
+        Takes an organization name and returns an organization object
+        :param org: The organization's name
+        :return: The Organization object or None
+        """
         try:
-            # try an actual org.
+            # first we try getting a real organization
             org_ob = self.github.get_organization(org)
         except github.UnknownObjectException:
+            # try a user org if there is not actual org
+            org_ob = self.github.get_user(org)
 
-            # try a user org
-            try:
-                org_ob = self.github.get_user(org)
-            except github.UnknownObjectException, e:
-                return None
+        return org_ob
 
-        if org_ob:
-            return org_ob.get_repos()
-
-        return None
-
-    def get_permissions_data(self, username):
-
-        # if there is no data in the db then load it now.
-        if not self.permissions_data_store.has_data():
-            org_ob = self.github.get_organization("UaPermissions")
-            if org_ob:
-                members = org_ob.get_members()
-                members_data = [m.raw_data for m in members]
-                self.permissions_data_store.save(members_data)
-
-        return self.permissions_data_store.get_user(username)
+    def get_repos_in_org(self, org):
+        """
+        Gets a list of all the repositories in the form of Repository objects
+        from the given organization name.
+        :param org: The name of an organization
+        :return: Returns a list of Repository objects
+        """
+        org_ob = self.get_organization(org)
+        return [r for r in org_ob.get_repos()] if org_ob else []
 
     def get_repo_commit_stats(self, repo, org=None):
-
+        """
+        Gets commits information for the last 90 days.  This includes things like:
+            * A flat list of commits
+            * the commit object and counts organized by author
+            * total commits
+            * total comments
+            * average comments per commit
+        :param repo: The repo object or name
+        :param org: The org object or name.  Note that the org must be given if the repo is just a string
+        :return: Returns a dictionary containing commit information
+        """
         org_ob, repo_ob = self.get_org_and_repo_from_params(repo, org)
 
         since = datetime.datetime.now() - datetime.timedelta(days=90)
@@ -328,11 +200,12 @@ class UaGithub(object):
 
                     total_comments += len(comment_objects)
                     commit_objects.append(c.raw_data)
-                except Exception,e:
-                    self.logger.error("Encountered error when reviewing commits for repo %s: %s" % (repo_ob.name, e.message))
+                except Exception, e:
+                    self.logger.error(
+                        "Encountered error when reviewing commits for repo %s: %s" % (repo_ob.name, e.message))
                     continue
-        except github.GithubException,e:
-            self.logger.error("Encountered an error while iterating over commits: %s"%e.message)
+        except github.GithubException, e:
+            self.logger.error("Encountered an error while iterating over commits: %s" % e.message)
 
         total_commits = len(commit_objects)
 
@@ -348,6 +221,15 @@ class UaGithub(object):
         }
 
     def get_org_and_repo_from_params(self, repo, org=None):
+        """
+        Tries to get the org and repo objects based on the given params.  If the repo is an object
+        then it will just return that and the org object contained within.  If the repo param
+        is a string then the org param must be non-null so that the specific repo can be found.
+        In that case, the org can either be an Organization object or a string.
+        :param repo: The repo object or name
+        :param org: The org object or name.  Note that the org must be given if the repo is just a string
+        :return: Returns two results: Repository object, Organization object.
+        """
         if not org and not isinstance(repo, GithubObject):
             raise TypeError(
                 "If repo given is not a github object then organization must be specified")
@@ -420,7 +302,7 @@ class UaGithub(object):
         Finds the text between the h1 and h2 in the readme file for a repo and returns it in the form of an array
         of strings (one for each line)
         :param repo: The repo object or name
-        :param org: The org object or name
+        :param org: The org object or name.  Note that the org must be given if the repo is just a string
         :return: Returns a list of strings.
         """
         org_ob, repo_ob = self.get_org_and_repo_from_params(repo, org)
@@ -446,6 +328,14 @@ class UaGithub(object):
         return result
 
     def get_repo_further_review(self, repo, org=None):
+        """
+        Gets the further review information from the given repo
+        :param repo: The repo object or name
+        :param org: The org object or name.  Note that the org must be given if the repo is just a string
+        :return: Returns a dictionary containing information about the maintainers and owners
+        """
+        fr = augur.api.get_memory_cached_data('FR_OPR_' + repo.full_name)
+        if fr: return fr
 
         def parse_user(user_str):
             name_match = re.match(r"^([^\(<]+)", user_str)
@@ -486,8 +376,6 @@ class UaGithub(object):
                                 result['owner'] = parse_user(
                                     further_review['owner'])
 
-                            return result
-
                     except yaml.YAMLError, e:
                         self.logger.info("YAML error during processing of .further-review.yaml: %s" % e.message)
                 else:
@@ -495,19 +383,23 @@ class UaGithub(object):
             else:
                 self.logger.warning("Unable to find further-review.yaml file")
         except github.UnknownObjectException, e:
-            self.logger.error("Got a github error indicating that we were unable to find a file in the repo: %s (%s)" % (e.message, str(e.__class__)))
+            self.logger.error(
+                "Got a github error indicating that we were unable to find a file in the repo: %s (%s)" % (
+                    e.message, str(e.__class__)))
         except github.GithubException, e:
             self.logger.error("Error occurred during further review analysis: %s (%s)" % (e.message, str(e.__class__)))
 
-        result['owner'] = {
-            "name": "Karim Shehadeh",
-            "email": "kshehadeh@underarmour.com"
-        }
+        augur.api.memory_cache_data(result, 'FR_OPR_' + repo.full_name)
 
         return result
 
     def get_repo_package_json(self, repo, org=None):
-
+        """
+        Gets the package.json JSON from a given repo
+        :param repo: The repo object or name
+        :param org: The org object or name.  Note that the org must be given if the repo is just a string
+        :return: Returns a dictionary object containing all of the package.json contents
+        """
         org_ob, repo_ob = self.get_org_and_repo_from_params(repo, org)
 
         try:
@@ -554,5 +446,5 @@ class UaGithub(object):
 
 
 if __name__ == "__main__":
-    gh = UaGithub()
+    gh = AugurGithub()
     gh.refresh_open_pr_cache()

@@ -4,7 +4,7 @@ from collections import defaultdict
 import arrow
 
 import augur
-from augur import common
+from augur import common, settings
 from augur.common import cache_store, deep_get
 from augur.fetchers.fetcher import UaDataFetcher
 
@@ -43,10 +43,10 @@ class UaDefectFetcher(UaDataFetcher):
 
         def generate_link_from_issues(issues):
             if len(issues) > 0 and isinstance(issues[0], (str, unicode)):
-                return "https://underarmour.atlassian.net/issues/?jql=key in (%s)" % (",".join(issues))
+                return "%s/issues/?jql=key in (%s)" % (settings.main.integrations.jira.instance, ",".join(issues))
             else:
-                return "https://underarmour.atlassian.net/issues/?jql=key in (%s)" % (
-                ",".join([i['key'] for i in issues]))
+                return "%s/issues/?jql=key in (%s)" % (settings.main.integrations.jira.instance,
+                                                       ",".join([i['key'] for i in issues]))
 
         links = {
             "current_period": {
@@ -70,14 +70,14 @@ class UaDefectFetcher(UaDataFetcher):
 
     def _fetch(self):
 
-        defects = self.uajira.execute_jql("project in (Engineering, Defects) AND issuetype = Bug "
-                                          "AND created >= startOfDay(-%dd) "
-                                          "ORDER BY created DESC" % self.lookback_days)
+        defects = self.uajira.execute_jql("%s AND created >= startOfDay(-%dd) "
+                                          "ORDER BY created DESC" % (self.workflow.get_defect_projects(True),
+                                                                     self.lookback_days))
 
-        defects_previous_period = self.uajira.execute_jql("project in (Engineering, Defects) AND issuetype = Bug "
-                                                          "AND created >= startOfDay(-%dd) and created <= "
+        defects_previous_period = self.uajira.execute_jql("%s AND created >= startOfDay(-%dd) and created <= "
                                                           "startOfDay(-%dd) ORDER BY created DESC"
-                                                          % (self.lookback_days * 2, self.lookback_days))
+                                                          % (self.workflow.get_defect_projects(True),
+                                                             self.lookback_days * 2, self.lookback_days))
 
         grouped_by_severity_current = defaultdict(list)
         grouped_by_severity_previous = defaultdict(list)
@@ -156,9 +156,9 @@ class UaDefectHistoryFetcher(UaDataFetcher):
             start_str = arrow.get(start).floor('day').format("YYYY/MM/DD HH:mm")
             end_str = arrow.get(end).ceil('day').format("YYYY/MM/DD HH:mm")
 
-            defects = self.uajira.execute_jql("project in (ENG, DEF) AND issuetype = Bug "
-                                              "AND created >= '%s' AND created <= '%s' "
-                                              "ORDER BY created DESC" % (start_str, end_str))
+            defects = self.uajira.execute_jql("%s AND created >= '%s' AND created <= '%s' "
+                                              "ORDER BY created DESC" % (self.workflow.get_defect_projects(True),
+                                                                         start_str, end_str))
 
             weeks.append({
                 "start": start_str,

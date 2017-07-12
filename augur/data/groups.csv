@@ -1,3 +1,3 @@
-id,name,teams,products,workflow
-b2c,B2C Group,"rc,cm,sg,vd,by,lc,bh,at,mc","top,bof,icon,ab,apps,plat",1
-b2b,B2B Group,"b,p","b2b",1
+id,name,teams,products,workflow_id
+b2c,B2C Group,"rc,cm,sg,vd,by,lc,bh,at,mc","top,bof,icon,ab,apps,plat",ecmna
+b2b,B2B Group,"b,p","b2b",ecmna

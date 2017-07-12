@@ -1,12 +1,48 @@
 import augur
 from augur.common import const, transform_status_string, cache_store
 from augur.fetchers.fetcher import UaDataFetcher
+from augur.api import get_jira
 
 
-class UaFilterDataFetcher(UaDataFetcher):
+class Milestone(object):
+    def __init__(self):
+        self.type = None # can be one of [epic, filter, adhoc]
+        self.ob = None # object type based on milestone type
+        self.jql = None # all types must have jql associated with them.
+
+    def set_filter(self, filter_id):
+        self.type = 'filter'
+        f = get_jira().jira.filter(filter_id)
+        if not f:
+            raise LookupError("Unable to find a filter with ID %s"%str('filter_id'))
+        self.ob = f.raw
+        self.jql = f.jql
+
+    def set_epic(self, epic_key):
+        self.type = 'epic'
+        self.ob = augur.api.get_issue_details(epic_key)
+        if not self.ob:
+            raise LookupError("Unable to find an epic with the key %s"%epic_key)
+        self.jql  = '"Epic Link"="%s"' % epic_key
+
+    def set_adhoc(self, jql):
+        self.type = 'adhoc'
+        self.ob = None
+        self.jql = jql
+
+
+class UaMilestoneDataFetcher(UaDataFetcher):
     """
-    Retrieves analyzed data returned from a filter that has been already created in Jira
+    Retrieves data is helpful to analyze the state of a milestones.  Milestones can be tracked
+    in one of three ways:
+        * A filter ID (filter_id)
+        * An epic key (epic_key)
+        * An ad-hoc jql query (jql)
+
     """
+    def __init__(self,*args, **kwargs):
+        self.milestone = None
+        super(UaMilestoneDataFetcher, self).__init__(*args, **kwargs)
 
     def init_cache(self):
         self.cache = cache_store.UaJiraFilterData(self.uajira.mongo)
@@ -21,43 +57,36 @@ class UaFilterDataFetcher(UaDataFetcher):
         return self.recent_data
 
     def validate_input(self,**args):
-        if 'filter_id' not in args:
-            raise LookupError("The filter data input requires a filter ID as input")
+
+        if 'epic_key' not in args:
+            if 'filter_id' not in args:
+                if 'jql' not in args:
+                    self.milestone = None
+                    raise LookupError("The milestone data input requires a either a "
+                                      "filter ID, an epic key or a JQL string as input")
+                else:
+                    self.milestone.set_adhoc(args['jql'])
+            else:
+                self.milestone.set_jql(args['filter_id'])
         else:
-            self.filter_id = args['filter_id']
+            self.milestone.set_epic(args['epic_key'])
 
         return True
 
     def _fetch(self):
 
-        filter_ob = self.uajira.jira.filter(self.filter_id)
-        if filter_ob:
-            stats = self.uajira.execute_jql_with_analysis(filter_ob.jql)
+        if self.milestone:
+
+            stats = self.uajira.execute_jql_with_analysis(self.milestone.jql)
 
             in_progress_items = []
             group_by_components = {}
             group_by_developers = {}
-            group_by_status = {
-                transform_status_string(const.STATUS_OPEN):[],
-                transform_status_string(const.STATUS_INPROGRESS):[],
-                transform_status_string(const.STATUS_QUALITYREVIEW):[],
-                transform_status_string(const.STATUS_INTEGRATION):[],
-                transform_status_string(const.STATUS_STAGING):[],
-                transform_status_string(const.STATUS_PRODUCTION):[],
-                transform_status_string(const.STATUS_RESOLVED):[]
-            }
+            group_by_status = {transform_status_string(s): [] for s in self.workflow.statuses}
 
             points_by_components = {}
             points_by_developers = {}
-            points_by_status = {
-                transform_status_string(const.STATUS_OPEN):0,
-                transform_status_string(const.STATUS_INPROGRESS):0,
-                transform_status_string(const.STATUS_QUALITYREVIEW):0,
-                transform_status_string(const.STATUS_INTEGRATION):0,
-                transform_status_string(const.STATUS_STAGING):0,
-                transform_status_string(const.STATUS_PRODUCTION):0,
-                transform_status_string(const.STATUS_RESOLVED):0
-            }
+            points_by_status = {transform_status_string(s): 0 for s in self.workflow.statuses}
 
             points_field_name = augur.api.get_issue_field_from_custom_name('Story Points')
             for key,issue in stats['issues'].iteritems():
@@ -67,7 +96,7 @@ class UaFilterDataFetcher(UaDataFetcher):
                     story_points = issue['fields'][points_field_name]
 
                 # get a list of all the issues in progress
-                if self.uajira._analytics_is_inprogress(issue['status']):
+                if self.workflow.is_in_progress(issue['status']):
                     in_progress_items.append(issue)
 
                 # get a list of all unfinished issues by component
@@ -102,8 +131,8 @@ class UaFilterDataFetcher(UaDataFetcher):
             stats['points_by_components'] = points_by_components
             stats['points_by_status'] = points_by_status
             stats['points_by_assignee'] = points_by_developers
-            stats['filter'] = filter_ob.raw
+            stats['milestone'] = self.milestone.ob
 
             return self.cache_data(stats)
         else:
-            raise Exception("The specified filter %d could not be found"%self.filter_id)
+            raise Exception("An invalid (or no) milestone was given")

@@ -1,3 +1,0 @@
-id,name,statuses,positive_resolutions
-1,E-Comm North America,"open,blocked,in progress,quality review,staging,production,resolved","fixed,done,complete"
-2,E-Comm International,"open,on hold,requires business feedback,blocked,ready for development,ready for pointing,ready for dev feedback,failed qa,in progress,ready for code review,requires qa feedback,ready for qa,in qa,dev qa,user acceptance test,passed qa,ready to publish,ready for qa deployment,business post launch,closed,resolved","fixed,done,complete"

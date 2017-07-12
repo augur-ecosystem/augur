@@ -1,6 +1,6 @@
 import augur.api
 from augur.common import cache_store
-from augur.integrations.uajira import DeveloperNotFoundException
+from augur.integrations.augurjira import DeveloperNotFoundException
 from augur.fetchers.fetcher import UaDataFetcher
 
 
@@ -55,16 +55,15 @@ class UaDevStatsDataFetcher(UaDataFetcher):
             raise DeveloperNotFoundException()
 
         results2 = self.uajira.execute_jql_with_analysis(
-            "category = 'Ecommerce Workflows' and assignee='%s' and status not in (\"closed\",\"resolved\")" %
-            self.username)
+            "%s and assignee='%s' and status not in %s" %
+            (self.workflow.get_projects_jql(), self.username, self.workflow.get_resolved_statuses_jql()))
 
         results1 = self.uajira.execute_jql_with_analysis(
-            "category = 'Ecommerce Workflows' and assignee='%s' and status changed to \"Resolved\" after endOfDay(-%dd)"
-            % (self.username, self.look_back_days))
+            "%s and assignee='%s' and status changed to \"Resolved\" after endOfDay(-%dd)"
+            % (self.workflow.get_projects_jql(), self.username, self.look_back_days))
 
         results3 = self.uajira.execute_jql_with_totals(
-            "category = 'Ecommerce Workflows' and assignee='%s'" % (
-                self.username))
+            "%s and assignee='%s'" % (self.workflow.get_projects_jql(), self.username))
 
         for key, issue in results1['issues'].iteritems():
             issue['totalTimeSpentByUser'] = self.uajira.get_total_time_for_user(issue, self.username)

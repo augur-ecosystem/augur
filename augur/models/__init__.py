@@ -1,7 +1,7 @@
 import csv
 import datetime
 import logging
-
+import yaml
 
 class AugurModelProp(object):
     def __init__(self, key, value, tp='unicode'):
@@ -129,6 +129,14 @@ class AugurModel(object):
         else:
             self.logger.error("Received an empty key within this AugurModel: %s" % self.__class__.__name__)
 
+    def handle_dict_import(self, item):
+        """
+        Handles import of a dictionary object that is meant to represent a single instance of the model
+        :param item: dict: The item being imported
+        :return:
+        """
+        pass
+
     def handle_post_import(self):
         pass
 
@@ -149,6 +157,21 @@ class AugurModel(object):
                 models.append(model)
 
         return models
+
+    @staticmethod
+    def import_from_yaml(filepath, model_type):
+
+        if "AugurModel" not in map(lambda x: x.__name__, model_type.__bases__):
+            raise TypeError("The model type when importing from CSV must be derived from AugurModel")
+
+        models = []
+        item_list = yaml.load(file(filepath,"r")) or []
+        for item in item_list:
+            model = model_type()
+            models.append(model.handle_dict_import(item))
+
+        return models
+
 
     @staticmethod
     def find_model_in_collection(collection, prop, value):
