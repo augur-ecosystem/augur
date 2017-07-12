@@ -10,7 +10,6 @@ Mason,Smith,msmith1@consultant.underarmour.com,Catalyst,82.5,Active,Developer,ms
 Matt,Taylor,mtaylor1@consultant.underarmour.com,Catalyst,105,Active,Developer,mtaylor1,mtaylor1,mtaylor1,2016-09-28
 Tracey,Root,troot@underarmour.com,Independent,125,Active,PM,troot,troot,troot,2016-01-01
 Susan,Lee,slee2@consultant.underarmour.com,Sogeti,102,Active,Business Analyst,slee,slee,slee,2016-01-01
-Monika,McCommon,mmccommon@underarmour.com,Sogeti,102,Active,Project Manager,mmccommon,mmccommon,mmccommon,2016-01-01
 Eli,Geske,egeske@consultant.underarmour.com,Tek Systems,140,Active,Developer,egeske,egeske,egeske,2015-09-01
 Rajesh,Hariharan,rhariharan@underarmour.com,Tek Systems,84.5,Active,QA,rhariharan,rhariharan,rhariharan,2014-09-01
 Nastassia,Pishchykava,npishchykava@consultant.underarmour.com,Catalyst,82.5,Active,Developer,npishchykava,npishchykava,npishchykava,2017-01-09
@@ -48,4 +47,6 @@ Marvin,Sankar,msankar@consultant.underarmour.com,Catalyst,0,Active,Developer,msa
 Troy,Lake,tlake@consultant.underarmour.com,Catalyst,0,Active,Developer,tlake,tlake,tlake,2017-06-12
 John,Cupp,jcupp@consultant.underarmour.com,Catalyst,0,Active,Developer,jcupp,jcupp,jcupp,2017-06-12
 Stephen,Corwin,scorwin@consultant.underarmour.com,Corporate Brokers,102,Active,Developer,scorwin,scorwin,scorwin,2017-06-19
-Adam,Groves,adam.groves@twintechs.com,Twin Technologies,145,Starting on 6/30,Developer,agroves,agroves,agroves,2017-06-30
+Adam,Groves,adam.groves@twintechs.com,Twin Technologies,145,Active,Developer,agroves,agroves,agroves,2017-06-30
+Migen,Kokona,mkokona@catalyte.io,Catalyst,82.50,Active,Developer,mkokona,mkokona,mkokona,2017-07-05
+Jeff,Wooden,jeff.wooden@twintechs.com,Twin Technologies,145.00,Active,Developer,jwooden,jwooden,jwooden,2017-07-24
