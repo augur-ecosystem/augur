@@ -3,6 +3,9 @@ from augur.models import AugurModel
 
 
 class WorkflowDefect(AugurModel):
+    """
+    An object representing the definition of a defect
+    """
     def _add_properties(self):
         self.add_prop("key", "", unicode)
         self.add_prop("issuetypes", [], list)

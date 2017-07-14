@@ -18,6 +18,11 @@ class StaffRole(object):
 
 
 class Staff(AugurModel):
+    """
+    Represents a single member of a team.  A team member can be on multiple teams and a team can have multiple
+     team members.  The staff object is used to store information like hourly rate (when a consultant), usernames
+     in various integrations along with start date.
+    """
     def __init__(self):
         # must come before
         super(Staff, self).__init__()

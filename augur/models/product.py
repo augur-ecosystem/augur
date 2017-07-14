@@ -3,6 +3,10 @@ from augur.models import AugurModel
 
 
 class Product(AugurModel):
+    """
+    A product represents a single product in the product management sense.  So each product can be associated
+    with one or more groups.   There is a many to many relationship between groups and products.
+    """
     def __init__(self):
         # must come before
         super(Product, self).__init__()

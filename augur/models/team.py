@@ -3,6 +3,10 @@ from augur.models import AugurModel
 
 
 class Team(AugurModel):
+    """
+    The team represents a scrum team and is made up of staff objects, a board id and a product.  One team can be
+    assigned one product but a product could be on multiple teams.
+    """
     def __init__(self):
         # must come before
         super(Team, self).__init__()

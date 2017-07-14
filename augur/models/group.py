@@ -4,6 +4,10 @@ from augur.models import AugurModel
 
 
 class Group(AugurModel):
+    """
+    A group represents an organization unit.  A group can be made up of teams and products.  There is a
+    1/1 relationship between groups and workflows.
+    """
     def __init__(self):
         # must come before
         super(Group, self).__init__()
