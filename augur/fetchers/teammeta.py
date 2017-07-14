@@ -61,7 +61,7 @@ class UaTeamMetaDataFetcher(UaDataFetcher):
                 }
 
                 if not staff_ob:
-                    raise LookupError("A staff member was listed as part of a team but that staff member was not found")
+                    raise LookupError("A staff member was listed as part of a team but that staff member was not found: " % username)
 
                 member['email'] = staff_ob.email
                 member['is_consultant'] = staff_ob.rate == 0.0
