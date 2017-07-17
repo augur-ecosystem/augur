@@ -6,20 +6,20 @@ import arrow
 import augur
 from augur import common, settings
 from augur.common import cache_store, deep_get
-from augur.fetchers.fetcher import UaDataFetcher
+from augur.fetchers.fetcher import AugurDataFetcher
 
 SEVERITIES = ["Critical", "High", "Medium", "Low"]
 PRIORITIES = ["Blocker", "Immediate", "High", "Medium", "Low"]
 IMPACTS = ["All", "Large", "Medium", "Small", "Tiny"]
 
 
-class UaDefectFetcher(UaDataFetcher):
+class UaDefectFetcher(AugurDataFetcher):
     """
     Retrieves defect data for a given period of time in the past.
     """
 
     def init_cache(self):
-        self.cache = cache_store.UaJiraDefectData(self.uajira.mongo)
+        self.cache = cache_store.AugurJiraDefectData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data
@@ -70,11 +70,11 @@ class UaDefectFetcher(UaDataFetcher):
 
     def _fetch(self):
 
-        defects = self.uajira.execute_jql("%s AND created >= startOfDay(-%dd) "
+        defects = self.augurjira.execute_jql("%s AND created >= startOfDay(-%dd) "
                                           "ORDER BY created DESC" % (self.workflow.get_defect_projects(True),
                                                                      self.lookback_days))
 
-        defects_previous_period = self.uajira.execute_jql("%s AND created >= startOfDay(-%dd) and created <= "
+        defects_previous_period = self.augurjira.execute_jql("%s AND created >= startOfDay(-%dd) and created <= "
                                                           "startOfDay(-%dd) ORDER BY created DESC"
                                                           % (self.workflow.get_defect_projects(True),
                                                              self.lookback_days * 2, self.lookback_days))
@@ -122,13 +122,13 @@ class UaDefectFetcher(UaDataFetcher):
         return self.cache_data(stats)
 
 
-class UaDefectHistoryFetcher(UaDataFetcher):
+class UaDefectHistoryFetcher(AugurDataFetcher):
     """
     Retrieves defect data segmented by week over a period of weeks that is given as a parameter
     """
 
     def init_cache(self):
-        self.cache = cache_store.UaJiraDefectHistoryData(self.uajira.mongo)
+        self.cache = cache_store.AugurJiraDefectHistoryData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data
@@ -156,7 +156,7 @@ class UaDefectHistoryFetcher(UaDataFetcher):
             start_str = arrow.get(start).floor('day').format("YYYY/MM/DD HH:mm")
             end_str = arrow.get(end).ceil('day').format("YYYY/MM/DD HH:mm")
 
-            defects = self.uajira.execute_jql("%s AND created >= '%s' AND created <= '%s' "
+            defects = self.augurjira.execute_jql("%s AND created >= '%s' AND created <= '%s' "
                                               "ORDER BY created DESC" % (self.workflow.get_defect_projects(True),
                                                                          start_str, end_str))
 

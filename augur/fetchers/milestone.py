@@ -1,17 +1,26 @@
+import base64
+
+import exceptions
+
 import augur
 from augur.common import const, transform_status_string, cache_store
-from augur.fetchers.fetcher import UaDataFetcher
+from augur.fetchers.fetcher import AugurDataFetcher
 from augur.api import get_jira
 
 
 class Milestone(object):
     def __init__(self):
         self.type = None # can be one of [epic, filter, adhoc]
+        self.id = None
         self.ob = None # object type based on milestone type
         self.jql = None # all types must have jql associated with them.
 
+    def get_id(self):
+        return self.id
+
     def set_filter(self, filter_id):
         self.type = 'filter'
+        self.id = filter_id
         f = get_jira().jira.filter(filter_id)
         if not f:
             raise LookupError("Unable to find a filter with ID %s"%str('filter_id'))
@@ -20,6 +29,7 @@ class Milestone(object):
 
     def set_epic(self, epic_key):
         self.type = 'epic'
+        self.id = epic_key
         self.ob = augur.api.get_issue_details(epic_key)
         if not self.ob:
             raise LookupError("Unable to find an epic with the key %s"%epic_key)
@@ -27,11 +37,12 @@ class Milestone(object):
 
     def set_adhoc(self, jql):
         self.type = 'adhoc'
+        self.id = base64.b64encode(jql)
         self.ob = None
         self.jql = jql
 
 
-class UaMilestoneDataFetcher(UaDataFetcher):
+class UaMilestoneDataFetcher(AugurDataFetcher):
     """
     Retrieves data is helpful to analyze the state of a milestones.  Milestones can be tracked
     in one of three ways:
@@ -41,11 +52,11 @@ class UaMilestoneDataFetcher(UaDataFetcher):
 
     """
     def __init__(self,*args, **kwargs):
-        self.milestone = None
+        self.milestone = Milestone()
         super(UaMilestoneDataFetcher, self).__init__(*args, **kwargs)
 
     def init_cache(self):
-        self.cache = cache_store.UaJiraFilterData(self.uajira.mongo)
+        self.cache = cache_store.AugurJiraMilestoneData(self.augurjira.mongo)
 
     def cache_data(self,data):
         self.recent_data = data
@@ -53,7 +64,7 @@ class UaMilestoneDataFetcher(UaDataFetcher):
         return self.recent_data
 
     def get_cached_data(self):
-        self.recent_data = self.cache.load_filter(self.filter_id)
+        self.recent_data = self.cache.load_milestone(self.milestone.get_id())
         return self.recent_data
 
     def validate_input(self,**args):
@@ -67,26 +78,26 @@ class UaMilestoneDataFetcher(UaDataFetcher):
                 else:
                     self.milestone.set_adhoc(args['jql'])
             else:
-                self.milestone.set_jql(args['filter_id'])
+                self.milestone.set_filter(args['filter_id'])
         else:
             self.milestone.set_epic(args['epic_key'])
 
         return True
 
     def _fetch(self):
-
+        assert(self.context is not None)
         if self.milestone:
 
-            stats = self.uajira.execute_jql_with_analysis(self.milestone.jql)
+            stats = self.augurjira.execute_jql_with_analysis(self.milestone.jql)
 
             in_progress_items = []
             group_by_components = {}
             group_by_developers = {}
-            group_by_status = {transform_status_string(s): [] for s in self.workflow.statuses}
+            group_by_status = {transform_status_string(s): [] for s in self.context.workflow.statuses}
 
             points_by_components = {}
             points_by_developers = {}
-            points_by_status = {transform_status_string(s): 0 for s in self.workflow.statuses}
+            points_by_status = {transform_status_string(s): 0 for s in self.context.workflow.statuses}
 
             points_field_name = augur.api.get_issue_field_from_custom_name('Story Points')
             for key,issue in stats['issues'].iteritems():
@@ -96,7 +107,7 @@ class UaMilestoneDataFetcher(UaDataFetcher):
                     story_points = issue['fields'][points_field_name]
 
                 # get a list of all the issues in progress
-                if self.workflow.is_in_progress(issue['status']):
+                if self.context.workflow.is_in_progress(issue['status']):
                     in_progress_items.append(issue)
 
                 # get a list of all unfinished issues by component

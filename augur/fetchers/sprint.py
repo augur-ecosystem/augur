@@ -7,12 +7,12 @@ import augur
 from augur import common
 from augur.common import const, cache_store
 from augur.common.timer import Timer
-from augur.fetchers.fetcher import UaDataFetcher
+from augur.fetchers.fetcher import AugurDataFetcher
 
 SPRINT_SORTBY_ENDDATE = 'enddate'
 
 
-class UaSprintDataFetcher(UaDataFetcher):
+class UaSprintDataFetcher(AugurDataFetcher):
     """
     Retrieves data associated with one or more sprints.  This class can fetch data associated with both a team and
     a sprint.  You can also specify no team in which case it returns all team data for either the current sprint or
@@ -26,16 +26,16 @@ class UaSprintDataFetcher(UaDataFetcher):
                     By default, this is false which means that it returns whatever sprint is specified in sprint_id
     """
 
-    def __init__(self, uajira, force_update=False):
+    def __init__(self, *args, **kwargs):
         self.cache_sprints = None
         self.team_id = None
         self.get_history = None
         self.sprint_id = None
-        super(UaSprintDataFetcher, self).__init__(uajira, force_update)
+        super(UaSprintDataFetcher, self).__init__(*args, **kwargs)
 
     def init_cache(self):
-        self.cache = cache_store.UaTeamSprintData(self.uajira.mongo)
-        self.cache_sprints = cache_store.UaJiraSprintsData(self.uajira.mongo)
+        self.cache = cache_store.UaTeamSprintData(self.augurjira.mongo)
+        self.cache_sprints = cache_store.AugurJiraSprintsData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data
@@ -156,7 +156,7 @@ class UaSprintDataFetcher(UaDataFetcher):
                 return team_stats
 
             team_object = augur.api.get_team_by_id(team_id)
-            sprint_ob = self.uajira.sprint_info(team_object.board_id, sprint_abridged['id'])
+            sprint_ob = self.augurjira.sprint_info(team_object.board_id, sprint_abridged['id'])
             t.split("Retrieve full sprint data")
 
             if not sprint_ob:
@@ -199,7 +199,7 @@ class UaSprintDataFetcher(UaDataFetcher):
 
             if sprint_ob['contents']['issueKeysAddedDuringSprint']:
 
-                results = self.uajira.execute_jql("key in ('%s')" % "','".join(
+                results = self.augurjira.execute_jql("key in ('%s')" % "','".join(
                     sprint_ob['contents']['issueKeysAddedDuringSprint'].keys()))
 
                 sprint_ob['contents']['issueKeysAddedDuringSprint'] = results
@@ -208,7 +208,7 @@ class UaSprintDataFetcher(UaDataFetcher):
             if sprint_ob['contents']['issuesNotCompletedInCurrentSprint']:
                 incomplete_keys = [x['key'] for x in sprint_ob['contents']['issuesNotCompletedInCurrentSprint']]
                 jql = "key in ('%s')" % "','".join(incomplete_keys)
-                results = self.uajira.execute_jql_with_analysis(jql)
+                results = self.augurjira.execute_jql_with_analysis(jql)
                 sprint_ob['contents']['issuesNotCompletedInCurrentSprint'] = results['issues'].values()
                 sprint_ob['contents']['incompleteIssuesFullDetail'] = results['issues'].values()
                 t.split("Got issue data for issues not completed during sprint")

@@ -1,16 +1,16 @@
 import augur.api
 from augur.common import cache_store
 from augur.integrations.augurjira import DeveloperNotFoundException
-from augur.fetchers.fetcher import UaDataFetcher
+from augur.fetchers.fetcher import AugurDataFetcher
 
 
-class UaDevStatsDataFetcher(UaDataFetcher):
+class UaDevStatsDataFetcher(AugurDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """
 
     def init_cache(self):
-        self.cache = cache_store.UaDeveloperData(self.uajira.mongo)
+        self.cache = cache_store.UaDeveloperData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data
@@ -54,22 +54,24 @@ class UaDevStatsDataFetcher(UaDataFetcher):
         if not user_details:
             raise DeveloperNotFoundException()
 
-        results2 = self.uajira.execute_jql_with_analysis(
+        workflow = self.context.workflow
+
+        results2 = self.augurjira.execute_jql_with_analysis(
             "%s and assignee='%s' and status not in %s" %
-            (self.workflow.get_projects_jql(), self.username, self.workflow.get_resolved_statuses_jql()))
+            (workflow.get_projects_jql(), self.username, workflow.get_resolved_statuses_jql()))
 
-        results1 = self.uajira.execute_jql_with_analysis(
+        results1 = self.augurjira.execute_jql_with_analysis(
             "%s and assignee='%s' and status changed to \"Resolved\" after endOfDay(-%dd)"
-            % (self.workflow.get_projects_jql(), self.username, self.look_back_days))
+            % (workflow.get_projects_jql(), self.username, self.look_back_days))
 
-        results3 = self.uajira.execute_jql_with_totals(
-            "%s and assignee='%s'" % (self.workflow.get_projects_jql(), self.username))
+        results3 = self.augurjira.execute_jql_with_analysis(
+            "%s and assignee='%s'" % (workflow.get_projects_jql(), self.username))
 
         for key, issue in results1['issues'].iteritems():
-            issue['totalTimeSpentByUser'] = self.uajira.get_total_time_for_user(issue, self.username)
+            issue['totalTimeSpentByUser'] = self.augurjira.get_total_time_for_user(issue, self.username)
 
         for key, issue in results2['issues'].iteritems():
-            issue['totalTimeSpentByUser'] = self.uajira.get_total_time_for_user(issue, self.username)
+            issue['totalTimeSpentByUser'] = self.augurjira.get_total_time_for_user(issue, self.username)
 
         dev_info = {
             'username': self.username,

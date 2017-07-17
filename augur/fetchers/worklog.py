@@ -2,23 +2,23 @@ import arrow
 
 import augur # required - do not remove
 from augur.common import cache_store
-from augur.fetchers.fetcher import UaDataFetcher
+from augur.fetchers.fetcher import AugurDataFetcher
 
 
-class UaWorklogDataFetcher(UaDataFetcher):
+class UaWorklogDataFetcher(AugurDataFetcher):
     """
     Retrieves processed worklog data
     """
-    def __init__(self, uajira, force_update=False):
+    def __init__(self, *args, **kwargs):
         self.start = None
         self.end = None
         self.team_id = None
         self.username = None
         self.project = None
-        super(UaWorklogDataFetcher, self).__init__(uajira, force_update)
+        super(UaWorklogDataFetcher, self).__init__(*args, **kwargs)
 
     def init_cache(self):
-        self.cache = cache_store.UaJiraWorklogData(self.uajira.mongo)
+        self.cache = cache_store.AugurJiraWorklogData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data
@@ -56,7 +56,7 @@ class UaWorklogDataFetcher(UaDataFetcher):
 
     def _fetch(self):
 
-        worklogs = self.uajira.get_worklog_raw(
+        worklogs = self.augurjira.get_worklog_raw(
             start=self.start,
             end=self.end,
             team_id=self.team_id,

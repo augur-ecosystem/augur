@@ -30,9 +30,51 @@ CACHE = dict()
 
 __jira = None
 __github = None
+__context = None
+
+
+class AugurContext(object):
+    """
+    This contains information that is used by the Augur library to identify constraints that should be
+    used when requesting data.
+    """
+    def __init__(self, group_id):
+        self._group = get_group(group_id)
+        self._workflow = self.group.get_workflow()
+
+    @property
+    def workflow(self):
+        return self._workflow
+
+    @property
+    def group(self):
+        return self._group
+
+
+def set_default_context(context):
+    """
+    Sets the default context for the API
+    :param context: The context object to use by default.
+    :return:
+    """
+    global __context
+    __context = context
+
+
+def get_default_context():
+    """
+    Returns the default context for the API
+    :return: Returns the default context object (AugurContext)
+d    """
+    global __context
+    return __context
 
 
 def get_github():
+    """
+    Returns the global github integration object
+    :return: Returns the global AugurGithub instance
+    """
     from augur.integrations.augurgithub import AugurGithub
 
     global __github
@@ -42,6 +84,10 @@ def get_github():
 
 
 def get_jira():
+    """
+    Returns the global jira integration object
+    :return: Returns the global AugurJira instance
+    """
     from augur.integrations.augurjira import AugurJira
 
     global __jira
@@ -107,28 +153,31 @@ def get_groups():
     return cached
 
 
-def get_historic_sprint_stats(team, force_update=False):
+def get_historic_sprint_stats(team, context=None, force_update=False):
     """
     Gets all the sprint objects for a team (decorated with other custom info) and runs them through the
      analyzer to get specific ticket info for each sprint.  This caches both the sprint objects and the
       converted sprint data.
     """
+    context = context or get_default_context()
     from augur.fetchers import UaSprintDataFetcher
-    fetcher = UaSprintDataFetcher(force_update=force_update, uajira=get_jira())
+    fetcher = UaSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(get_history=True, team_id=team)
 
 
-def get_sprint_info(sprint=None, team='f', force_update=False):
+def get_sprint_info(team_id, sprint=None, context=None, force_update=False):
     """
     Returns a timedelta showing the remaining time
     :param sprint: The sprint object returned from get_active_sprint_for_team - will call itself if this is none
-    :param team: The team id to get the sprint for.  Defaults to one of the teams if none is given.
+    :param context: The context object to use during requests (defaults to using the default context if not given)
+    :param team_id: The team id to get the sprint for.  Defaults to one of the teams if none is given.
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return: Returns timedelta object with the remaining time in sprint
     """
+    context = context or get_default_context()
     from augur.fetchers import UaSprintDataFetcher
-    fetcher = UaSprintDataFetcher(force_update=force_update, uajira=get_jira())
-    sprint = fetcher.fetch(team_id=team, sprint_id=sprint)
+    fetcher = UaSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
+    sprint = fetcher.fetch(team_id=team_id, sprint_id=sprint)
 
     if sprint:
         return {
@@ -240,57 +289,65 @@ def get_abridged_team_sprint(team_id, sprint_id=const.SPRINT_CURRENT):
     return sprint
 
 
-def get_sprint_info_for_team(team_id, sprint_id=const.SPRINT_LAST_COMPLETED, force_update=False):
+def get_sprint_info_for_team(team_id, sprint_id=const.SPRINT_LAST_COMPLETED, context=None, force_update=False):
     """
     This will get sprint data for the the given team and sprint.  You can specify you want the current or the
     most recently closed sprint for the team by using one of the SPRINT_XXX consts.  You can also specify an ID
     of a sprint if you know what you want.  Or you can pass in a sprint object to confirm that it's a valid
     sprint object.  If it is, it will be returned, otherwise a SprintNotFoundException will be thrown.
     :param team_id: The ID of the team
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :param sprint_id: The ID, const, or sprint object.
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return: Returns a sprint object
     """
+    context = context or get_default_context()
     from augur.fetchers import UaSprintDataFetcher
-    fetcher = UaSprintDataFetcher(force_update=force_update, uajira=get_jira())
+    fetcher = UaSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(team_id=team_id, sprint_id=sprint_id)
 
 
-def update_current_sprint_stats(force_update=False):
+def update_current_sprint_stats(context=None, force_update=False):
     """
     Used to update the currently stored sprint data for all teams
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :return: Returns a result array containing the teams updated and the number of issues found.
     """
+    context = context or get_default_context()
     from augur.fetchers import UaSprintDataFetcher
-    fetcher = UaSprintDataFetcher(force_update=force_update, uajira=get_jira())
+    fetcher = UaSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(sprint_id=const.SPRINT_CURRENT)
 
 
-def get_issue_details(key, force_update=False):
+def get_issue_details(key, context=None, force_update=False):
     """
     Return details about an issue based on an issue key.  This will pull from mongo if possible.
     :param key: The key of the issue to retrieve
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return: The issue object
     """
+    context = context or get_default_context()
     from augur.fetchers import UaIssueDataFetcher
-    fetcher = UaIssueDataFetcher(force_update=force_update, uajira=get_jira())
+    fetcher = UaIssueDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(issue_key=key)
 
 
-def get_issues_details(keys, force_update=False):
+def get_issues_details(keys, context=None, force_update=False):
     """
     Return details about more than one issue.  This will always pull from Jira
     :param keys: The list of keys of the issues to retrieve
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return: A list of issue objects
     """
+    context = context or get_default_context()
     from augur.fetchers import UaIssueDataFetcher
-    fetcher = UaIssueDataFetcher(force_update=force_update, uajira=get_jira())
+    fetcher = UaIssueDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(issue_keys=keys)
 
 
-def get_defect_data(lookback_days=14, force_update=False):
+def get_defect_data(lookback_days=14, context=None, force_update=False):
     """
     Retrieves defect analytics for the past X days where X is the lookback_days value given.  The results are returned
     as a dictionary that looks something like this:
@@ -319,24 +376,28 @@ def get_defect_data(lookback_days=14, force_update=False):
                     impact: dict()                
                 })
             })
-    :param lookback_days: Number of days to lookback for defects 
+    :param lookback_days: Number of days to lookback for defects
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :param force_update: True to skip cache and retrieve data from source
     :return: 
     """
+    context = context or get_default_context()
     from augur.fetchers import UaDefectFetcher
-    fetcher = UaDefectFetcher(force_update=force_update, uajira=get_jira())
+    fetcher = UaDefectFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(lookback_days=lookback_days)
 
 
-def get_historical_defect_data(num_weeks=8, force_update=False):
+def get_historical_defect_data(num_weeks=8, context=None, force_update=False):
     """
     Retrieves abridged data going back X weeks where X = num_weeks
     :param num_weeks: The number of weeks to look at
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :param force_update:  True to skip cache and retrieve data from source
     :return: 
     """
+    context = context or get_default_context()
     from augur.fetchers import UaDefectHistoryFetcher
-    fetcher = UaDefectHistoryFetcher(force_update=force_update, uajira=get_jira())
+    fetcher = UaDefectHistoryFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(num_weeks=num_weeks)
 
 
@@ -368,33 +429,37 @@ def get_releases_since(start, end, force_update=False):
         end = start.ceil('day')
 
     from augur.fetchers import UaRelease
-    fetcher = UaRelease(force_update=force_update, uajira=get_jira())
+    fetcher = UaRelease(force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(start=start, end=end)
 
 
-def get_filter_analysis(filter_id, force_update=False):
+def get_filter_analysis(filter_id, context=None, force_update=False):
     """
     Gets the filter's details requested in the arguments
     :param:filter The filter ID
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :return: A dictionary of filter data
     """
+    context = context or get_default_context()
     from augur.fetchers import UaMilestoneDataFetcher
-    fetcher = UaMilestoneDataFetcher(force_update=force_update, uajira=get_jira())
-    return fetcher.fetch(filter_id=filter_id)
+    fetcher = UaMilestoneDataFetcher(force_update=force_update, augurjira=get_jira(), context=context)
+    return fetcher.fetch(filter_id=filter_id, context=context)
 
 
-def get_epic_analysis(epic_key, force_update=False):
+def get_epic_analysis(epic_key, context, force_update=False):
     """
     Gets the epic's details requested in the arguments
-    :param:epic The epic key
+    :param:epic_key The key for the epic to analyze
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :return: A dictionary of epics keyed on the epic key
     """
-    from augur.fetchers import UaEpicDataFetcher
-    fetcher = UaEpicDataFetcher(force_update=force_update, uajira=get_jira())
+    context = context or get_default_context()
+    from augur.fetchers import UaMilestoneDataFetcher
+    fetcher = UaMilestoneDataFetcher(force_update=force_update, context=context, augurjira=get_jira())
     return fetcher.fetch(epic_key=epic_key)
 
 
-def get_user_worklog(start, end, team_id, username=None, project_key=None, force_update=False):
+def get_user_worklog(start, end, team_id, username=None, project_key=None, context=None, force_update=False):
     """
 
     :param start: The start date for the logs
@@ -402,30 +467,33 @@ def get_user_worklog(start, end, team_id, username=None, project_key=None, force
     :param team_id: The Temp Team ID to retrieve worklogs for
     :param username: The username of the user to filter results on (optional)
     :param project_key: The JIRA project to filter results on (optional)
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return:
     """
-
+    context = context or get_default_context()
     from augur.fetchers import UaWorklogDataFetcher
-    fetcher = UaWorklogDataFetcher(force_update=force_update, uajira=get_jira())
+    fetcher = UaWorklogDataFetcher(force_update=force_update, augurjira=get_jira(), context=context)
     data = fetcher.fetch(start=start, end=end, username=username, team_id=team_id, project_key=project_key)
     return data[0] if isinstance(data, list) else data
 
 
-def get_dashboard_data(force_update=False):
+def get_dashboard_data(context=None, force_update=False):
     """
     This will retrieve all data associated with the dashboard.  It will only return something if data has been
     stored in the last two hours.  If nothing is returned, it will load the data automatically and return that.
     :param force_update: If True, then this will skip the cache and pull from JIRA
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :return: Returns the dashboard data.
     """
-    from augur.fetchers import UaDashboardFetcher
-    fetcher = UaDashboardFetcher(force_update=force_update, uajira=get_jira())
+    context = context or get_default_context()
+    from augur.fetchers import AugurDashboardFetcher
+    fetcher = AugurDashboardFetcher(force_update=force_update, context=context, augurjira=get_jira())
     data = fetcher.fetch()
     return data[0] if isinstance(data, list) else data
 
 
-def get_all_developer_info(group_id=None, force_update=False):
+def get_all_developer_info(context=None, force_update=False):
     """
     Retrieves all the developers organized by team along with some basic user info.
     Looks something like this:
@@ -442,38 +510,43 @@ def get_all_developer_info(group_id=None, force_update=False):
         },...
 
     }
-    :param group_id: The ID of the group to limit results to.
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :param force_update: If True, then this will skip the cache and pull fresh data
     :return:
     """
+    context = context or get_default_context()
     from augur.fetchers import UaTeamMetaDataFetcher
-    fetcher = UaTeamMetaDataFetcher(group_id=group_id, force_update=force_update, uajira=get_jira())
+    fetcher = UaTeamMetaDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch()
 
 
-def get_dev_stats(username, look_back_days=30, force_update=False):
+def get_dev_stats(username, look_back_days=30, context=None, force_update=False):
     """
     This will get detailed developer stats for the given user.  The stats will go back the number of days
     specified in look_back_days.  It will use the stats stored in the db if the same parameters were queried in
     the past 12 hours.
     :param username: The username of the dev
     :param look_back_days:  The number of days to go back to look for developers details (in both github and jira)
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return:
     """
+    context = context or get_default_context()
     from augur.fetchers import UaDevStatsDataFetcher
-    fetcher = UaDevStatsDataFetcher(force_update=force_update, uajira=get_jira())
+    fetcher = UaDevStatsDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(username=username, look_back_days=look_back_days)
 
 
-def get_all_dev_stats(force_update=False):
+def get_all_dev_stats(context=None, force_update=False):
     """
     Gets all developer info plus some aggregate data for each user including total points completed.
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :type force_update: bool
     :return:
     """
+    context = context or get_default_context()
     from augur.fetchers import UaOrgStatsFetcher
-    return UaOrgStatsFetcher(get_jira(), force_update=force_update).fetch()
+    return UaOrgStatsFetcher(get_jira(), context=context, force_update=force_update).fetch()
 
 
 def get_consultants():
@@ -558,13 +631,15 @@ def get_products():
     return cached
 
 
-def get_active_epics(force_update=False):
+def get_active_epics(context=None, force_update=False):
     """
     Retrieves epics that have been actively worked on in the past X days
+    :param context: The context object to use during requests (defaults to using the default context if not given)
     :return: A dictionary of epics
     """
+    context = context or get_default_context()
     from augur.fetchers import RecentEpicsDataFetcher
-    fetch = RecentEpicsDataFetcher(uajira=get_jira(), force_update=force_update)
+    fetch = RecentEpicsDataFetcher(context=context, augurjira=get_jira(), force_update=force_update)
     return fetch.fetch()
 
 

@@ -3,31 +3,23 @@ import logging
 import augur
 
 
-class UaDataFetcher(object):
+class AugurDataFetcher(object):
     """
     Provides a convenient mechanism for returning a well-defined slice of data from Jira.  Supports fetching the
     data, caching the data, retrieving data from the cache, and validation of input
     """
-    def __init__(self,uajira, group_id=None, force_update=False):
+    def __init__(self,augurjira, context=None, force_update=False):
 
-        if not group_id:
-            self.group_id = group_id
+        if not context:
+            self.context = augur.api.get_default_context()
         else:
-            # Default to the b2c group
-            self.group_id = "b2c"
+            self.context = context
 
-        self.uajira = uajira
+        self.augurjira = augurjira
         self.recent_data = None
         self.force_update = force_update
         self.logger = logging.Logger("fetcher")
         self.cache = None
-        self.workflow = None
-        self.group = None
-
-        if self.group_id:
-            self.group = augur.api.get_group(group_id)
-            if self.group:
-                self.workflow = augur.api.get_workflow(self.group.workflow_id)
 
         self.init_cache()
 
@@ -57,7 +49,7 @@ class UaDataFetcher(object):
         pass
 
     def _fetch(self):
-        raise NotImplementedError("Derived class of UaDataFetcher must implement the _fetch method")
+        raise NotImplementedError("Derived class of AugurDataFetcher must implement the _fetch method")
 
     def validate_input(self, **args):
         return False

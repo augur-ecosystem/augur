@@ -1,16 +1,16 @@
 import augur.api
 from augur import common
 from augur.common import cache_store, deep_get
-from augur.fetchers.fetcher import UaDataFetcher
+from augur.fetchers.fetcher import AugurDataFetcher
 
 
-class UaOrgStatsFetcher(UaDataFetcher):
+class UaOrgStatsFetcher(AugurDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """
 
     def init_cache(self):
-        self.cache = cache_store.UaJiraOrgData(self.uajira.mongo)
+        self.cache = cache_store.AugurJiraOrgData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data
@@ -40,7 +40,7 @@ class UaOrgStatsFetcher(UaDataFetcher):
                  self.workflow.get_resolved_statuses_jql(),
                  self.workflow.get_positive_resolutions_jql())
 
-        issues = self.uajira.execute_jql(jql, max_results=1000)
+        issues = self.augurjira.execute_jql(jql, max_results=1000)
         point_value_field = augur.api.get_issue_field_from_custom_name('Story Points')
         for issue in issues:
 

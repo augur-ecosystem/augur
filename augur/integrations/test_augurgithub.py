@@ -25,14 +25,42 @@ class TestAugurGithub(unittest.TestCase):
         gh = augur.api.get_github()
         org_ob, repo_ob = gh.get_org_and_repo_from_params("service-tax", "harbour")
         self.assertIsNotNone(org_ob)
-        self.assertEqual(org_ob.login == 'harbour')
+        self.assertEqual(org_ob.login,'harbour')
 
         self.assertIsNotNone(repo_ob)
-        self.assertEqual(repo_ob.name == 'service-tax')
+        self.assertEqual(repo_ob.name,'service-tax')
 
     def test_fetch_prs(self):
         gh = augur.api.get_github()
-        since=datetime.datetime.now()-datetime.timedelta(days=30)
-        prs = gh.fetch_prs(org="harbour",state="merged",since=since)
+        since=datetime.datetime.now()-datetime.timedelta(days=15)
+        prs = gh.fetch_prs(org=["apps"], state="merged", since=since)
         self.assertTrue(len(prs) != 0)
 
+    def test_fetch_prs_to_review(self):
+        gh = augur.api.get_github()
+        prs = gh.fetch_prs_to_review(username="schaki")
+        self.assertTrue(len(prs) != 0)
+
+    def test_fetch_author_open_prs(self):
+        gh = augur.api.get_github()
+        prs = gh.fetch_author_open_prs(username="kshehadeh")
+        self.assertTrue(len(prs) != 0)
+
+    def test_fetch_organization_members(self):
+        gh = augur.api.get_github()
+        members = gh.fetch_organization_members('apps')
+        self.assertTrue(len(members) != 0)
+
+    def test_get_organization(self):
+        gh = augur.api.get_github()
+        org1 = gh.get_organization("apps")
+        self.assertIsNotNone(org1)
+
+        org2 = gh.get_organization("kshehadeh")
+        self.assertIsNotNone(org2)
+
+    def test_get_org_component_data(self):
+        gh = augur.api.get_github()
+        cmpdata = gh.get_org_component_data("apps")
+        self.assertIsInstance(cmpdata,dict)
+        self.assertIn('repos',cmpdata)

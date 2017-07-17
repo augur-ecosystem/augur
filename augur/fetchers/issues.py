@@ -1,14 +1,14 @@
 from augur.common import cache_store
-from augur.fetchers.fetcher import UaDataFetcher
+from augur.fetchers.fetcher import AugurDataFetcher
 
 
-class UaIssueDataFetcher(UaDataFetcher):
+class UaIssueDataFetcher(AugurDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """
 
     def init_cache(self):
-        self.cache = cache_store.UaJiraIssueData(self.uajira.mongo)
+        self.cache = cache_store.AugurJiraIssueData(self.augurjira.mongo)
 
     def cache_data(self,data):
         self.recent_data = data
@@ -35,14 +35,14 @@ class UaIssueDataFetcher(UaDataFetcher):
     def _fetch(self):
 
         if self.issue_key:
-            issues = self.uajira.execute_jql("issue={key}".format(key=self.issue_key), expand='changelog')
+            issues = self.augurjira.execute_jql("issue={key}".format(key=self.issue_key), expand='changelog')
             if len(issues) > 0:
                 self.cache_data(issues[0])
                 return issues[0]
             return None
 
         elif self.issue_keys:
-            issues = self.uajira.execute_jql("issue in ({keys})".format(keys=",".join(self.issue_keys)))
+            issues = self.augurjira.execute_jql("issue in ({keys})".format(keys=",".join(self.issue_keys)))
             if len(issues) > 0:
                 return issues
             return None

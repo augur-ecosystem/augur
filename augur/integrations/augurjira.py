@@ -27,7 +27,7 @@ class AugurJira(object):
 
     def __init__(self, server=None, username=None, password=None):
 
-        self.logger = logging.getLogger("uajira")
+        self.logger = logging.getLogger("augurjira")
 
         self.server = server or settings.main.integrations.jira.instance
         self.username = username or settings.main.integrations.jira.username
@@ -39,7 +39,7 @@ class AugurJira(object):
             server=self.server)
 
         self.mongo = cache_store.UaStatsDb()
-        self.jiraissues_data_store = cache_store.UaJiraIssueData(self.mongo)
+        self.jiraissues_data_store = cache_store.AugurJiraIssueData(self.mongo)
 
     def get_jira_proxy(self):
         """
@@ -259,7 +259,7 @@ class AugurJira(object):
         key = issue['fields'][api.get_issue_field_from_custom_name('Epic Link')]
         if key is not None:
             from augur.fetchers import UaIssueDataFetcher
-            fetcher = UaIssueDataFetcher(uajira=self)
+            fetcher = UaIssueDataFetcher(augurjira=self)
             return fetcher.fetch(issue_key=key)
         else:
             return None

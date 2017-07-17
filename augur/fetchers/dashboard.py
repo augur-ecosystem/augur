@@ -1,7 +1,8 @@
 from augur import settings
 from augur import api
 from augur.common import cache_store
-from augur.fetchers.fetcher import UaDataFetcher
+from augur.fetchers.fetcher import AugurDataFetcher
+from augur.models.group import Group
 
 FILTER_IDLE = 33280
 FILTER_SUPER_IDLE = 32389
@@ -9,13 +10,15 @@ FILTER_ORPHANED = 32390
 FILTER_UNPOINTED = 32388
 
 
-class UaDashboardFetcher(UaDataFetcher):
+class AugurDashboardFetcher(AugurDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """
+    def __init__(self,*args,**kwargs):
+        super(AugurDashboardFetcher, self).__init__(*args, **kwargs)
 
     def init_cache(self):
-        self.cache = cache_store.UaDashboardData(self.uajira.mongo)
+        self.cache = cache_store.UaDashboardData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data
@@ -36,9 +39,9 @@ class UaDashboardFetcher(UaDataFetcher):
 
         devs = api.get_all_developer_info(self.force_update)
 
-        idle = api.get_filter_analysis(FILTER_IDLE)
-        super_idle = api.get_filter_analysis(FILTER_SUPER_IDLE)
-        no_epics = api.get_filter_analysis(FILTER_ORPHANED)
+        idle = api.get_filter_analysis(FILTER_IDLE, context=self.context)
+        super_idle = api.get_filter_analysis(FILTER_SUPER_IDLE, context=self.context)
+        no_epics = api.get_filter_analysis(FILTER_ORPHANED, context=self.context)
 
         active_epics = api.get_active_epics(self.force_update)
 

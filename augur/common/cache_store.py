@@ -440,7 +440,7 @@ class UaEngineeringReportData(UaModel):
             return None
 
 
-class UaJiraIssueData(UaModel):
+class AugurJiraIssueData(UaModel):
     def get_ttl(self):
         return datetime.timedelta(hours=1)
 
@@ -464,7 +464,7 @@ class UaJiraIssueData(UaModel):
             return None
 
 
-class UaJiraWorklogData(UaModel):
+class AugurJiraWorklogData(UaModel):
     def get_ttl(self):
         return datetime.timedelta(hours=8)
 
@@ -502,7 +502,7 @@ class UaJiraWorklogData(UaModel):
             return None
 
 
-class UaJiraDefectData(UaModel):
+class AugurJiraDefectData(UaModel):
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -526,7 +526,7 @@ class UaJiraDefectData(UaModel):
             return None
 
 
-class UaJiraDefectHistoryData(UaModel):
+class AugurJiraDefectHistoryData(UaModel):
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -571,7 +571,7 @@ class RecentEpicData(UaModel):
             return result
 
 
-class UaJiraEpicData(UaModel):
+class AugurJiraEpicData(UaModel):
     def get_ttl(self):
         return datetime.timedelta(hours=8)
 
@@ -595,7 +595,7 @@ class UaJiraEpicData(UaModel):
             return None
 
 
-class UaJiraOrgData(UaModel):
+class AugurJiraOrgData(UaModel):
     def get_ttl(self):
         return datetime.timedelta(hours=24)
 
@@ -609,7 +609,7 @@ class UaJiraOrgData(UaModel):
         return True
 
 
-class UaJiraFilterData(UaModel):
+class AugurJiraMilestoneData(UaModel):
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -617,14 +617,14 @@ class UaJiraFilterData(UaModel):
         return False
 
     def get_collection(self):
-        return self.mongo_client.stats.filters
+        return self.mongo_client.stats.milestones
 
     def requires_transform(self):
         return True
 
-    def load_filter(self, filer_id):
+    def load_milestone(self, milestone_id):
         filter_ob = self.load({
-            'filter.id': str(filer_id)
+            'milestone.id': str(milestone_id)
         })
 
         if len(filter_ob) > 0:
@@ -633,7 +633,7 @@ class UaJiraFilterData(UaModel):
             return None
 
 
-class UaJiraSprintsData(UaModel):
+class AugurJiraSprintsData(UaModel):
     def get_unique_key(self):
         return 'id'
 
@@ -787,7 +787,7 @@ class UaComponentOwnership(UaModel):
             return None
 
 
-class UaGithubDevStats(object):
+class AugurGithubDevStats(object):
     def __init__(self, username):
         self.user = username
         self.prs = []
@@ -803,34 +803,32 @@ class UaGithubDevStats(object):
 
     def add_pr(self, pr):
 
-        if pr['user']['login'] == self.user and pr['merged']:
+        if pr['user']['login'] == self.user:
             self.dirty = True
 
             # we need a version of this attribute that doesn't have the underscore so that we can
             #   display its values in a django template.
-            pr['links'] = pr['_links']
+            pr['links'] = pr['pull_request']
             self.prs.append(pr)
 
-            comment_count = (pr['review_comments'] + pr['comments'])
-            self.avg_changed_files_per_pr += pr['changed_files']
+            comment_count = pr['comments']
             self.avg_comments_per_pr += comment_count
-            if pr['changed_files'] > self.highest_changes_in_pr:
-                self.highest_changes_in_pr = pr['changed_files']
             if comment_count > self.highest_comments_in_pr:
                 self.highest_comments_in_pr = comment_count
 
-            merged_at = pr['merged_at']
+            closed_at = pr['closed_at']
             created_at = pr['created_at']
 
-            if not isinstance(pr['merged_at'], datetime.datetime):
-                merged_at = dateutil.parser.parse(pr['merged_at'])
-            merged_at = merged_at.replace(tzinfo=None)
+            if not isinstance(pr['closed_at'], datetime.datetime):
+                closed_at = dateutil.parser.parse(pr['closed_at'])
+            closed_at = closed_at.replace(tzinfo=None)
 
             if not isinstance(pr['created_at'], datetime.datetime):
                 created_at = dateutil.parser.parse(pr['created_at']).replace(tzinfo=pytz.UTC)
             created_at = created_at.replace(tzinfo=None)
 
-            self.avg_length_of_time_pr_was_open += (merged_at - created_at)
+            if pr['state'] not in ['merged','closed']:
+                self.avg_length_of_time_pr_was_open += (closed_at - created_at)
 
     def as_dict(self):
 

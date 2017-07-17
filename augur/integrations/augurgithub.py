@@ -31,7 +31,8 @@ class AugurGithub(object):
     def __init__(self):
         self.github = Github(login_or_token=settings.main.integrations.github.login_token,
                              password="x-oauth-basic",
-                             base_url=settings.main.integrations.github.base_url)
+                             base_url=settings.main.integrations.github.base_url,
+                             per_page=200)
 
         self.mongo = cache_store.UaStatsDb()
         self.prs_data_store = cache_store.UaTeamPullRequestsData(self.mongo)
@@ -40,7 +41,7 @@ class AugurGithub(object):
         self.permissions_data_store = cache_store.UaPermissionsOrgData(
             self.mongo)
         self.jira = get_jira()
-        self.logger = logging.getLogger("uagithub")
+        self.logger = logging.getLogger("augurgithub")
 
     def fetch_further_reviews(self, org):
         """
@@ -55,6 +56,64 @@ class AugurGithub(object):
 
         return org_further_reviews
 
+    def _prepare_pr_search(self, orgs, state, since, sort, order):
+        """
+        Prepare the basic query for a PR search including state, beginning date, orgs/repos
+        It returns a string containing the full query and caller can add to it to filter further
+        :param order: The sort order can be asc or desc
+        :param sort: The sort order.  Can be comments, created, or updated
+        :param state: The state of the pr (open, closed, merged)
+        :param org: The name of the organization (as a string)
+        :param since: The earliest date when the PRs were first opened
+        :return: Returns a query string (just the q parameter's value
+        """
+        # Convert to list if it's not already
+        query = " type:pr"
+
+        if orgs:
+            orgs = orgs if isinstance(orgs, list) else [orgs]
+
+            local_repo_obs = []
+            for o in orgs:
+                cached_repos = augur.api.get_cached_data("repos_for_%s" % o)
+                if not cached_repos:
+                    repos = [r.raw_data for r in self.get_repos_in_org(o)]
+                    augur.api.cache_data({'data':repos}, "repos_for_%s" % o)
+                else:
+                    repos = cached_repos[0]['data']
+
+                local_repo_obs += repos
+
+            # build a list of all the repos to search (no way to filter by org apparently)
+            query += " " + " ".join(["repo:%s/%s" % (r['organization']['login'], r['name']) for r in local_repo_obs])
+
+        if state in ("open", "closed"):
+            query += " is:%s" % state
+
+        if since:
+            if state == 'merged':
+                query += ' merged:>%s' % since.date().isoformat()
+            else:
+                query += ' created:>%s' % since.date().isoformat()
+
+        return query
+
+    def fetch_user_data(self, user, lookback_days=60):
+        """
+        Get github status for a single user.  This will retrieve the most recent data if not already
+        stored in the database.  So at this point, this call could take 20 minutes to complete
+        :param user: The name of the user
+        :param lookback_days: The number of days to look back in time for PRs and other data
+        :return: Returns a dict with github stats info in it
+        """
+        dev_stats_ob = cache_store.AugurGithubDevStats(user)
+        since = datetime.datetime.now() - datetime.timedelta(days=int(lookback_days))
+        merged_prs = self.fetch_author_merged_prs(user,since)
+        for pr in merged_prs:
+            dev_stats_ob.add_pr(pr)
+
+        return dev_stats_ob.as_dict()
+
     def fetch_prs(self, org, state, since=None, sort="created", order="desc"):
         """
         Gets the PRs for the given repo(s) of the given type.  You can specify PRs of certain types
@@ -67,21 +126,8 @@ class AugurGithub(object):
         """
 
         try:
-            # Convert to list if it's not already
-            orgs = org if isinstance(org,list) else [org]
-
-            local_repo_obs = []
-            # for o in orgs:
-            #     repos = self.get_repos_in_org(o)
-            #     local_repo_obs += [r.raw_data for r in repos]
-
-            # build a list of all the repos to search (no way to filter by org apparently)
-            # query = "+".join(["repo:%s/%s" % (org, r.name) for r in repos])
-            # query = "repo:harbour/service-search"
-            query = "test"
-
+            query = self._prepare_pr_search(orgs=org, state=state, since=since, sort=sort, order=order)
             results = self.github.search_issues(query=query, sort=sort, order=order)
-
             return [r.raw_data for r in results]
 
         except GithubException as e:
@@ -90,7 +136,7 @@ class AugurGithub(object):
 
         return []
 
-    def fetch_prs_to_review(self, username, sort, order):
+    def fetch_prs_to_review(self, username, sort="created", order="desc"):
         """
         Searches for all PRs that the given user is responsible for reviewing or has already
         started reviewing and the PR is still open.
@@ -99,16 +145,12 @@ class AugurGithub(object):
         :param order: Can be one of asc or desc
         :return:
         """
-        results = self.github.search_issues(query="", sort=sort, order=order, qualifiers={
-            "type": "pr",
-            "is": "open",
-            "review-requested": username,
-            "review-by": username
-        })
+        query = self._prepare_pr_search(orgs=None, state="open", since=None, sort=sort, order=order)
+        query += " review-requested:%s" % username
+        results = self.github.search_issues(query=query, sort=sort, order=order)
+        return [r.raw_data for r in results]
 
-        return [r.raw_data() for r in results]
-
-    def fetch_author_prs(self, username, state, sort, order):
+    def fetch_author_merged_prs(self, username, since, sort="created", order="desc"):
         """
         This will retrieve one or more authors prs in the given state
         :param username: A string or list of usernames
@@ -117,14 +159,23 @@ class AugurGithub(object):
         :param order: Can be one of asc or desc
         :return: Returns a list of search results as a list of dictionaries
         """
-        usernames = username if isinstance(username,list) else [username]
-        query = "+".join(["author:%s" % (u) for u in usernames])
+        query = self._prepare_pr_search(orgs=None, state="merged", since=since, sort=sort, order=order)
+        query += " author:%s" % username
+        results = self.github.search_issues(query=query, sort=sort, order=order)
+        return [r.raw_data for r in results]
 
-        results = self.github.search_issues(query=query, sort=sort, order=order, qualifiers={
-            "type": "pr",
-            "is": "merged",
-            "author": username
-        })
+    def fetch_author_open_prs(self, username, sort="created", order="desc"):
+        """
+        This will retrieve one or more authors prs in the given state
+        :param username: A string or list of usernames
+        :param state: Can be one of open, closed, merged
+        :param sort: The sort order can be one of comments, created or updated
+        :param order: Can be one of asc or desc
+        :return: Returns a list of search results as a list of dictionaries
+        """
+        query = self._prepare_pr_search(orgs=None, state="open", since=None, sort=sort, order=order)
+        query += " author:%s" % username
+        results = self.github.search_issues(query=query, sort=sort, order=order)
         return [r.raw_data for r in results]
 
     def fetch_organization_members(self, organization):
@@ -134,7 +185,7 @@ class AugurGithub(object):
         :return: Returns a list of organization Member objects
         """
         org_ob = self.get_organization(organization)
-        return [m for m in org_ob.get_members()] if org_ob else []
+        return [m.raw_data for m in org_ob.get_members()] if org_ob else []
 
     def get_organization(self, org):
         """

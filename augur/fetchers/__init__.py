@@ -10,3 +10,4 @@ from .release import *
 from sprint import *
 from teammeta import *
 from worklog import *
+from epics import *

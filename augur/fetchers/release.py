@@ -1,21 +1,21 @@
 import arrow
 
 from augur.common import cache_store, deep_get
-from augur.fetchers.fetcher import UaDataFetcher
+from augur.fetchers.fetcher import AugurDataFetcher
 
 
-class UaRelease(UaDataFetcher):
+class UaRelease(AugurDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """
 
-    def __init__(self, uajira, force_update=False):
-        super(UaRelease, self).__init__(uajira, force_update)
+    def __init__(self, augurjira, force_update=False):
+        super(UaRelease, self).__init__(augurjira, force_update)
         self.start = None
         self.end = None
 
     def init_cache(self):
-        self.cache = cache_store.UaReleaseData(self.uajira.mongo)
+        self.cache = cache_store.UaReleaseData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data
@@ -45,7 +45,7 @@ class UaRelease(UaDataFetcher):
         startStr = self.start.format("YYYY/MM/DD HH:mm")
         endStr = self.end.format("YYYY/MM/DD HH:mm")
 
-        issues = self.uajira.execute_jql("project in (CM) AND (status changed "
+        issues = self.augurjira.execute_jql("project in (CM) AND (status changed "
                                          "to \"Production Deployed\" during ('%s','%s'))" % (startStr, endStr))
 
         released_tickets = {}
@@ -70,7 +70,7 @@ class UaRelease(UaDataFetcher):
         fully_released_tickets = []
         if len(released_tickets) > 0:
             comma_separated_keys = ",".join(released_tickets.keys())
-            fully_released_tickets = self.uajira.execute_jql(
+            fully_released_tickets = self.augurjira.execute_jql(
                 "key in (%s) order by \"Dev Team\" asc, key asc" % (comma_separated_keys))
         final_ticket_list = []
         for t in fully_released_tickets:

@@ -3,8 +3,8 @@ TEMPO_API_TOKEN="72c7fe70-eac9-4497-a3a1-e29ce4c47d41"
 
 class AugurTempo(object):
 
-    def __init__(self, uajira):
-        self.uajira = uajira
+    def __init__(self, augurjira):
+        self.augurjira = augurjira
 
     def get_worklogs(self, start, end, team_id, username=None, project_key=None):
         """
@@ -31,7 +31,7 @@ class AugurTempo(object):
         query['tempoApiToken'] = TEMPO_API_TOKEN
 
         base = "{server}/rest/tempo-timesheets/3/{path}"
-        return self.uajira.jira._get_json("worklogs/",params=query,base=base)
+        return self.augurjira.jira._get_json("worklogs/",params=query,base=base)
 
     def get_team_details(self, team_id):
         """
@@ -43,4 +43,4 @@ class AugurTempo(object):
             raise LookupError("You must specify a non-zero team_id to retrieve details")
 
         base = "{server}/rest/tempo-teams/1/{path}"
-        return self.uajira.jira._get_json("team/%d"%int(team_id),base=base)
+        return self.augurjira.jira._get_json("team/%d"%int(team_id),base=base)

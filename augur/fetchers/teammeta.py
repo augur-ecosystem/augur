@@ -2,13 +2,13 @@ import augur
 import augur.api
 from augur import settings
 from augur.common import const, cache_store
-from augur.fetchers.fetcher import UaDataFetcher
+from augur.fetchers.fetcher import AugurDataFetcher
 from augur.models import AugurModel
 
 
-class UaTeamMetaDataFetcher(UaDataFetcher):
+class UaTeamMetaDataFetcher(AugurDataFetcher):
     def init_cache(self):
-        self.cache = cache_store.UaAllTeamsData(self.uajira.mongo)
+        self.cache = cache_store.UaAllTeamsData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data
