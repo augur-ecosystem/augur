@@ -18,7 +18,7 @@ class AugurDashboardFetcher(AugurDataFetcher):
         super(AugurDashboardFetcher, self).__init__(*args, **kwargs)
 
     def init_cache(self):
-        self.cache = cache_store.UaDashboardData(self.augurjira.mongo)
+        self.cache = cache_store.AugurDashboardData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data

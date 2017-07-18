@@ -13,7 +13,7 @@ PRIORITIES = ["Blocker", "Immediate", "High", "Medium", "Low"]
 IMPACTS = ["All", "Large", "Medium", "Small", "Tiny"]
 
 
-class UaDefectFetcher(AugurDataFetcher):
+class AugurDefectFetcher(AugurDataFetcher):
     """
     Retrieves defect data for a given period of time in the past.
     """
@@ -122,7 +122,7 @@ class UaDefectFetcher(AugurDataFetcher):
         return self.cache_data(stats)
 
 
-class UaDefectHistoryFetcher(AugurDataFetcher):
+class AugurDefectHistoryFetcher(AugurDataFetcher):
     """
     Retrieves defect data segmented by week over a period of weeks that is given as a parameter
     """

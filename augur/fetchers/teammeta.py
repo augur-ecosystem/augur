@@ -6,9 +6,9 @@ from augur.fetchers.fetcher import AugurDataFetcher
 from augur.models import AugurModel
 
 
-class UaTeamMetaDataFetcher(AugurDataFetcher):
+class AugurTeamMetaDataFetcher(AugurDataFetcher):
     def init_cache(self):
-        self.cache = cache_store.UaAllTeamsData(self.augurjira.mongo)
+        self.cache = cache_store.AugurAllTeamsData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data

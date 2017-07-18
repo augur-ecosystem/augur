@@ -4,13 +4,13 @@ from augur.integrations.augurjira import DeveloperNotFoundException
 from augur.fetchers.fetcher import AugurDataFetcher
 
 
-class UaDevStatsDataFetcher(AugurDataFetcher):
+class AugurDevStatsDataFetcher(AugurDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """
 
     def init_cache(self):
-        self.cache = cache_store.UaDeveloperData(self.augurjira.mongo)
+        self.cache = cache_store.AugurDeveloperData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data

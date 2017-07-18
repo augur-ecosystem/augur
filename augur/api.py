@@ -16,7 +16,7 @@ import os
 import copy
 
 from augur import settings, common
-from augur.common.cache_store import UaCachedResultSets
+from augur.common.cache_store import AugurCachedResultSets
 
 from augur.common import const, cache_store
 from augur.models import AugurModel
@@ -160,8 +160,8 @@ def get_historic_sprint_stats(team, context=None, force_update=False):
       converted sprint data.
     """
     context = context or get_default_context()
-    from augur.fetchers import UaSprintDataFetcher
-    fetcher = UaSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
+    from augur.fetchers import AugurSprintDataFetcher
+    fetcher = AugurSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(get_history=True, team_id=team)
 
 
@@ -175,8 +175,8 @@ def get_sprint_info(team_id, sprint=None, context=None, force_update=False):
     :return: Returns timedelta object with the remaining time in sprint
     """
     context = context or get_default_context()
-    from augur.fetchers import UaSprintDataFetcher
-    fetcher = UaSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
+    from augur.fetchers import AugurSprintDataFetcher
+    fetcher = AugurSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     sprint = fetcher.fetch(team_id=team_id, sprint_id=sprint)
 
     if sprint:
@@ -302,8 +302,8 @@ def get_sprint_info_for_team(team_id, sprint_id=const.SPRINT_LAST_COMPLETED, con
     :return: Returns a sprint object
     """
     context = context or get_default_context()
-    from augur.fetchers import UaSprintDataFetcher
-    fetcher = UaSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
+    from augur.fetchers import AugurSprintDataFetcher
+    fetcher = AugurSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(team_id=team_id, sprint_id=sprint_id)
 
 
@@ -314,8 +314,8 @@ def update_current_sprint_stats(context=None, force_update=False):
     :return: Returns a result array containing the teams updated and the number of issues found.
     """
     context = context or get_default_context()
-    from augur.fetchers import UaSprintDataFetcher
-    fetcher = UaSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
+    from augur.fetchers import AugurSprintDataFetcher
+    fetcher = AugurSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(sprint_id=const.SPRINT_CURRENT)
 
 
@@ -328,8 +328,8 @@ def get_issue_details(key, context=None, force_update=False):
     :return: The issue object
     """
     context = context or get_default_context()
-    from augur.fetchers import UaIssueDataFetcher
-    fetcher = UaIssueDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
+    from augur.fetchers import AugurIssueDataFetcher
+    fetcher = AugurIssueDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(issue_key=key)
 
 
@@ -342,8 +342,8 @@ def get_issues_details(keys, context=None, force_update=False):
     :return: A list of issue objects
     """
     context = context or get_default_context()
-    from augur.fetchers import UaIssueDataFetcher
-    fetcher = UaIssueDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
+    from augur.fetchers import AugurIssueDataFetcher
+    fetcher = AugurIssueDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(issue_keys=keys)
 
 
@@ -382,8 +382,8 @@ def get_defect_data(lookback_days=14, context=None, force_update=False):
     :return: 
     """
     context = context or get_default_context()
-    from augur.fetchers import UaDefectFetcher
-    fetcher = UaDefectFetcher(context=context, force_update=force_update, augurjira=get_jira())
+    from augur.fetchers import AugurDefectFetcher
+    fetcher = AugurDefectFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(lookback_days=lookback_days)
 
 
@@ -396,8 +396,8 @@ def get_historical_defect_data(num_weeks=8, context=None, force_update=False):
     :return: 
     """
     context = context or get_default_context()
-    from augur.fetchers import UaDefectHistoryFetcher
-    fetcher = UaDefectHistoryFetcher(context=context, force_update=force_update, augurjira=get_jira())
+    from augur.fetchers import AugurDefectHistoryFetcher
+    fetcher = AugurDefectHistoryFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(num_weeks=num_weeks)
 
 
@@ -428,8 +428,8 @@ def get_releases_since(start, end, force_update=False):
         start = arrow.get(start).floor('day')
         end = start.ceil('day')
 
-    from augur.fetchers import UaRelease
-    fetcher = UaRelease(force_update=force_update, augurjira=get_jira())
+    from augur.fetchers import AugurRelease
+    fetcher = AugurRelease(force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(start=start, end=end)
 
 
@@ -441,8 +441,8 @@ def get_filter_analysis(filter_id, context=None, force_update=False):
     :return: A dictionary of filter data
     """
     context = context or get_default_context()
-    from augur.fetchers import UaMilestoneDataFetcher
-    fetcher = UaMilestoneDataFetcher(force_update=force_update, augurjira=get_jira(), context=context)
+    from augur.fetchers import AugurMilestoneDataFetcher
+    fetcher = AugurMilestoneDataFetcher(force_update=force_update, augurjira=get_jira(), context=context)
     return fetcher.fetch(filter_id=filter_id, context=context)
 
 
@@ -454,8 +454,8 @@ def get_epic_analysis(epic_key, context, force_update=False):
     :return: A dictionary of epics keyed on the epic key
     """
     context = context or get_default_context()
-    from augur.fetchers import UaMilestoneDataFetcher
-    fetcher = UaMilestoneDataFetcher(force_update=force_update, context=context, augurjira=get_jira())
+    from augur.fetchers import AugurMilestoneDataFetcher
+    fetcher = AugurMilestoneDataFetcher(force_update=force_update, context=context, augurjira=get_jira())
     return fetcher.fetch(epic_key=epic_key)
 
 
@@ -472,8 +472,8 @@ def get_user_worklog(start, end, team_id, username=None, project_key=None, conte
     :return:
     """
     context = context or get_default_context()
-    from augur.fetchers import UaWorklogDataFetcher
-    fetcher = UaWorklogDataFetcher(force_update=force_update, augurjira=get_jira(), context=context)
+    from augur.fetchers import AugurWorklogDataFetcher
+    fetcher = AugurWorklogDataFetcher(force_update=force_update, augurjira=get_jira(), context=context)
     data = fetcher.fetch(start=start, end=end, username=username, team_id=team_id, project_key=project_key)
     return data[0] if isinstance(data, list) else data
 
@@ -515,8 +515,8 @@ def get_all_developer_info(context=None, force_update=False):
     :return:
     """
     context = context or get_default_context()
-    from augur.fetchers import UaTeamMetaDataFetcher
-    fetcher = UaTeamMetaDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
+    from augur.fetchers import AugurTeamMetaDataFetcher
+    fetcher = AugurTeamMetaDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch()
 
 
@@ -532,8 +532,8 @@ def get_dev_stats(username, look_back_days=30, context=None, force_update=False)
     :return:
     """
     context = context or get_default_context()
-    from augur.fetchers import UaDevStatsDataFetcher
-    fetcher = UaDevStatsDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
+    from augur.fetchers import AugurDevStatsDataFetcher
+    fetcher = AugurDevStatsDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(username=username, look_back_days=look_back_days)
 
 
@@ -545,8 +545,8 @@ def get_all_dev_stats(context=None, force_update=False):
     :return:
     """
     context = context or get_default_context()
-    from augur.fetchers import UaOrgStatsFetcher
-    return UaOrgStatsFetcher(get_jira(), context=context, force_update=force_update).fetch()
+    from augur.fetchers import AugurOrgStatsFetcher
+    return AugurOrgStatsFetcher(get_jira(), context=context, force_update=force_update).fetch()
 
 
 def get_consultants():
@@ -675,8 +675,8 @@ def cache_data(document, key):
     :param key: The key to uniquely identify this object with
     :return: None
     """
-    mongo = cache_store.UaStatsDb()
-    cache = UaCachedResultSets(mongo)
+    mongo = cache_store.AugurStatsDb()
+    cache = AugurCachedResultSets(mongo)
     cache.save_with_key(document, key)
     return document
 
@@ -689,8 +689,8 @@ def get_cached_data(key, override_ttl=None):
     :return: Returns a JSON object loaded from the cache or None if not found
     """
 
-    mongo = cache_store.UaStatsDb()
-    cache = UaCachedResultSets(mongo)
+    mongo = cache_store.AugurStatsDb()
+    cache = AugurCachedResultSets(mongo)
     return cache.load_from_key(key, override_ttl=override_ttl)
 
 

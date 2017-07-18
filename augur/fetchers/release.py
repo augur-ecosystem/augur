@@ -4,18 +4,18 @@ from augur.common import cache_store, deep_get
 from augur.fetchers.fetcher import AugurDataFetcher
 
 
-class UaRelease(AugurDataFetcher):
+class AugurRelease(AugurDataFetcher):
     """
     Retrieves analyzed data returned from a filter that has been already created in Jira
     """
 
     def __init__(self, augurjira, force_update=False):
-        super(UaRelease, self).__init__(augurjira, force_update)
+        super(AugurRelease, self).__init__(augurjira, force_update)
         self.start = None
         self.end = None
 
     def init_cache(self):
-        self.cache = cache_store.UaReleaseData(self.augurjira.mongo)
+        self.cache = cache_store.AugurReleaseData(self.augurjira.mongo)
 
     def cache_data(self, data):
         self.recent_data = data

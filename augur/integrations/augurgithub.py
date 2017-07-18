@@ -34,11 +34,11 @@ class AugurGithub(object):
                              base_url=settings.main.integrations.github.base_url,
                              per_page=200)
 
-        self.mongo = cache_store.UaStatsDb()
-        self.prs_data_store = cache_store.UaTeamPullRequestsData(self.mongo)
-        self.open_prs_data_store = cache_store.UaTeamOpenPullRequestsData(
+        self.mongo = cache_store.AugurStatsDb()
+        self.prs_data_store = cache_store.AugurTeamPullRequestsData(self.mongo)
+        self.open_prs_data_store = cache_store.AugurTeamOpenPullRequestsData(
             self.mongo)
-        self.permissions_data_store = cache_store.UaPermissionsOrgData(
+        self.permissions_data_store = cache_store.AugurPermissionsOrgData(
             self.mongo)
         self.jira = get_jira()
         self.logger = logging.getLogger("augurgithub")
@@ -321,7 +321,7 @@ class AugurGithub(object):
         :param org: The organization object or name
         :return: Returns a dict containing the data.
         """
-        ds = cache_store.UaComponentOwnership(self.mongo)
+        ds = cache_store.AugurComponentOwnership(self.mongo)
         data = ds.load_org(org)
         if not data:
             repos = self.get_repos_in_org(org) or []

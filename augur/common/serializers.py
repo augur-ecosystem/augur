@@ -8,7 +8,7 @@ from jira.resources import Component, Issue
 from augur.models import AugurModelProp
 
 
-class UaJsonEncoder(json.JSONEncoder):
+class AugurJsonEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, AugurModelProp):
             return obj.value
@@ -27,7 +27,7 @@ class UaJsonEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-class UaMongoSerializer(object):
+class AugurMongoSerializer(object):
     """
     Used to convert types of objects that are not supported by Mongo's BSON for data that is
     going into Mongo and data that is coming from Mongo
@@ -45,7 +45,7 @@ class UaMongoSerializer(object):
             if isinstance(value, AugurModelProp):
                 d[key] = value.value
             elif isinstance(value, datetime.timedelta):
-                d[key] = UaMongoSerializer._encode_timedelta(value)
+                d[key] = AugurMongoSerializer._encode_timedelta(value)
             elif isinstance(value, dict):
                 d[key] = self.transform_incoming(value)
             elif isinstance(value, list):
@@ -60,7 +60,7 @@ class UaMongoSerializer(object):
 
         for (key, value) in d.iteritems():
             if isinstance(value, dict) and "_type" in value and value["_type"] == "time_delta":
-                d[key] = UaMongoSerializer._decode_timedelta(value)
+                d[key] = AugurMongoSerializer._decode_timedelta(value)
             elif isinstance(value, dict):
                 d[key] = self.transform_outgoing(value)
 
@@ -77,10 +77,10 @@ class UaMongoSerializer(object):
 
 
 def to_mongo(doc):
-    t = UaMongoSerializer()
+    t = AugurMongoSerializer()
     return t.transform_incoming(doc)
 
 
 def from_mongo(doc):
-    t = UaMongoSerializer()
+    t = AugurMongoSerializer()
     return t.transform_outgoing(doc)

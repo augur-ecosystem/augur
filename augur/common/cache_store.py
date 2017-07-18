@@ -13,11 +13,11 @@ import augur.signals
 from dateutil.parser import parse
 
 
-class UaNoDataException(Exception):
+class AugurNoDataException(Exception):
     pass
 
 
-class UaStatsDb(pymongo.MongoClient):
+class AugurStatsDb(pymongo.MongoClient):
     def __init__(self,
                  host=augur.settings.main.datastores.cache.mongo.host,
                  port=augur.settings.main.datastores.cache.mongo.port,
@@ -25,10 +25,10 @@ class UaStatsDb(pymongo.MongoClient):
                  tz_aware=False,
                  connect=True,
                  **kwargs):
-        super(UaStatsDb, self).__init__(host, port, document_class, tz_aware, connect, **kwargs)
+        super(AugurStatsDb, self).__init__(host, port, document_class, tz_aware, connect, **kwargs)
 
 
-class UaModel(object):
+class AugurModel(object):
     """
     Handles loading and saving of data in a consistent way including database agnostic unique
     keys and ttl.
@@ -232,7 +232,7 @@ class UaModel(object):
         return self.data
 
 
-class UaDashboardData(UaModel):
+class AugurDashboardData(AugurModel):
     def clear_before_add(self):
         return True
 
@@ -252,7 +252,7 @@ class UaDashboardData(UaModel):
         return None
 
 
-class UaAllTeamsData(UaModel):
+class AugurAllTeamsData(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -266,7 +266,7 @@ class UaAllTeamsData(UaModel):
         return self.mongo_client.stats.developers
 
 
-class UaTeamSprintData(UaModel):
+class AugurTeamSprintData(AugurModel):
     def clear_before_add(self):
         return False
 
@@ -289,7 +289,7 @@ class UaTeamSprintData(UaModel):
         return None
 
 
-class UaPermissionsOrgData(UaModel):
+class AugurPermissionsOrgData(AugurModel):
     """
     Stores users who have extended permissions to view data on feature dev site.
     """
@@ -311,7 +311,7 @@ class UaPermissionsOrgData(UaModel):
             return None
 
 
-class UaTeamOpenPullRequestsData(UaModel):
+class AugurTeamOpenPullRequestsData(AugurModel):
     """
     Store open PRs.  Clears the cache with each update.
     """
@@ -344,10 +344,10 @@ class UaTeamOpenPullRequestsData(UaModel):
             d['merged_at'] = parse(d['merged_at']) if d['merged_at'] else None
             d['created_at'] = parse(d['created_at']) if d['created_at'] else None
 
-        super(UaTeamOpenPullRequestsData, self).save(data)
+        super(AugurTeamOpenPullRequestsData, self).save(data)
 
 
-class UaTeamPullRequestsData(UaModel):
+class AugurTeamPullRequestsData(AugurModel):
     """
     Stores PRs across the
     """
@@ -388,10 +388,10 @@ class UaTeamPullRequestsData(UaModel):
             d['merged_at'] = dateutil.parser.parse(d['merged_at']) if d['merged_at'] else None
             d['created_at'] = dateutil.parser.parse(d['created_at']) if d['created_at'] else None
 
-        super(UaTeamPullRequestsData, self).save(data)
+        super(AugurTeamPullRequestsData, self).save(data)
 
 
-class UaDeveloperData(UaModel):
+class AugurDeveloperData(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=1)
 
@@ -416,7 +416,7 @@ class UaDeveloperData(UaModel):
             return None
 
 
-class UaEngineeringReportData(UaModel):
+class AugurEngineeringReportData(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=24)
 
@@ -440,7 +440,7 @@ class UaEngineeringReportData(UaModel):
             return None
 
 
-class AugurJiraIssueData(UaModel):
+class AugurJiraIssueData(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=1)
 
@@ -464,7 +464,7 @@ class AugurJiraIssueData(UaModel):
             return None
 
 
-class AugurJiraWorklogData(UaModel):
+class AugurJiraWorklogData(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=8)
 
@@ -502,7 +502,7 @@ class AugurJiraWorklogData(UaModel):
             return None
 
 
-class AugurJiraDefectData(UaModel):
+class AugurJiraDefectData(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -526,7 +526,7 @@ class AugurJiraDefectData(UaModel):
             return None
 
 
-class AugurJiraDefectHistoryData(UaModel):
+class AugurJiraDefectHistoryData(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -550,7 +550,7 @@ class AugurJiraDefectHistoryData(UaModel):
             return None
 
 
-class RecentEpicData(UaModel):
+class RecentEpicData(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=24)
 
@@ -571,7 +571,7 @@ class RecentEpicData(UaModel):
             return result
 
 
-class AugurJiraEpicData(UaModel):
+class AugurJiraEpicData(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=8)
 
@@ -595,7 +595,7 @@ class AugurJiraEpicData(UaModel):
             return None
 
 
-class AugurJiraOrgData(UaModel):
+class AugurJiraOrgData(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=24)
 
@@ -609,7 +609,7 @@ class AugurJiraOrgData(UaModel):
         return True
 
 
-class AugurJiraMilestoneData(UaModel):
+class AugurJiraMilestoneData(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -633,7 +633,7 @@ class AugurJiraMilestoneData(UaModel):
             return None
 
 
-class AugurJiraSprintsData(UaModel):
+class AugurJiraSprintsData(AugurModel):
     def get_unique_key(self):
         return 'id'
 
@@ -655,7 +655,7 @@ class AugurJiraSprintsData(UaModel):
         }, order_by='endDate', sort_order=pymongo.DESCENDING)
 
 
-class UaCachedResultSets(UaModel):
+class AugurCachedResultSets(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -679,12 +679,12 @@ class UaCachedResultSets(UaModel):
         self.mongo_client.stats.result_cache.remove({'key': key})
 
         data['key'] = key
-        super(UaCachedResultSets, self).save(data)
+        super(AugurCachedResultSets, self).save(data)
 
 
-class UaProductReportData(UaModel):
+class AugurProductReportData(AugurModel):
     def __init__(self, mongo_client):
-        super(UaProductReportData, self).__init__(mongo_client)
+        super(AugurProductReportData, self).__init__(mongo_client)
 
     def get_ttl(self):
         return datetime.timedelta(hours=2)
@@ -699,7 +699,7 @@ class UaProductReportData(UaModel):
         return True
 
 
-class UaReleaseData(UaModel):
+class AugurReleaseData(AugurModel):
     """
     Used to store information about releases
     """
@@ -728,7 +728,7 @@ class UaReleaseData(UaModel):
             return None
 
 
-class UaTempoTeamData(UaModel):
+class AugurTempoTeamData(AugurModel):
     """
 
     """
@@ -756,13 +756,13 @@ class UaTempoTeamData(UaModel):
             return None
 
 
-class UaComponentOwnership(UaModel):
+class AugurComponentOwnership(AugurModel):
     """
     Used to store component owners and maintainers as retrieved from github
     """
 
     def __init__(self, mongo_client):
-        super(UaComponentOwnership, self).__init__(mongo_client)
+        super(AugurComponentOwnership, self).__init__(mongo_client)
 
     def get_ttl(self):
         return datetime.timedelta(hours=12)

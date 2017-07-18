@@ -42,7 +42,7 @@ class Milestone(object):
         self.jql = jql
 
 
-class UaMilestoneDataFetcher(AugurDataFetcher):
+class AugurMilestoneDataFetcher(AugurDataFetcher):
     """
     Retrieves data is helpful to analyze the state of a milestones.  Milestones can be tracked
     in one of three ways:
@@ -53,7 +53,7 @@ class UaMilestoneDataFetcher(AugurDataFetcher):
     """
     def __init__(self,*args, **kwargs):
         self.milestone = Milestone()
-        super(UaMilestoneDataFetcher, self).__init__(*args, **kwargs)
+        super(AugurMilestoneDataFetcher, self).__init__(*args, **kwargs)
 
     def init_cache(self):
         self.cache = cache_store.AugurJiraMilestoneData(self.augurjira.mongo)
