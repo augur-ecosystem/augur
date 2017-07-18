@@ -136,17 +136,20 @@ class AugurGithub(object):
 
         return []
 
-    def fetch_prs_to_review(self, username, sort="created", order="desc"):
+    def fetch_prs_to_review(self, username=None, sort="created", order="desc"):
         """
         Searches for all PRs that the given user is responsible for reviewing or has already
         started reviewing and the PR is still open.
-        :param username: The github username
+        :param username: The github username or None if all PRs to review should be searched.
         :param sort: Can be one of comments,created or updated
         :param order: Can be one of asc or desc
         :return:
         """
         query = self._prepare_pr_search(orgs=None, state="open", since=None, sort=sort, order=order)
-        query += " review-requested:%s" % username
+
+        if username:
+            query += " review-requested:%s" % username
+
         results = self.github.search_issues(query=query, sort=sort, order=order)
         return [r.raw_data for r in results]
 

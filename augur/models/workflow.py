@@ -163,9 +163,9 @@ class Workflow(AugurModel):
         """
         jql_list = []
         for d in self.defects:
-            jql_list += d.get_jql(include_issue_types)
+            jql_list.append(d.get_jql(include_issue_types))
 
-        return "((%s))" % ")(".join(jql_list)
+        return "((%s))" % ") OR (".join(jql_list)
 
     def get_resolved_statuses_jql(self):
         """
