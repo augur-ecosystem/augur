@@ -57,7 +57,8 @@ def clean_issue(issue):
     :param issue: A dict that is the the issue to clean
     :return: Returns a dictionary.
     """
-    points = augur.common.deep_get(issue, 'fields,', augur.api.get_issue_field_from_custom_name('Story Points'))
+    points_field_name = augur.api.get_issue_field_from_custom_name('Story Points')
+    points = augur.common.deep_get(issue, 'fields', points_field_name)
     status = augur.common.deep_get(issue, 'fields', 'status', 'name') or ''
     resolution = augur.common.deep_get(issue, 'fields', 'resolution', 'name') or ''
     return {

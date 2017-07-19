@@ -827,7 +827,7 @@ class AugurGithubDevStats(object):
                 created_at = dateutil.parser.parse(pr['created_at']).replace(tzinfo=pytz.UTC)
             created_at = created_at.replace(tzinfo=None)
 
-            if pr['state'] not in ['merged','closed']:
+            if pr['state'] in ['merged','closed']:
                 self.avg_length_of_time_pr_was_open += (closed_at - created_at)
 
     def as_dict(self):

@@ -136,7 +136,7 @@ class AugurGithub(object):
 
         return []
 
-    def fetch_prs_to_review(self, username=None, sort="created", order="desc"):
+    def fetch_prs_to_review(self, username=None, orgs=None, sort="created", order="desc"):
         """
         Searches for all PRs that the given user is responsible for reviewing or has already
         started reviewing and the PR is still open.
@@ -145,7 +145,11 @@ class AugurGithub(object):
         :param order: Can be one of asc or desc
         :return:
         """
-        query = self._prepare_pr_search(orgs=None, state="open", since=None, sort=sort, order=order)
+        if not username and not orgs:
+            raise exceptions.ValueError("you must specific a username or orgs to restrict "
+                                        "this to - result set will be too large without those constraints")
+
+        query = self._prepare_pr_search(orgs=orgs, state="open", since=None, sort=sort, order=order)
 
         if username:
             query += " review-requested:%s" % username
