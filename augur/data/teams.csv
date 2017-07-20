@@ -1,12 +1,14 @@
 id,name,member_ids,board_id,product_id
-rc,Team Sagamore,pbrown lolasov dwest sgiuliano,426,icon
-b,Team Charm,schaki jtucker ckanis,422,b2b
-cm,Team Constellation,zmoore npishchykava twoschitz,444,ab
-sg,Team McCormick,sbecker snichols ccrosby msmith,640,bof
-vd,Team Camden,mtaylor1 ajones jmason tfrancisco vshcherbatyuk,661,bof
-by,Team Bayside,jfeinour jwhite jreynolds,700,bof
-lc,Team Hon,bmcmanus lcarmona jfinamore tknickman,543,tof
-bh,Team Boh,kvalencik hnuss ckarper,741,plat
-at,Team ATX,ecohen jgriffith,819,apps
+rc,Team Sagamore,pbrown lolasov dwest sgiuliano fstarozhilov,426,icon
+b,Team Charm,schaki jtucker ckanis jandersen1,422,b2b
+cm,Team Constellation,zmoore npishchykava twoschitz ctate agroves,444,ab
+sg,Team McCormick,sbecker snichols ccrosby msmith jfinamore,640,bof
+vd,Team Camden,mtaylor1 ajones jmason tfrancisco mkokona,661,bof
+by,Team Bayside,jfeinour jwhite jreynolds dfarmer,700,bof
+lc,Team Hon,lcarmona tknickman rbrown tvelich jwooden,543,tof
+bh,Team Boh,kvalencik hnuss,741,plat
+at,Team ATX,ecohen,819,apps
 mc,Team McHenry,aolszewski cairey dwikoff cgrigg,789,tof
 p,Team Poe,jeisenberg kkerr hmoody,832,b2b
+l,Team Lexington,ckarper bmcmanus egeske,832,b2b
+o,Team Orioles,mmountain jcupp msankar tlake jschool,837,top
