@@ -103,6 +103,9 @@ class AugurModel(object):
         else:
             raise AttributeError(key)
 
+    def as_dict(self):
+        return {key:v.value for key,v in self.__dict__['_props'].iteritems()}
+
     def _add_properties(self):
         """
         Override to add properties.

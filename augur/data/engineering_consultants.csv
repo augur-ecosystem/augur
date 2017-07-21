@@ -1,5 +1,5 @@
 first_name,last_name,email,company,rate,status,role,ua_username,jira_username,github_username,start_date
-Steve,Becker,sbecker@consultant.underarmour.com,Catalyst,105,Active,Developer,sbecker,sbecker,sbecker,2016-10-10
+Steve,Becker,sbecker@consultant.underarmour.com,Catalyst,105,Active,DevTeamLead,sbecker,sbecker,sbecker,2016-10-10
 Chris,Crosby,cchris1@consultant.underarmour.com,Catalyst,82.5,Active,Developer,ccrosby,ccrosby,ccrosby,2016-12-05
 Tyler,Francisco,tfrancisco@consultant.underarmour.com,Catalyst,82.5,Active,Developer,tfrancisco,tfrancisco,tfrancisco,2016-12-05
 Aaron,Jones,ajones3@underarmour.com,Catalyst,82.5,Active,Developer,ajones3,ajones,ajones,2016-11-02
@@ -7,7 +7,7 @@ Sean,Nichols,snichols1@consultant.underarmour.com,Catalyst,82.5,Active,Developer
 Temi,Olonisakin,tolonisakin@consultant.underarmour.com,Catalyst,110,Active,Engagement Manager,tolonisakin,tolonisakin,tolonisakin,2016-10-10
 Vasyl,Shcherbatyuk,vshcherbatyuk@consultant.underarmour.com,Catalyst,82.5,Active,Developer,vshcherbatyuk,vshcherbatyuk,vshcherbatyuk,2016-11-02
 Mason,Smith,msmith1@consultant.underarmour.com,Catalyst,82.5,Active,Developer,msmith2,msmith,msmith,2016-10-10
-Matt,Taylor,mtaylor1@consultant.underarmour.com,Catalyst,105,Active,Developer,mtaylor1,mtaylor1,mtaylor1,2016-09-28
+Matt,Taylor,mtaylor1@consultant.underarmour.com,Catalyst,105,Active,DevTeamLead,mtaylor1,mtaylor1,mtaylor1,2016-09-28
 Tracey,Root,troot@underarmour.com,Independent,125,Active,PM,troot,troot,troot,2016-01-01
 Susan,Lee,slee2@consultant.underarmour.com,Sogeti,102,Active,Business Analyst,slee,slee,slee,2016-01-01
 Eli,Geske,egeske@consultant.underarmour.com,Tek Systems,140,Active,Developer,egeske,egeske,egeske,2015-09-01
@@ -40,7 +40,7 @@ Justin,Griffith,jgriffith1@consultant.underarmour.com,Tek Systems,118,Active,Dev
 Cary,Ho,cho2@consultant.underarmour.com,Alderson Loop,147,Active,Technical Manager,cho2,cho,cho,2017-06-05
 Dean,West,dwest1@underarmour.com,Tek Systems,140,Active,Developer,dwest1,dwest,dwest,2017-05-30
 Fedor,Starozhilov,fstarozhilov@consultant.underarmour.com,Modis,104,Active,Developer,fstarozhilov,fstarozhilov,fstarozhilov,2017-06-19
-Mike,Mountain,mmountain@consultant.underarmour.com,Catalyst,105,Active,Developer,mmountain,mmountain,mmountain,2017-06-12
+Mike,Mountain,mmountain@consultant.underarmour.com,Catalyst,105,Active,DevTeamLead,mmountain,mmountain,mmountain,2017-06-12
 Jeremy,School,jschool@consultant.underarmour.com,Catalyst,0,Active,Developer,jschool,jschool,jschool,2017-06-12
 Todd,Hallenbeck,thallenbeck@consultant.underarmour.com,Catalyst,0,Active,Developer,thallenbeck,thallenbeck,thallenbeck,2017-06-12
 Marvin,Sankar,msankar@consultant.underarmour.com,Catalyst,0,Active,Developer,msankar,msankar,msankar,2017-06-12

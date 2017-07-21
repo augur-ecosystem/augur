@@ -15,6 +15,7 @@ class StaffRole(object):
     QE = "QE"
     Manager = "Manager"
     Directory = "Director"
+    DevTeamLead = "Dev Team Lead"
 
 
 class Staff(AugurModel):

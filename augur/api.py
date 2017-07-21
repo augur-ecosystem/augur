@@ -549,6 +549,17 @@ def get_all_dev_stats(context=None, force_update=False):
     return AugurOrgStatsFetcher(get_jira(), context=context, force_update=force_update).fetch()
 
 
+def get_all_staff():
+    return get_consultants() + get_fulltime_staff()
+
+
+def get_all_staff_as_dictionary():
+    staff = get_all_staff()
+    staff_dict = {}
+    for s in staff:
+        staff_dict[s.jira_username] = s
+    return staff_dict
+
 def get_consultants():
     """
     Retrieves a list of Staff model objects containing all the known consultants.

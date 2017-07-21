@@ -60,7 +60,6 @@ class AugurMilestoneDataFetcher(AugurDataFetcher):
 
     def cache_data(self,data):
         self.recent_data = data
-        self.cache.save(self.recent_data)
         return self.recent_data
 
     def get_cached_data(self):
