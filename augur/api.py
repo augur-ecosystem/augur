@@ -433,7 +433,7 @@ def get_releases_since(start, end, force_update=False):
     return fetcher.fetch(start=start, end=end)
 
 
-def get_filter_analysis(filter_id, context=None, force_update=False):
+def get_filter_analysis(filter_id, brief=False, context=None, force_update=False):
     """
     Gets the filter's details requested in the arguments
     :param:filter The filter ID
@@ -443,7 +443,7 @@ def get_filter_analysis(filter_id, context=None, force_update=False):
     context = context or get_default_context()
     from augur.fetchers import AugurMilestoneDataFetcher
     fetcher = AugurMilestoneDataFetcher(force_update=force_update, augurjira=get_jira(), context=context)
-    return fetcher.fetch(filter_id=filter_id, context=context)
+    return fetcher.fetch(filter_id=filter_id, brief=brief)
 
 
 def get_epic_analysis(epic_key, context, force_update=False):
@@ -674,7 +674,7 @@ def get_memory_cached_data(key):
     """
     global CACHE
     if key in CACHE:
-        return copy.deepcopy(CACHE[key])
+        return CACHE[key]
     else:
         return None
 

@@ -53,6 +53,7 @@ class AugurMilestoneDataFetcher(AugurDataFetcher):
     """
     def __init__(self,*args, **kwargs):
         self.milestone = Milestone()
+        self.brief = False
         super(AugurMilestoneDataFetcher, self).__init__(*args, **kwargs)
 
     def init_cache(self):
@@ -67,6 +68,9 @@ class AugurMilestoneDataFetcher(AugurDataFetcher):
         return self.recent_data
 
     def validate_input(self,**args):
+
+        if 'brief' in args:
+            self.brief = args['brief']
 
         if 'epic_key' not in args:
             if 'filter_id' not in args:
@@ -90,6 +94,7 @@ class AugurMilestoneDataFetcher(AugurDataFetcher):
             stats = self.augurjira.execute_jql_with_analysis(self.milestone.jql)
 
             in_progress_items = []
+
             group_by_components = {}
             group_by_developers = {}
             group_by_status = {transform_status_string(s): [] for s in self.context.workflow.statuses}
@@ -106,38 +111,40 @@ class AugurMilestoneDataFetcher(AugurDataFetcher):
                     story_points = issue['fields'][points_field_name]
 
                 # get a list of all the issues in progress
-                if self.context.workflow.is_in_progress(issue['status']):
-                    in_progress_items.append(issue)
+                if not self.brief:
+                    if self.context.workflow.is_in_progress(issue['status']):
+                        in_progress_items.append(issue)
 
-                # get a list of all unfinished issues by component
-                if 'components' in issue['fields']:
-                    for cmp in issue['fields']['components']:
-                        if cmp['name'] not in group_by_components:
-                            group_by_components[cmp['name']] = []
-                            points_by_components[cmp['name']] = 0
+                    # get a list of all unfinished issues by component
+                    if 'components' in issue['fields']:
+                        for cmp in issue['fields']['components']:
+                            if cmp['name'] not in group_by_components:
+                                group_by_components[cmp['name']] = []
+                                points_by_components[cmp['name']] = 0
 
-                        points_by_components[cmp['name']] = story_points
-                        group_by_components[cmp['name']].append(issue)
+                            points_by_components[cmp['name']] = story_points
+                            group_by_components[cmp['name']].append(issue)
 
-                if 'assignee' in issue['fields'] and 'name' in issue['fields']['assignee']:
-                    username = issue['fields']['assignee']['name']
-                    username_key = username.replace(".","_")
-                    if username_key not in group_by_developers:
-                        group_by_developers[username_key] = []
-                        points_by_developers[username_key] = 0
+                    if 'assignee' in issue['fields'] and 'name' in issue['fields']['assignee']:
+                        username = issue['fields']['assignee']['name']
+                        username_key = username.replace(".","_")
+                        if username_key not in group_by_developers:
+                            group_by_developers[username_key] = []
+                            points_by_developers[username_key] = 0
 
-                    group_by_developers[username_key].append(issue)
-                    points_by_developers[username_key] += story_points
+                        group_by_developers[username_key].append(issue)
+                        points_by_developers[username_key] += story_points
 
-                status = transform_status_string(issue['fields']['status']['name'])
-                if status in group_by_status:
-                    group_by_status[status].append(issue)
-                    points_by_status[status] += story_points
+                    status = transform_status_string(issue['fields']['status']['name'])
+                    if status in group_by_status:
+                        group_by_status[status].append(issue)
+                        points_by_status[status] += story_points
 
-            stats['in_progress_items'] = in_progress_items
-            stats['group_by_components'] = group_by_components
-            stats['group_by_status'] = group_by_status
-            stats['group_by_assignee'] = group_by_developers
+                    stats['in_progress_items'] = in_progress_items
+                    stats['group_by_components'] = group_by_components
+                    stats['group_by_status'] = group_by_status
+                    stats['group_by_assignee'] = group_by_developers
+
             stats['points_by_components'] = points_by_components
             stats['points_by_status'] = points_by_status
             stats['points_by_assignee'] = points_by_developers

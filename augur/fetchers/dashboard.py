@@ -39,9 +39,9 @@ class AugurDashboardFetcher(AugurDataFetcher):
 
         devs = api.get_all_developer_info(self.force_update)
 
-        idle = api.get_filter_analysis(FILTER_IDLE, context=self.context)
-        super_idle = api.get_filter_analysis(FILTER_SUPER_IDLE, context=self.context)
-        no_epics = api.get_filter_analysis(FILTER_ORPHANED, context=self.context)
+        idle = api.get_filter_analysis(FILTER_IDLE, context=self.context, brief=True)
+        super_idle = api.get_filter_analysis(FILTER_SUPER_IDLE, context=self.context, brief=True)
+        no_epics = api.get_filter_analysis(FILTER_ORPHANED, context=self.context, brief=True)
 
         active_epics = api.get_active_epics(self.force_update)
 
