@@ -165,7 +165,7 @@ class JiraCmIssueTransitionHandler(WebhookListener):
                 success = self._handle_non_cm_transition(action, event)
 
         except Exception, e:
-            self.logger.error("Problem during execution: %s"%e.message)
+            self.logger.error("Problem during execution: %s" % e.message)
             success = False
 
         finally:
@@ -276,14 +276,18 @@ class JiraCmIssueTransitionHandler(WebhookListener):
             linked_tickets = self._get_linked_tickets(event, 'change management', 'cm', 'in')
 
             if not linked_tickets:
-                ticket = j.create_ticket(project_key='CM',
-                                         summary='Release %s - %s' % (
-                                            event["issue"]["key"], event["issue"]["fields"]["summary"]),
-                                         description=DESCRIPTION_TEMPLATE,
-                                         issuetype={'name': 'V7 Harbour Release'},
-                                         reporter=event['user'],
-                                         watchers=[event['user']['name']]
-                                         )
+                ticket = j.create_ticket(
+                    create_fields={
+                        'project': 'CM',
+                        'summary': 'Release %s - %s' % (event["issue"]["key"], event["issue"]["fields"]["summary"]),
+                        'description': DESCRIPTION_TEMPLATE,
+                        'issuetype': {'name': 'V7 Harbour Release'}
+                    },
+                    update_fields={
+                        'reporter': event['user'],
+                        'watchers': [event['user']['name']]
+                    }
+                )
 
                 if ticket:
                     # now establish a link between the two.
