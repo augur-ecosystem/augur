@@ -284,9 +284,9 @@ class JiraCmIssueTransitionHandler(WebhookListener):
                         'issuetype': {'name': 'V7 Harbour Release'}
                     },
                     update_fields={
-                        'reporter': event['user'],
-                        'watchers': [event['user']['name']]
-                    }
+                        'reporter': event['user']
+                    },
+                    watchers=[event['user']['name']]
                 )
 
                 if ticket:
