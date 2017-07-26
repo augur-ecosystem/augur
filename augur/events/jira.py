@@ -47,14 +47,24 @@ class JiraEventData(EventData):
 
     @property
     def change_from_string(self):
-        items = deep_get(self.data, 'changelog', 'items')
-        if items:
-            return items[0].get('fromString',"")
+        current = deep_get(self.data, 'changelog', 'current')
+        if not current:
+            items = deep_get(self.data, 'changelog', 'items')
+            if items:
+                return items[0].get('fromString',"")
+        else:
+            return current.get('fromString',"")
+
         return ""
 
     @property
     def change_to_string(self):
-        items = deep_get(self.data, 'changelog', 'items')
-        if items:
-            return items[0].get('toString',"")
+        current = deep_get(self.data, 'changelog', 'current')
+        if not current:
+            items = deep_get(self.data, 'changelog', 'items')
+            if items:
+                return items[0].get('toString',"")
+        else:
+            return current.get('toString',"")
+
         return ""
