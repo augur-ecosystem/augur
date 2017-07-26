@@ -81,14 +81,19 @@ class AugurEventManager(object):
     A singleton that manages event handlers.
     """
     def __init__(self):
-        self._event_handlers = []
+        self._event_listeners = []
 
-    def add_event_handler(self,handler):
-        self._event_handlers.append(handler)
+    def add_event_listener(self, handler):
+        """
+        Add a new event listener
+        :param handler: The new listener
+        :return:
+        """
+        self._event_listeners.append(handler)
 
     def handle(self, event):
         handled_by_count = 0
-        for et in self._event_handlers:
+        for et in self._event_listeners:
             if et.should_handle(event):
                 handled_by_count += 1 if et.handle(event) else 0
         return handled_by_count
