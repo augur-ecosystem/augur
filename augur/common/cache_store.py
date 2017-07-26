@@ -440,30 +440,6 @@ class AugurEngineeringReportData(AugurModel):
             return None
 
 
-class AugurJiraIssueData(AugurModel):
-    def get_ttl(self):
-        return datetime.timedelta(hours=1)
-
-    def clear_before_add(self):
-        return False
-
-    def get_collection(self):
-        return self.mongo_client.stats.jira_issues
-
-    def requires_transform(self):
-        return True
-
-    def load_issue(self, issue_key):
-        issues = self.load({
-            'key': issue_key
-        })
-
-        if len(issues) > 0:
-            return issues[0]
-        else:
-            return None
-
-
 class AugurJiraWorklogData(AugurModel):
     def get_ttl(self):
         return datetime.timedelta(hours=8)

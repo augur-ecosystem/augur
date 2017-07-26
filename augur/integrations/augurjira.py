@@ -39,7 +39,7 @@ class AugurJira(object):
             server=self.server)
 
         self.mongo = cache_store.AugurStatsDb()
-        self.jiraissues_data_store = cache_store.AugurJiraIssueData(self.mongo)
+        self.general_cache = cache_store.AugurCachedResultSets(self.mongo)
 
     def get_jira_proxy(self):
         """
@@ -105,6 +105,13 @@ class AugurJira(object):
     # ISSUES
     #  Methods for basic querying using JQL with some additional helpers
     ######################################################################
+
+    def get_issue(self,key):
+        issue = self.jira.issue(key)
+        if issue:
+            return issue.raw
+        else:
+            return None
 
     def execute_jql(self, jql, expand=None, max_results=500):
         """
@@ -258,9 +265,7 @@ class AugurJira(object):
         """
         key = issue['fields'][api.get_issue_field_from_custom_name('Epic Link')]
         if key is not None:
-            from augur.fetchers import AugurIssueDataFetcher
-            fetcher = AugurIssueDataFetcher(augurjira=self)
-            return fetcher.fetch(issue_key=key)
+            return self.get_issue(key)
         else:
             return None
 

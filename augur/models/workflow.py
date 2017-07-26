@@ -1,4 +1,4 @@
-
+import augur
 from augur.models import AugurModel
 
 
@@ -32,7 +32,7 @@ class WorkflowProjects(AugurModel):
         """
         Gets all projects that are part of this workflow
         from Jira.  This can return either the full project metadata or just the key
-        :param key_only:
+        :param key_only: If true, only return the project keys and not the full project object
         :return:
         """
         from augur.api import get_jira
@@ -47,7 +47,9 @@ class WorkflowProjects(AugurModel):
                 projects = get_jira().get_projects_with_key(self.keys)
         elif self.categories:
             # Call into jira to get the list of projects with the given categories.
-            projects = get_jira().get_projects_with_category(self.categories)
+            projects = []
+            for c in self.categories:
+                projects.extend(augur.api.get_projects_by_category(c))
 
         if key_only:
             return [p['key'] for p in projects]

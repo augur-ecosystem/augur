@@ -319,32 +319,13 @@ def update_current_sprint_stats(context=None, force_update=False):
     return fetcher.fetch(sprint_id=const.SPRINT_CURRENT)
 
 
-def get_issue_details(key, context=None, force_update=False):
+def get_issue_details(key):
     """
-    Return details about an issue based on an issue key.  This will pull from mongo if possible.
+    Return details about an issue based on an issue key.  This does not pull from any cache.
     :param key: The key of the issue to retrieve
-    :param context: The context object to use during requests (defaults to using the default context if not given)
-    :param force_update: If True, then this will skip the cache and pull from JIRA
     :return: The issue object
     """
-    context = context or get_default_context()
-    from augur.fetchers import AugurIssueDataFetcher
-    fetcher = AugurIssueDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
-    return fetcher.fetch(issue_key=key)
-
-
-def get_issues_details(keys, context=None, force_update=False):
-    """
-    Return details about more than one issue.  This will always pull from Jira
-    :param keys: The list of keys of the issues to retrieve
-    :param context: The context object to use during requests (defaults to using the default context if not given)
-    :param force_update: If True, then this will skip the cache and pull from JIRA
-    :return: A list of issue objects
-    """
-    context = context or get_default_context()
-    from augur.fetchers import AugurIssueDataFetcher
-    fetcher = AugurIssueDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
-    return fetcher.fetch(issue_keys=keys)
+    return get_jira().get_issue(key)
 
 
 def get_defect_data(lookback_days=14, context=None, force_update=False):
@@ -560,6 +541,7 @@ def get_all_staff_as_dictionary():
         staff_dict[s.jira_username] = s
     return staff_dict
 
+
 def get_consultants():
     """
     Retrieves a list of Staff model objects containing all the known consultants.
@@ -750,3 +732,20 @@ def get_issue_field_from_custom_name(name):
                 return f['id']
 
     return None
+
+
+def get_projects_by_category(category):
+    """
+    Gets all projects with the given category
+    :param category:
+    :return:
+    """
+    cache_key = "projects_%s"%category
+    projects = get_cached_data(cache_key)
+    if not projects:
+        projects = get_jira().get_projects_with_category(category)
+        cache_data({'data': projects},cache_key)
+    else:
+        projects = projects[0]['data']
+
+    return projects
