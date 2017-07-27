@@ -1,3 +1,6 @@
+import copy
+
+
 from augur.common import deep_get
 from augur.events import EventData
 
@@ -8,6 +11,43 @@ class JiraEventData(EventData):
     """
     def __init__(self,data):
         self.data = data
+
+    @staticmethod
+    def process_event_data(event):
+        """
+        Jira events can sometimes contain more than one change.  This will turn a given event into multiple
+        events in cases where this is true and return the new set of events.  These events can then be passed into
+        during the construction of the JiraEventData object to encapsulate that singular event.
+        :param event: The original event object
+        :return: A list of events based on the original
+        """
+        action = None
+        if event['issue_event_type_name'] == "issue_commented":
+            action = "issue:commented"
+        elif event['issue_event_type_name'] == "issue_work_logged":
+            action = "issue:commented"
+        elif event['issue_event_type_name'] in ("issue_updated", "issue_generic"):
+            for change in event['changelog']['items']:
+                if change['field'] == "status":
+                    action = "issue:transitioned"
+                else:
+                    action = "issue:field_change"
+
+        events = []
+        if action is not None and event is not None:
+            if 'changelog' in event:
+                if len(event['changelog']['items']) > 1:
+                    for e in event['changelog']['items']:
+                        e_copy = copy.deepcopy(event)
+                        e_copy['changelog']['current'] = copy.deepcopy(e)
+                        events.append(e_copy)
+                else:
+                    event['changelog']['current'] = event['changelog']['items'][0]
+                    events.append(event)
+            else:
+                events.append(event)
+
+        return events
 
     @property
     def raw(self):
@@ -47,24 +87,8 @@ class JiraEventData(EventData):
 
     @property
     def change_from_string(self):
-        current = deep_get(self.data, 'changelog', 'current')
-        if not current:
-            items = deep_get(self.data, 'changelog', 'items')
-            if items:
-                return items[0].get('fromString',"")
-        else:
-            return current.get('fromString',"")
-
-        return ""
+        return deep_get(self.data, 'changelog', 'current', 'fromString') or ""
 
     @property
     def change_to_string(self):
-        current = deep_get(self.data, 'changelog', 'current')
-        if not current:
-            items = deep_get(self.data, 'changelog', 'items')
-            if items:
-                return items[0].get('toString',"")
-        else:
-            return current.get('toString',"")
-
-        return ""
+        return deep_get(self.data, 'changelog', 'current', 'toString') or ""
