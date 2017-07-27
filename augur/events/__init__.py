@@ -43,38 +43,6 @@ class AugurEventListener(object):
         """
         pass
 
-    @staticmethod
-    def get_linked_tickets(event_data, link_type, linked_project_key=None, direction=None):
-        """
-        Gets all the tickets that are linked to the given ticket with the given constraints.
-        :param event_data: The JiraEventData object
-        :param link_type: The type of link this is (e.g. "Change Management")
-        :param linked_project_key: Filter on only tickets with the given project key (optional)
-        :param direction: Filter on only links that are either "in" OR "out".  If none given then
-                accept either.(optional)
-        :return: Return an array of tickets that are linked given the parameters given.
-        """
-        linked = event_data.issue_links or []
-        tickets = []
-        for l in linked:
-            if l['type']['name'].lower() == link_type.lower():
-                # this is the type of link we're looking for.
-                if direction:
-                    direction_arr = ['inwardIssue'] if direction == "in" else ['outwardIssue']
-                else:
-                    direction_arr = ['inwardIssue', 'outwardIssue']
-
-                for d in direction_arr:
-                    if d in l:
-                        if linked_project_key:
-                            pk = l[d]['key'].split("-")[0].lower()
-                            if pk != linked_project_key.lower():
-                                continue
-
-                        tickets.append(augur.api.get_issue_details(l[d]['key']))
-
-        return tickets
-
 
 class AugurEventManager(object):
     """
