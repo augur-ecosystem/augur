@@ -1,4 +1,5 @@
 
+
 from augur.models import AugurModel, staff
 
 
@@ -11,6 +12,7 @@ class Team(AugurModel):
         # must come before
         super(Team, self).__init__()
         import augur
+
         self.__dict__['_members'] = {}
         self.__dict__['_staff'] = augur.api.get_all_staff_as_dictionary()
 

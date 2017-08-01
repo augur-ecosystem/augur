@@ -1,5 +1,6 @@
 --index-url https://pypi.python.org/simple
 --extra-index-url https://pypi-reader:ThOgrAVultiA@artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi/simple
+pony
 arrow==0.7.0
 boto3==1.2.6
 botocore==1.4.49
