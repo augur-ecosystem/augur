@@ -181,7 +181,7 @@ class AugurSprintDataFetcher(AugurDataFetcher):
             standard_dev_map = defaultdict(int)
             total_completed_points = 0
             for issue in sprint_ob['contents']['completedIssues']:
-                points = issue['currentEstimateStatistic'].get('statFieldValue', {'value': 0}).get('value', 0)
+                points = issue.get('currentEstimateStatistic', {}).get('statFieldValue', {'value': 0}).get('value', 0)
                 total_completed_points += points
                 if 'assignee' in issue:
                     standard_dev_map[issue['assignee']] += points
