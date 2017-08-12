@@ -1,10 +1,10 @@
 import json
 
 from pony import orm
-from pony.orm import db_session, commit
+from pony.orm import db_session, commit, sql_debug
 
 import augur
-from augur.models import staff, product, workflow
+from augur.models import staff, product, workflow, group
 from augur.models import team
 
 import datetime
@@ -14,9 +14,11 @@ STATUS = ["Unknown", "Active", "Deactivate"]
 ROLES = ["Unknown", "Developer", "QE", "Manager", "Director", "DevTeamLead", "Engagement Manager", "PM",
          "Business Analyst", "QA", "Technical Manager"]
 TOOL_ISSUE_RESOLUTION_TYPES = ["positive", "negative"]
+TOOL_ISSUE_TYPE_TYPES = ["story", "task", "bug", "question"]
+STAFF_TYPES = ["FTE", "Consultant"]
 
 db = orm.Database()
-
+__is_bound = False
 
 class ToolIssueResolution(db.Entity):
     """
@@ -44,7 +46,9 @@ class ToolIssueType(db.Entity):
     """
     id = orm.PrimaryKey(int, auto=True)
     tool_issue_type_name = orm.Required(unicode)
+    tool_issue_type_type = orm.Required(unicode, py_check=lambda v: v in TOOL_ISSUE_TYPE_TYPES)
     workflow_defect_project_filters = orm.Set('WorkflowDefectProjectFilter', reverse="issue_types")
+    workflows = orm.Set('Workflow', reverse="issue_types")
 
 
 class Product(db.Entity):
@@ -55,8 +59,9 @@ class Product(db.Entity):
     """
     id = orm.PrimaryKey(int, auto=True)
     name = orm.Required(unicode)
-    key = orm.Required(unicode,unique=True)
+    key = orm.Required(unicode, unique=True)
     teams = orm.Set('Team', reverse='product')
+    groups = orm.Set('Group', reverse='products')
 
 
 class ToolProject(db.Entity):
@@ -89,10 +94,11 @@ class Staff(db.Entity):
     email = orm.Required(unicode)
     rate = orm.Required(float)
     start_date = orm.Required(datetime.date)
+    type = orm.Required(str, py_check=lambda v: v in STAFF_TYPES, default="FTE")
     jira_username = orm.Required(unicode)
     github_username = orm.Optional(unicode)
     status = orm.Required(unicode, py_check=lambda v: v in STATUS)
-    team = orm.Optional('Team', reverse="members", nullable=True)
+    teams = orm.Set('Team', reverse="members")
     base_daily_cost = orm.Optional(float)
     base_weekly_cost = orm.Optional(float)
     base_annual_cost = orm.Optional(float)
@@ -123,16 +129,27 @@ class Team(db.Entity):
     """
     id = orm.PrimaryKey(int, auto=True)
     name = orm.Required(unicode)
-    members = orm.Set(Staff, reverse='team')
-    agile_board = orm.Optional(AgileBoard, reverse='team',sql_default=0)
-    product = orm.Optional(Product, reverse='teams',sql_default=0)
+    members = orm.Set(Staff, reverse='teams')
+    agile_board = orm.Optional(AgileBoard, reverse='team', sql_default=0)
+    product = orm.Optional(Product, reverse='teams', sql_default=0)
+    groups = orm.Set('Group', reverse="teams")
+
+    def get_agile_board_jira_id(self):
+        return self.agile_board.jira_id
 
 
 class WorkflowDefectProjectFilter(db.Entity):
-    id = orm.PrimaryKey(int,auto=True)
+    id = orm.PrimaryKey(int, auto=True)
     project_key = orm.Required(str)
     issue_types = orm.Set(ToolIssueType, reverse='workflow_defect_project_filters')
     workflows = orm.Set('Workflow', reverse="defect_projects")
+
+    def get_issue_types_as_string_list(self, include_issue_types=True):
+        types = []
+        for it in self.issue_types:
+            types.append(it.tool_issue_type_name)
+
+        return types
 
 
 class Workflow(db.Entity):
@@ -142,119 +159,131 @@ class Workflow(db.Entity):
     resolutions = orm.Set(ToolIssueResolution, reverse="workflows")
     projects = orm.Set(ToolProject, reverse="workflows")
     categories = orm.Set(ToolProjectCategory, reverse="workflows")
+    issue_types = orm.Set(ToolIssueType, reverse="workflows")
     defect_projects = orm.Set(WorkflowDefectProjectFilter, reverse="workflows")
+    groups = orm.Set('Group', reverse="workflow")
+
+    def get_defect_project_filters(self):
+        return self.defect_projects
+
+    def status_ob_from_string(self, status_name):
+        try:
+            return filter(lambda x: x.tool_issue_status_name.lower() == status_name.lower(),
+                          self.statuses).pop()
+        except IndexError:
+            return None
+
+    def resolution_ob_from_string(self, res_name):
+        try:
+            return filter(lambda x: x.tool_issue_resolution_name.lower() == res_name.lower(),
+                          self.resolutions).pop()
+        except IndexError:
+            return None
+
+    def is_resolved(self, status, resolution):
+        """
+        Determines if the given status and resolution indicates a completed ticket
+        :param status:
+        :type status: ToolIssueStatus
+        :param resolution:
+        :type resolution: ToolIssueResolution
+        :return: Returns False if status or resolution could not be found in this workflow
+        """
+        status_ob = self.status_ob_from_string(status)
+        res_ob = self.resolution_ob_from_string(resolution)
+        if not (status_ob or res_ob):
+            return False
+
+        if status_ob.tool_issue_status_type.lower() == "done":
+            if res_ob:
+                if res_ob.tool_issue_resolution_type.lower() == "positive":
+                    return True
+            else:
+                # if the resolution isn't set then we will assume
+                return True
+
+        return False
+
+    def is_abandoned(self, status, resolution):
+        """
+        Determines if the given status and resolution indicates an abandoned ticket. An abandoned
+        ticket is a "done" ticket that has a "negative" resolution.
+        :param status:
+        :type status: ToolIssueStatus
+        :param resolution:
+        :type resolution: ToolIssueResolution
+        :return:
+        """
+        status_ob = self.status_ob_from_string(status)
+        res_ob = self.resolution_ob_from_string(resolution)
+        if not (status_ob or res_ob):
+            return False
+
+        if status_ob.tool_issue_status_type.lower() == "done":
+            if res_ob.tool_issue_resolution_type.lower() == "negative":
+                return True
+
+        return False
+
+    def done_statuses(self):
+        """
+        Returns a list of all the statuses that are considered to be "done".
+        :return: A list of ToolIssueStatus objects.
+        """
+        return filter(lambda x: x.tool_issue_status_type.lower() == "done", self.statuses)
+
+    def in_progress_statuses(self):
+        """
+        Returns all statuses that are considered "in progress" according to this workflow
+        :return: A list of ToolIssueStatus objects
+        """
+        return filter(lambda x: x.tool_issue_status_type.lower() == "in progress", self.statuses)
+
+    def dev_issue_types(self):
+        """
+        Returns all issue types that are considered development tickets as opposed to bug related tickets.
+        :return: A list of ToolIssueType objects
+        """
+        return filter(lambda x: x.tool_issue_type_type.lower() in ["story", "task"], self.issue_types)
+
+    def is_in_progress(self, status):
+        """
+        Returns True if the given status string is considered an "in progress" status.
+        :param status: The status string
+        :type status: str
+        :return: Returns boolean
+        :rtype: bool
+        """
+        for s in self.statuses:
+            if s.tool_issue_status_name.lower() == status.lower():
+                return s.tool_issue_status_type == "in progress"
+        return False
 
 
-db.bind('sqlite', filename='../../../augur.sqlite', create_db=True)
-db.generate_mapping(create_tables=True)
+class Group(db.Entity):
+    id = orm.PrimaryKey(int, auto=True)
+    name = orm.Required(unicode)
+    workflow = orm.Optional(Workflow, reverse="groups")
+    products = orm.Set(Product, reverse="groups")
+    teams = orm.Set(Team, reverse="groups")
 
 
-@db_session
-def prepopulate():
-    import os
+def init_db():
 
-    statuses = []
-    resolutions = []
-    issuetypes = []
-    if orm.select(tir for tir in ToolIssueResolution).count() == 0:
-        for tir in (("fixed","positive"),("done","positive"),("complete","positive"),
-                    ("won't do","negative"),("duplicate","negative"), ("not an issue","negative")):
-            resolutions.append(ToolIssueResolution(tool_issue_resolution_name=tir[0],tool_issue_resolution_type=tir[1]))
+    global __is_bound
 
-    if orm.select(tis for tis in ToolIssueStatus).count() == 0:
-        for tis in (("open","open"),("blocked","in progress"),("quality review","in progress"),
-                    ("staging","in progress"),("production","in progress"), ("resolved","done")):
-            statuses.append(ToolIssueStatus(tool_issue_status_name=tis[0],tool_issue_status_type=tis[1]))
+    if not __is_bound:
 
-    if orm.select(tit for tit in ToolIssueType).count() == 0:
-        for tit in ("story","bug","task","sub-task","defect"):
-            issuetypes.append(ToolIssueType(tool_issue_type_name=tit))
+        if augur.settings.main.project.debug == True:
+            sql_debug(True)
 
-    if orm.select(s for s in Staff).count() == 0:
-        path_to_csv = os.path.join(augur.settings.main.project.augur_base_dir, 'data/engineering_consultants.csv')
-        all_staff = augur.models.AugurModel.import_from_csv(path_to_csv, staff.Staff)
-        for a in all_staff:
-            Staff(
-                first_name=a.first_name,
-                last_name=a.last_name,
-                company=a.company,
-                avatar_url=a.avatar_url,
-                role=a.role,
-                email=a.email,
-                rate=a.rate,
-                start_date=a.start_date,
-                jira_username=a.jira_username,
-                github_username=a.github_username,
-                status=a.status,
-                base_daily_cost=a.base_daily_cost,
-                base_weekly_cost=a.base_weekly_cost,
-                base_annual_cost=a.base_annual_cost,
-            )
+        if augur.settings.main.datastores.main.type == "sqlite":
+            filename = augur.settings.main.datastores.main.sqlite.path
+            print "Opening sqlite database with filename %s"%filename
+            db.bind('sqlite', filename=filename, create_db=True)
+            __is_bound = True
+        elif augur.settings.main.datastores.main.type == "postgres":
+            # TODO: Suport Postgres
+            pass
 
-    if orm.select(t for t in Product).count() == 0:
-        path_to_csv = os.path.join(augur.settings.main.project.augur_base_dir, 'data/products.csv')
-        items = augur.models.AugurModel.import_from_csv(path_to_csv, product.Product)
-        for a in items:
-            Product(
-                name=a.name,
-                key=a.id
-            )
-
-    if orm.select(t for t in Team).count() == 0:
-        path_to_csv = os.path.join(augur.settings.main.project.augur_base_dir, 'data/teams.csv')
-        items = augur.models.AugurModel.import_from_csv(path_to_csv, team.Team)
-        for a in items:
-            board_id = a.board_id
-            b = orm.get(b for b in AgileBoard if b.jira_id == a.board_id)
-            if not b:
-                b = AgileBoard(
-                    jira_id=board_id
-                )
-
-            p = orm.get(p for p in Product if p.key.lower() == a.product_id.lower())
-            t = Team(
-                name=a.name,
-                product=p ,
-                agile_board=b
-            )
-
-            members = orm.select(m for m in Staff if m.jira_username in a.member_ids)
-            t.members = members
-
-    if orm.select(w for w in Workflow).count() == 0:
-        path_to_yaml = os.path.join(augur.settings.main.project.augur_base_dir, 'data/workflows.yaml')
-        items = augur.models.AugurModel.import_from_yaml(path_to_yaml, workflow.Workflow)
-        for a in items:
-            projects = []
-            project_categories = []
-            defect_projects = []
-
-            for k in a.projects.keys:
-                tp = ToolProject(
-                    tool_project_key=k
-                )
-                projects.append(tp)
-
-            for c in a.projects.categories:
-                tpc = ToolProjectCategory(
-                    tool_category_name=c
-                )
-                project_categories.append(tpc)
-
-            for d in a.defects:
-                wdpf = WorkflowDefectProjectFilter(project_key=d.key)
-                for it in d.issuetypes:
-                    x = orm.get(it1 for it1 in ToolIssueType if it1.tool_issue_type_name.lower() == it.lower())
-                    if x:
-                        wdpf.issue_types.add(x)
-                defect_projects.append(wdpf)
-
-            wf = Workflow(name=a.name)
-            wf.statuses.add(statuses)
-            wf.resolutions.add(resolutions)
-            wf.projects.add(projects)
-            wf.categories.add(project_categories)
-            wf.defect_projects.add(defect_projects)
-
-
-    commit()
+        db.generate_mapping(create_tables=True)

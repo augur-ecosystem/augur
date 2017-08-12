@@ -168,7 +168,3 @@ class TestAugurJira(unittest.TestCase):
         result = j.get_time_in_status(issues[0],"In Progress")
         self.assertIsInstance(result,datetime.timedelta)
         self.assertTrue(result.total_seconds() > 1)
-
-    def test_get_workflow_from_group_id(self):
-        workflow = AugurJira._get_workflow_from_group_id('b2c')
-        self.assertIsInstance(workflow, Workflow)

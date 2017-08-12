@@ -91,39 +91,30 @@ class AugurMilestoneDataFetcher(AugurDataFetcher):
         assert(self.context is not None)
         if self.milestone:
 
-            stats = self.augurjira.execute_jql_with_analysis(self.milestone.jql)
+            stats = self.augurjira.execute_jql_with_analysis(self.milestone.jql,
+                                                             total_only=self.brief, context=self.context)
+            stats['milestone'] = self.milestone.ob
 
-            in_progress_items = []
+            if not self.brief:
+                in_progress_items = []
 
-            group_by_components = {}
-            group_by_developers = {}
-            group_by_status = {transform_status_string(s): [] for s in self.context.workflow.statuses}
+                group_by_developers = {}
+                group_by_status = {transform_status_string(s.tool_issue_status_name): [] for s in self.context.workflow.statuses}
 
-            points_by_components = {}
-            points_by_developers = {}
-            points_by_status = {transform_status_string(s): 0 for s in self.context.workflow.statuses}
+                points_by_developers = {}
+                points_by_status = {transform_status_string(s.tool_issue_status_name): 0 for s in self.context.workflow.statuses}
 
-            points_field_name = augur.api.get_issue_field_from_custom_name('Story Points')
-            for key,issue in stats['issues'].iteritems():
+                points_field_name = augur.api.get_issue_field_from_custom_name('Story Points')
 
-                story_points = 0
-                if points_field_name in issue['fields']:
-                    story_points = issue['fields'][points_field_name]
+                for key,issue in stats['issues'].iteritems():
 
-                # get a list of all the issues in progress
-                if not self.brief:
+                    # get a list of all the issues in progress
+                    story_points = 0
+                    if points_field_name in issue['fields']:
+                        story_points = issue['fields'][points_field_name]
+
                     if self.context.workflow.is_in_progress(issue['status']):
                         in_progress_items.append(issue)
-
-                    # get a list of all unfinished issues by component
-                    if 'components' in issue['fields']:
-                        for cmp in issue['fields']['components']:
-                            if cmp['name'] not in group_by_components:
-                                group_by_components[cmp['name']] = []
-                                points_by_components[cmp['name']] = 0
-
-                            points_by_components[cmp['name']] = story_points
-                            group_by_components[cmp['name']].append(issue)
 
                     if 'assignee' in issue['fields'] and 'name' in issue['fields']['assignee']:
                         username = issue['fields']['assignee']['name']
@@ -141,14 +132,15 @@ class AugurMilestoneDataFetcher(AugurDataFetcher):
                         points_by_status[status] += story_points
 
                     stats['in_progress_items'] = in_progress_items
-                    stats['group_by_components'] = group_by_components
                     stats['group_by_status'] = group_by_status
                     stats['group_by_assignee'] = group_by_developers
 
-            stats['points_by_components'] = points_by_components
-            stats['points_by_status'] = points_by_status
-            stats['points_by_assignee'] = points_by_developers
-            stats['milestone'] = self.milestone.ob
+                stats['points_by_status'] = points_by_status
+                stats['points_by_assignee'] = points_by_developers
+
+            if self.brief:
+                # remove the list of issues to keep the payload brief
+                stats['issues'] = {}
 
             return self.cache_data(stats)
         else:

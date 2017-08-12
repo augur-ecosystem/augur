@@ -16,6 +16,8 @@ class AugurJsonEncoder(json.JSONEncoder):
             return obj.total_seconds()
         elif isinstance(obj, datetime.datetime):
             return obj.isoformat()
+        elif isinstance(obj, datetime.date):
+            return obj.isoformat()
         elif isinstance(obj, ObjectId):
             return str(obj)
         elif isinstance(obj, Component):
@@ -46,6 +48,9 @@ class AugurMongoSerializer(object):
                 d[key] = value.value
             elif isinstance(value, datetime.timedelta):
                 d[key] = AugurMongoSerializer._encode_timedelta(value)
+            elif isinstance(value, datetime.date):
+                # BSON does not recognize date formats but we can initialize a datetime when a zero time.
+                d[key] = datetime.datetime.combine(value, datetime.datetime.min.time())
             elif isinstance(value, dict):
                 d[key] = self.transform_incoming(value)
             elif isinstance(value, list):

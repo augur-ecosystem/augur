@@ -36,10 +36,6 @@ class AugurTeamMetaDataFetcher(AugurDataFetcher):
 
     def _fetch(self):
 
-        consultants = augur.api.get_consultants()
-        fulltime = augur.api.get_fulltime_staff()
-        all_staff = consultants + fulltime
-
         team_json = {
             'teams': {},
             'consultant_count': 0,
@@ -53,26 +49,20 @@ class AugurTeamMetaDataFetcher(AugurDataFetcher):
         flat = {}
         for team_ob in team_objects:
             members_json = {}
-            members = team_ob.member_ids
-            for username in members:
-                staff_ob = AugurModel.find_model_in_collection(all_staff, "jira_username", username)
-                member = {
-                    'funnel': team_ob.product_id
-                }
+            for staff_ob in team_ob.members:
 
-                if not staff_ob:
-                    raise LookupError("A staff member was listed as part of a team but that staff member was not found: " % username)
+                member = {'funnel': team_ob.product.name if team_ob.product else "None",
+                          'email': staff_ob.email,
+                          'is_consultant': staff_ob.type == "consultant",
+                          'vendor': staff_ob.company,
+                          'start_date': staff_ob.start_date,
+                          'fullname': staff_ob.first_name + " " + staff_ob.last_name
+                          }
 
-                member['email'] = staff_ob.email
-                member['is_consultant'] = staff_ob.rate == 0.0
-                member['vendor'] = staff_ob.company
-                member['start_date'] = staff_ob.start_date
-                member['fullname'] = staff_ob.first_name + " " + staff_ob.last_name
-
-                if username not in flat:
+                if staff_ob.jira_username not in flat:
                     member['team_id'] = team_ob.id
                     member['team_name'] = team_ob.name
-                    flat[username] = member
+                    flat[staff_ob.jira_username] = member
 
                 if member['is_consultant']:
                     team_json['consultant_count'] += 1
@@ -81,17 +71,20 @@ class AugurTeamMetaDataFetcher(AugurDataFetcher):
 
                 team_json['engineer_count'] += 1
 
-                members_json[username] = member
+                members_json[staff_ob.jira_username] = member
 
             team_json['team_count'] += 1
 
             sprint = augur.api.get_abridged_team_sprint(team_ob.id)
-            board_id = team_ob.board_id
-            board_link = "%s/secure/RapidBoard.jspa?rapidView=%d" % (settings.main.integrations.jira.instance, board_id)
+
+            board_id = team_ob.agile_board.jira_id if team_ob.agile_board else 0
+            board_link = "%s/secure/RapidBoard.jspa?rapidView=%d" % \
+                         (settings.main.integrations.jira.instance, board_id) if board_id else ""
+
             team_json['teams'][team_ob.name] = {
                 'members': members_json,
                 'board_id': board_id,
-                'board_link': board_link,
+                'board_link': board_link or "",
                 'sprint': sprint,
                 'id': team_ob.id,
                 'full': team_ob.name
@@ -101,5 +94,6 @@ class AugurTeamMetaDataFetcher(AugurDataFetcher):
 
         # Get a flat list of developers
 
-        return self.cache_data(team_json)
+        data = self.cache_data(team_json)
+        return data
 

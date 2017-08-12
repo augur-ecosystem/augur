@@ -156,7 +156,7 @@ class AugurSprintDataFetcher(AugurDataFetcher):
                 return team_stats
 
             team_object = augur.api.get_team_by_id(team_id)
-            sprint_ob = self.augurjira.sprint_info(team_object.board_id, sprint_abridged['id'])
+            sprint_ob = self.augurjira.sprint_info(team_object.get_agile_board_jira_id(), sprint_abridged['id'])
             t.split("Retrieve full sprint data")
 
             if not sprint_ob:
@@ -217,7 +217,7 @@ class AugurSprintDataFetcher(AugurDataFetcher):
                 "team_name": team_object.name,
                 "team_id": team_id,
                 "sprint_id": sprint_id,
-                "board_id": team_object.board_id,
+                "board_id": team_object.agile_board.jira_id,
                 "std_dev": std_dev,
                 "contributing_devs": standard_dev_map.keys(),
                 "team_sprint_data": sprint_ob,

@@ -1,5 +1,7 @@
 import logging
 
+from pony.orm import db_session
+
 import augur
 
 

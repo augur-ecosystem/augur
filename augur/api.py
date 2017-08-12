@@ -9,22 +9,22 @@ JSON as necessary.
 """
 
 import datetime
+import logging
 
 import arrow
-import os
 
 import copy
 
-from augur import settings, common
+from pony import orm
+from pony.orm import select
+from pony.orm import serialization
+
+from augur import common
 from augur.common.cache_store import AugurCachedResultSets
 
 from augur.common import const, cache_store
-from augur.models import AugurModel
-from augur.models.product import Product
-from augur.models.staff import Staff
 from augur.models.team import Team
-from augur.models.group import Group
-from augur.models.workflow import Workflow
+from augur import db
 
 CACHE = dict()
 
@@ -32,15 +32,18 @@ __jira = None
 __github = None
 __context = None
 
+api_logger = logging.getLogger("augurapi")
+
 
 class AugurContext(object):
     """
     This contains information that is used by the Augur library to identify constraints that should be
     used when requesting data.
     """
+
     def __init__(self, group_id):
         self._group = get_group(group_id)
-        self._workflow = self.group.get_workflow()
+        self._workflow = self.group.workflow
 
     @property
     def workflow(self):
@@ -65,7 +68,7 @@ def get_default_context():
     """
     Returns the default context for the API
     :return: Returns the default context object (AugurContext)
-d    """
+    """
     global __context
     return __context
 
@@ -113,8 +116,7 @@ def get_workflow(workflow_id):
     :param workflow_id: The ID of the workflow to retrieve
     :return: Returns a Group object or None if not found
     """
-    g = filter(lambda x: x.id == workflow_id, get_workflows())
-    return g[0] if g else None
+    return db.Workflow[workflow_id]
 
 
 def get_workflows():
@@ -122,12 +124,7 @@ def get_workflows():
     Get a list of all workflows
     :return: Returns a Group object or None if not found
     """
-    cached = get_memory_cached_data("_WORKFLOWS_")
-    if not cached:
-        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/workflows.yaml')
-        data = AugurModel.import_from_yaml(path_to_csv, Workflow)
-        cached = memory_cache_data(data, "_WORKFLOWS_")
-    return cached
+    return orm.select(w for w in db.Workflow)
 
 
 def get_group(group_id):
@@ -136,8 +133,7 @@ def get_group(group_id):
     :param group_id: The ID or name of the group to retrieve
     :return: Returns a Group object or None if not found
     """
-    g = filter(lambda x: x.id == group_id, get_groups())
-    return g[0] if g else None
+    return db.Group[group_id]
 
 
 def get_groups():
@@ -145,12 +141,7 @@ def get_groups():
     Gets all groups
     :return: Returns a Group object or None if not found
     """
-    cached = get_memory_cached_data("_GROUPS_")
-    if not cached:
-        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/groups.csv')
-        data = AugurModel.import_from_csv(path_to_csv, Group)
-        cached = memory_cache_data(data, "_GROUPS_")
-    return cached
+    return orm.select(g for g in db.Group)[:]
 
 
 def get_historic_sprint_stats(team, context=None, force_update=False):
@@ -198,13 +189,19 @@ def get_abridged_sprint_list_for_team(team_id, limit=None):
     """
 
     team_ob = get_team_by_id(team_id)
-    team_sprints_abridged = get_jira().get_sprints_from_board(team_ob.board_id)
+    if team_ob.agile_board:
+        team_sprints_abridged = get_jira().get_sprints_from_board(team_ob.agile_board.jira_id)
+    else:
+        team_sprints_abridged = []
+        api_logger.warning("No agile board has been defined for this team")
 
     # the initial list can contain sprints from other boards in cases where tickets spent time on
     # both boards.  So we filter out any that do not belong to the team.
-    filtered_sprints = [sprint for sprint in team_sprints_abridged if common.sprint_belongs_to_team(sprint, team_id)]
-
-    filtered_sorted_list = sorted(filtered_sprints, key=lambda k: k['sequence'])
+    if team_sprints_abridged:
+        filtered_sprints = [sprint for sprint in team_sprints_abridged if common.sprint_belongs_to_team(sprint, team_id)]
+        filtered_sorted_list = sorted(filtered_sprints, key=lambda k: k['sequence'])
+    else:
+        filtered_sorted_list = []
 
     if limit:
         return filtered_sorted_list[-limit:]
@@ -427,6 +424,21 @@ def get_filter_analysis(filter_id, brief=False, context=None, force_update=False
     return fetcher.fetch(filter_id=filter_id, brief=brief)
 
 
+def get_jql_analysis(jql, brief=False, context=None, force_update=False):
+    """
+    Gets the jql results details requested in the arguments
+    :param force_update:
+    :param brief:
+    :param:jql The JQL to use to get results.
+    :param context: The context object to use during requests (defaults to using the default context if not given)
+    :return: A dictionary of filter data
+    """
+    context = context or get_default_context()
+    from augur.fetchers import AugurMilestoneDataFetcher
+    fetcher = AugurMilestoneDataFetcher(force_update=force_update, augurjira=get_jira(), context=context)
+    return fetcher.fetch(jql=jql, brief=brief)
+
+
 def get_epic_analysis(epic_key, context, force_update=False):
     """
     Gets the epic's details requested in the arguments
@@ -437,20 +449,23 @@ def get_epic_analysis(epic_key, context, force_update=False):
     context = context or get_default_context()
     from augur.fetchers import AugurMilestoneDataFetcher
     fetcher = AugurMilestoneDataFetcher(force_update=force_update, context=context, augurjira=get_jira())
-    return fetcher.fetch(epic_key=epic_key)
+    return fetcher.fetch(epic_key=epic_key, brief=False)
 
 
 def get_user_worklog(start, end, team_id, username=None, project_key=None, context=None, force_update=False):
     """
 
     :param start: The start date for the logs
+    :type start: datetime, date, str, float, int
     :param end: The end date of the logs
+    :type end: datetime, date, str, float, int
     :param team_id: The Temp Team ID to retrieve worklogs for
     :param username: The username of the user to filter results on (optional)
     :param project_key: The JIRA project to filter results on (optional)
     :param context: The context object to use during requests (defaults to using the default context if not given)
     :param force_update: If True, then this will skip the cache and pull from JIRA
-    :return:
+    :return: A dictionary of user worklog data
+    :rtype: dict
     """
     context = context or get_default_context()
     from augur.fetchers import AugurWorklogDataFetcher
@@ -498,7 +513,8 @@ def get_all_developer_info(context=None, force_update=False):
     context = context or get_default_context()
     from augur.fetchers import AugurTeamMetaDataFetcher
     fetcher = AugurTeamMetaDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
-    return fetcher.fetch()
+    f = fetcher.fetch()
+    return f
 
 
 def get_dev_stats(username, look_back_days=30, context=None, force_update=False):
@@ -531,15 +547,11 @@ def get_all_dev_stats(context=None, force_update=False):
 
 
 def get_all_staff():
-    return get_consultants() + get_fulltime_staff()
+    return orm.select(s for s in db.Staff)
 
 
 def get_all_staff_as_dictionary():
-    staff = get_all_staff()
-    staff_dict = {}
-    for s in staff:
-        staff_dict[s.jira_username] = s
-    return staff_dict
+    return serialization.to_dict(get_all_staff())
 
 
 def get_consultants():
@@ -547,12 +559,7 @@ def get_consultants():
     Retrieves a list of Staff model objects containing all the known consultants.
     :return: An array of Staff objects. 
     """
-    cached = get_memory_cached_data("_CONSULTANT_STAFF_")
-    if not cached:
-        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/engineering_consultants.csv')
-        data = AugurModel.import_from_csv(path_to_csv, Staff)
-        cached = memory_cache_data(data, "_CONSULTANT_STAFF_")
-    return cached
+    return orm.select(t for t in db.Staff if t.type == "Consultant")
 
 
 def get_fulltime_staff():
@@ -560,12 +567,7 @@ def get_fulltime_staff():
     Retrieves a list of Staff model objects containing all the known FTEs in the engineering group.
     :return: An array of Staff objects. 
     """
-    cached = get_memory_cached_data("_FULLTIME_STAFF_")
-    if not cached:
-        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/engineering_ftes.csv')
-        data = AugurModel.import_from_csv(path_to_csv, Staff)
-        cached = memory_cache_data(data, "_FULLTIME_STAFF_")
-    return cached
+    return orm.select(t for t in db.Staff if t.type == "FTE")
 
 
 def get_team_by_name(name):
@@ -575,8 +577,7 @@ def get_team_by_name(name):
     :param name: The name to search for
     :return: A Team object.
     """
-    t = filter(lambda x: x.name == name, get_teams())
-    return t[0] if t else None
+    return orm.get(t for t in Team if t.name == name)
 
 
 def get_team_by_id(team_id):
@@ -586,8 +587,7 @@ def get_team_by_id(team_id):
     :param team_id: The team id to search for
     :return: A Team object.
     """
-    t = filter(lambda x: x.id == team_id, get_teams())
-    return t[0] if t else None
+    return db.Team[team_id]
 
 
 def get_teams_as_dictionary():
@@ -595,7 +595,8 @@ def get_teams_as_dictionary():
     Gets all teams as dictionary instead of a list.  The keys of the dictionary are the team_ids
     :return: Returns a dictionary of Team objects
     """
-    return {o.id: o for o in get_teams()}
+    teams = get_teams()
+    return serialization.to_dict(teams)
 
 
 def get_teams():
@@ -603,12 +604,7 @@ def get_teams():
     Retrieves a list of team objects containing all the known teams in e-comm
     :return: An array of Team objects. 
     """
-    cached = get_memory_cached_data("_TEAMS_")
-    if not cached:
-        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/teams.csv')
-        data = AugurModel.import_from_csv(path_to_csv, Team)
-        cached = memory_cache_data(data, "_TEAMS_")
-    return cached
+    return select(t for t in db.Team)[:]
 
 
 def get_products():
@@ -616,12 +612,7 @@ def get_products():
     Retrieves a list of product objects containing all the known product groups in e-comm
     :return: An array of Product objects. 
     """
-    cached = get_memory_cached_data("_PRODUCTS_")
-    if not cached:
-        path_to_csv = os.path.join(settings.main.project.augur_base_dir, 'data/products.csv')
-        data = AugurModel.import_from_csv(path_to_csv, Product)
-        cached = memory_cache_data(data, "_PRODUCTS_")
-    return cached
+    return select(p for p in db.Product)
 
 
 def get_active_epics(context=None, force_update=False):
@@ -740,12 +731,93 @@ def get_projects_by_category(category):
     :param category:
     :return:
     """
-    cache_key = "projects_%s"%category
+    cache_key = "projects_%s" % category
     projects = get_cached_data(cache_key)
     if not projects:
         projects = get_jira().get_projects_with_category(category)
-        cache_data({'data': projects},cache_key)
+        cache_data({'data': projects}, cache_key)
     else:
         projects = projects[0]['data']
 
     return projects
+
+
+def add_staff(staff_properties):
+    """
+    Staff properties must include the following:
+        * first_name (unicode)
+        * last_name (unicode)
+        * company (unicode)
+        * type (unicode - one of STAFF_TYPES)
+        * role (unicode - one of STAFF_ROLES)
+        * email (unicode)
+        * rate (if consultant)
+        * jira_username
+        * team (db.Team model)
+    :param staff_properties:
+    :return: Returns a db.Staff object.
+    """
+    db.Staff(**staff_properties)
+    orm.commit()
+
+
+def update_staff(staff_id, staff_properties):
+    """
+    Staff properties can be any subset of the properties that are
+    part of the Staff model.
+    :param staff_id: The ID of the staff object to update
+    :param staff_properties: All or some of the properties in the staff model
+    :return:
+    """
+    s = db.Staff[staff_id]
+    if s:
+        s.set(**staff_properties)
+        orm.commit()
+        return s
+
+    return None
+
+
+def add_team(team_properties):
+    """
+    Team properties must include the following:
+        * name (unicode)
+    :param team_properties: At a minimum, contains the required fields necessary to create a team.
+    :return: Returns a db.Team object.
+    """
+    db.Team(**team_properties)
+    orm.commit()
+
+
+def update_team(team_id, team_properties):
+    """
+    Staff properties can be any subset of the properties that are
+    part of the Team model.
+    :param team_id: The ID of the team object to update
+    :param team_properties: All or some of the properties in the team model
+    :return:
+    """
+    t = db.Team[team_id]
+    if t:
+        t.set(**team_properties)
+        orm.commit()
+        return t
+
+    return None
+
+
+def add_staff_to_team(team, staff):
+    """
+    Adds a staff member to a team.
+    :param team: The db.Team object
+    :param staff: The db.Staff object to add
+    :type team: db.Team
+    :type staff: db.Staff
+    :return:
+    """
+    assert (team and staff)
+    staff.teams.add(staff)
+
+
+def add_group(name, teams, workflow, products):
+    return db.Group(name=name, teams=teams, workflow=workflow, products=products)

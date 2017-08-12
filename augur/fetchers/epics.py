@@ -1,6 +1,7 @@
 import augur
 from augur.common import deep_get, cache_store
 from augur.fetchers import AugurDataFetcher
+from augur.integrations import augurjira
 
 
 class RecentEpicsDataFetcher(AugurDataFetcher):
@@ -23,13 +24,20 @@ class RecentEpicsDataFetcher(AugurDataFetcher):
     def validate_input(self, **args):
         return True
 
+    def _get_jql_for_unresolved_tickets_in_open_sprints(self):
+        """
+        :return:
+        """
+        project_jql = augurjira.projects_to_jql(self.context.workflow)
+        in_progress_statues = map(lambda x: x.tool_issue_status_name, self.context.workflow.in_progress_statuses())
+
+        return "%s and sprint in openSprints() and sprint not in futureSprints() and status in ('%s')" % \
+               (project_jql, "','".join(in_progress_statues))
+
     def _fetch(self):
 
-        active_issues = self.augurjira.execute_jql('category="Ecommerce Workflows" '
-                                                   'and sprint in openSprints() '
-                                                   'and sprint not in futureSprints() '
-                                                   'and issuetype in (story,task,bug) '
-                                                   'and status not in (resolved,open)')
+        jql = self._get_jql_for_unresolved_tickets_in_open_sprints()
+        active_issues = self.augurjira.execute_jql(jql)
 
         epics = {}
         total_active_issues = 0
@@ -45,9 +53,10 @@ class RecentEpicsDataFetcher(AugurDataFetcher):
                         "info": None
                     }
 
-        active_epics = self.augurjira.execute_jql('key in (%s)' % ",".join(epics.keys()))
-        for epic in active_epics:
-            epics[epic['key']]["info"] = epic
+        if len(epics) > 0:
+            active_epics = self.augurjira.execute_jql("key in ('%s')" % "','".join(epics.keys()))
+            for epic in active_epics:
+                epics[epic['key']]["info"] = epic
 
         return self.cache_data({
             'total_active_issues': total_active_issues,

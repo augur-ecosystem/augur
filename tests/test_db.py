@@ -1,8 +1,7 @@
-from os.path import dirname, abspath
-import sys
 import unittest
 
 import augur.db
+
 
 class TestDb(unittest.TestCase):
 

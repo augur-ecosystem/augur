@@ -5,7 +5,7 @@ import logging
 from dateutil.parser import parse
 from jira import JIRA, Issue, Project
 
-from augur import api
+from augur import api, db
 from augur import common
 from augur import settings
 from augur.common import cache_store
@@ -20,6 +20,45 @@ class TeamSprintNotFoundException(Exception):
 
 class DeveloperNotFoundException(Exception):
     pass
+
+
+def defect_filter_to_jql(defect_filters, include_issue_types=True):
+    jql_list = []
+    for d in defect_filters:
+        if include_issue_types:
+            jql_list.append("(project = %s and issuetype in ('%s'))" %
+                            (d.project_key, "','".join(d.get_issue_types_as_string_list())))
+        else:
+            jql_list.append("(project = %s)" % d.project_key)
+
+    return "((%s))" % ") OR (".join(jql_list)
+
+
+def projects_to_jql(workflow):
+    """
+    Gets the projects information and returns a jql string that can be embedded directly into a larger jql
+    :return: Returns a string containing the jql
+    """
+    keys = []
+    for p in workflow.projects:
+        keys.append(p.tool_project_key)
+
+    categories = []
+    for c in workflow.categories:
+        categories.append(c.tool_category_name)
+
+    jql_projects = ""
+    jql_categories = ""
+    if len(keys) > 0:
+        jql_projects = "project in (%s)"%",".join(keys)
+
+    if len(categories) > 0:
+        jql_categories = "category in ('%s')" % "','".join(categories)
+
+    if jql_projects and jql_categories:
+        return "((%s) OR (%s))" % (jql_projects,jql_categories)
+    else:
+        return jql_projects if jql_projects else jql_categories
 
 
 class AugurJira(object):
@@ -113,9 +152,11 @@ class AugurJira(object):
         else:
             return None
 
-    def execute_jql(self, jql, expand=None, max_results=500):
+    def execute_jql(self, jql, expand=None, include_changelog=False, max_results=500):
         """
         Simply a pass through to the JIRA search_issues call.
+        :param include_changelog: If true, then regardless of what expand is set to, the changelog will be included.
+                    Otherwise the changelog will be excluded.
         :param max_results: The maximum number of results to return.  If you pass 0 then this will only get the count
                 of issues and not return any of their content.
         :param jql:  The jql to execute
@@ -131,10 +172,14 @@ class AugurJira(object):
         with Timer("Executing jql: %s" % jql):
             result = api.get_cached_data(hashed_query, override_ttl=datetime.timedelta(hours=2))
             if not result:
-                if not expand:
-                    expand = "changelog"
-                else:
-                    expand += ",changelog"
+
+                if not isinstance(expand,(str,unicode)):
+                    expand = ""
+
+                if include_changelog and expand.find("changelog") == -1:
+                    expand += "changelog" if expand == "" else ",changelog"
+                elif not include_changelog and expand.find("changelog") >= 0:
+                    expand = expand.replace("changelog", "")
 
                 result = self.jira.search_issues(jql, expand=expand, maxResults=max_results)
                 results_json = [common.clean_issue(r.raw) for r in result]
@@ -147,17 +192,21 @@ class AugurJira(object):
             else:
                 return result[0]['data']
 
-    def execute_jql_with_analysis(self, query, group_id=None):
+    def execute_jql_with_analysis(self, query, context=None, total_only=False):
         """
         Returns an object containing completed stories, incomplete stories and the percent complete
-        :param group_id: The ID of the group to associate with the analysis (required for status counters and
-                workflow specific statistics)
+        :param total_only:
+        :param context: The context associated with the current request.
         :param query: The JQL to return the tickets to get the stats for
         :return: Return a dict with the following keys: complete, incomplete, total_points,percent_complete
         """
-        workflow = AugurJira._get_workflow_from_group_id(group_id)
 
-        issues = self.execute_jql(query)
+        if not context:
+            context = api.get_default_context()
+
+        assert context
+
+        issues = self.execute_jql(query, include_changelog=(total_only is False))
 
         # Initialize the general analytics
         result = {
@@ -169,7 +218,7 @@ class AugurJira(object):
         }
 
         # Initialize the status counters
-        result.update({AugurJira._status_to_dict_key(x): 0 for x in workflow.statuses})
+        result.update({AugurJira._status_to_dict_key(x): 0 for x in context.workflow.statuses})
 
         # Initialize point totals
         result.update({
@@ -203,11 +252,11 @@ class AugurJira(object):
             status = issue['status']
             resolution = issue['resolution']
 
-            if workflow.is_resolved(status, resolution):
+            if context.workflow.is_resolved(status, resolution):
                 result["complete"] += points
                 result['developer_stats'][assignee_cleaned ]['complete'] += points
 
-            elif workflow.is_abandoned(status, resolution):
+            elif context.workflow.is_abandoned(status, resolution):
                 result["abandoned"] += points
                 result['developer_stats'][assignee_cleaned]['abandoned'] += points
 
@@ -221,9 +270,10 @@ class AugurJira(object):
             ########
             # Times in Status
             #########
-            for s in workflow.in_progress_statuses:
-                status_str_prepped = "time_%s" % AugurJira._status_to_dict_key(s)
-                issue[status_str_prepped]= AugurJira.get_time_in_status(issue, s)
+            if not total_only:
+                for s in context.workflow.in_progress_statuses():
+                    status_str_prepped = "time_%s" % AugurJira._status_to_dict_key(s)
+                    issue[status_str_prepped] = AugurJira.get_time_in_status(issue, s)
 
             ########
             # Status counts
@@ -233,10 +283,14 @@ class AugurJira(object):
                 result[status_as_key] = 0
             result[status_as_key] += 1
 
-            if not workflow.is_resolved(issue['status'], issue['resolution']):
+            if not context.workflow.is_resolved(issue['status'], issue['resolution']):
                 result['remaining_ticket_count'] += 1
 
-            result['issues'][issue['key']] = issue
+            if not total_only:
+                result['issues'][issue['key']] = issue
+
+        if total_only:
+            result.pop('issues')
 
         ####
         # COMPLETION STATUS
@@ -456,9 +510,11 @@ class AugurJira(object):
         Gets a single tickets time in a given status.  Calculates by looking at the history for the issue
         and adding up all the time that the ticket was in the given status.
         :param issue: The ticket in dictionary form
-        :param status: The status string to look for.
+        :param status: The ToolIssueStatus to look for.
         :return: Returns the datetime.timedelta time in status.
         """
+        status_name = status.tool_issue_status_name
+
         history_list = issue['changelog']['histories']
         track_time = None
         total_time = datetime.timedelta()
@@ -467,11 +523,11 @@ class AugurJira(object):
             items = history['items']
 
             for item in items:
-                if item['field'] == 'status' and item['toString'].lower() == status.lower():
+                if item['field'] == 'status' and item['toString'].lower() == status_name.lower():
                     # start status
                     track_time = parse(history['created'])
                     break
-                elif track_time and item['field'] == 'status' and item['fromString'].lower() == status.lower():
+                elif track_time and item['field'] == 'status' and item['fromString'].lower() == status_name.lower():
                     # end status
                     total_time += (parse(history['created']) - track_time)
                     break
@@ -484,19 +540,10 @@ class AugurJira(object):
         return total_time
 
     @staticmethod
-    def _get_workflow_from_group_id(group_id):
-        if not group_id:
-            group_id = 'b2c'
-        group = api.get_group(group_id)
-        if not group:
-            group = api.get_group('b2c')
-
-        workflow = group.get_workflow()
-        if not workflow:
-            raise LookupError("Unable to find workflow for current group")
-
-        return workflow
-
-    @staticmethod
     def _status_to_dict_key(status):
-        return "%s"%status.lower().replace(" ","_")
+        if isinstance(status, db.ToolIssueStatus):
+            status_str = status.tool_issue_status_name
+        else:
+            status_str = status
+
+        return "%s" % status_str.lower().replace(" ", "_")

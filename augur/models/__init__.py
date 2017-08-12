@@ -3,6 +3,7 @@ import datetime
 import logging
 import yaml
 
+
 class AugurModelProp(object):
     def __init__(self, key, value, tp='unicode'):
         self.key = key
@@ -165,7 +166,7 @@ class AugurModel(object):
     def import_from_yaml(filepath, model_type):
 
         if "AugurModel" not in map(lambda x: x.__name__, model_type.__bases__):
-            raise TypeError("The model type when importing from CSV must be derived from AugurModel")
+            raise TypeError("The model type when importing from YAML must be derived from AugurModel")
 
         models = []
         item_list = yaml.load(file(filepath,"r")) or []
@@ -174,7 +175,6 @@ class AugurModel(object):
             models.append(model.handle_dict_import(item))
 
         return models
-
 
     @staticmethod
     def find_model_in_collection(collection, prop, value):

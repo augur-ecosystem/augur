@@ -7,6 +7,8 @@ import augur
 from augur import common, settings
 from augur.common import cache_store, deep_get
 from augur.fetchers.fetcher import AugurDataFetcher
+from augur.integrations import augurjira
+from augur.integrations.augurjira import AugurJira
 
 SEVERITIES = ["Critical", "High", "Medium", "Low"]
 PRIORITIES = ["Blocker", "Immediate", "High", "Medium", "Low"]
@@ -70,14 +72,16 @@ class AugurDefectFetcher(AugurDataFetcher):
 
     def _fetch(self):
 
-        defects = self.augurjira.execute_jql("%s AND created >= startOfDay(-%dd) "
-                                          "ORDER BY created DESC" % (self.context.workflow.get_defect_projects(True),
-                                                                     self.lookback_days))
+        defects = self.augurjira.execute_jql(
+            "%s AND created >= startOfDay(-%dd) ORDER BY created DESC" %
+            (augurjira.defect_filter_to_jql(self.context.workflow.get_defect_project_filters(), True),
+                self.lookback_days))
 
-        defects_previous_period = self.augurjira.execute_jql("%s AND created >= startOfDay(-%dd) and created <= "
-                                                          "startOfDay(-%dd) ORDER BY created DESC"
-                                                          % (self.context.workflow.get_defect_projects(True),
-                                                             self.lookback_days * 2, self.lookback_days))
+        defects_previous_period = \
+            self.augurjira.execute_jql(
+                "%s AND created >= startOfDay(-%dd) and created <= startOfDay(-%dd) ORDER BY created DESC"
+                % (augurjira.defect_filter_to_jql(self.context.workflow.get_defect_project_filters(), True),
+                    self.lookback_days * 2, self.lookback_days))
 
         grouped_by_severity_current = defaultdict(list)
         grouped_by_severity_previous = defaultdict(list)
@@ -156,9 +160,10 @@ class AugurDefectHistoryFetcher(AugurDataFetcher):
             start_str = arrow.get(start).floor('day').format("YYYY/MM/DD HH:mm")
             end_str = arrow.get(end).ceil('day').format("YYYY/MM/DD HH:mm")
 
-            defects = self.augurjira.execute_jql("%s AND created >= '%s' AND created <= '%s' "
-                                              "ORDER BY created DESC" % (self.context.workflow.get_defect_projects(True),
-                                                                         start_str, end_str))
+            defects = self.augurjira.execute_jql(
+                "%s AND created >= '%s' AND created <= '%s' ORDER BY created DESC" %
+                (augurjira.defect_filter_to_jql(self.context.workflow.get_defect_project_filters(), True),
+                 start_str, end_str))
 
             weeks.append({
                 "start": start_str,
