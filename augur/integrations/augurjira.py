@@ -181,14 +181,14 @@ class AugurJira(object):
                 elif not include_changelog and expand.find("changelog") >= 0:
                     expand = expand.replace("changelog", "")
 
-                result = self.jira.search_issues(jql, expand=expand, maxResults=max_results)
-                results_json = [common.clean_issue(r.raw) for r in result]
+                results_json = self.jira.search_issues(jql, expand=expand, maxResults=max_results, json_result=True)
+                issues_json = [common.clean_issue(r) for r in results_json['issues']]
 
-                if len(results_json) < 100:
+                if len(issues_json) < 100:
                     api.cache_data({
-                        "data": results_json
+                        "data": issues_json
                     }, hashed_query)
-                return results_json
+                return issues_json
             else:
                 return result[0]['data']
 
@@ -271,6 +271,8 @@ class AugurJira(object):
             # Times in Status
             #########
             if not total_only:
+
+                # initialize all the keys for stats
                 for s in context.workflow.in_progress_statuses():
                     status_str_prepped = "time_%s" % AugurJira._status_to_dict_key(s)
                     issue[status_str_prepped] = AugurJira.get_time_in_status(issue, s)

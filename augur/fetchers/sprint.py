@@ -208,7 +208,7 @@ class AugurSprintDataFetcher(AugurDataFetcher):
             if sprint_ob['contents']['issuesNotCompletedInCurrentSprint']:
                 incomplete_keys = [x['key'] for x in sprint_ob['contents']['issuesNotCompletedInCurrentSprint']]
                 jql = "key in ('%s')" % "','".join(incomplete_keys)
-                results = self.augurjira.execute_jql_with_analysis(jql, context=self.context)
+                results = self.augurjira.execute_jql_with_analysis(jql, total_only=False, context=self.context)
                 sprint_ob['contents']['issuesNotCompletedInCurrentSprint'] = results['issues'].values()
                 sprint_ob['contents']['incompleteIssuesFullDetail'] = results['issues'].values()
                 t.split("Got issue data for issues not completed during sprint")

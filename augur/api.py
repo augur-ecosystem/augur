@@ -99,15 +99,17 @@ def get_jira():
     return __jira
 
 
-def jql(jql_string, expand=None, max_results=500):
+def jql(jql_string, expand=None, include_changelog=False, max_results=500):
     """
     Does a JIRA jql search on the active instance
+    :param include_changelog: If True, this will exclude changelogs from the response (sometimes, these can be extremely
+                long).
     :param jql_string: The JQL string
     :param expand: The fields that should be expanded.
     :param max_results: The maximum number of results to return
     :return: A dictionary containing the issues found.
     """
-    return get_jira().execute_jql(jql_string, expand, max_results)
+    return get_jira().execute_jql(jql_string, include_changelog, expand, max_results)
 
 
 def get_workflow(workflow_id):

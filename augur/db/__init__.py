@@ -191,7 +191,7 @@ class Workflow(db.Entity):
         """
         status_ob = self.status_ob_from_string(status)
         res_ob = self.resolution_ob_from_string(resolution)
-        if not (status_ob or res_ob):
+        if not status_ob:
             return False
 
         if status_ob.tool_issue_status_type.lower() == "done":
@@ -216,12 +216,13 @@ class Workflow(db.Entity):
         """
         status_ob = self.status_ob_from_string(status)
         res_ob = self.resolution_ob_from_string(resolution)
-        if not (status_ob or res_ob):
+        if not status_ob:
             return False
 
         if status_ob.tool_issue_status_type.lower() == "done":
-            if res_ob.tool_issue_resolution_type.lower() == "negative":
-                return True
+            if res_ob:
+                if res_ob.tool_issue_resolution_type.lower() == "negative":
+                    return True
 
         return False
 
@@ -274,7 +275,7 @@ def init_db():
 
     if not __is_bound:
 
-        if augur.settings.main.project.debug == True:
+        if augur.settings.main.project.debug:
             sql_debug(True)
 
         if augur.settings.main.datastores.main.type == "sqlite":
@@ -283,7 +284,9 @@ def init_db():
             db.bind('sqlite', filename=filename, create_db=True)
             __is_bound = True
         elif augur.settings.main.datastores.main.type == "postgres":
-            # TODO: Suport Postgres
-            pass
+            pg_settings = augur.settings.main.datastores.main.postgres
+            db.bind('postgres', user=pg_settings.username, password=pg_settings.password,
+                    host=pg_settings.host, database=pg_settings.dbname, port=pg_settings.port)
+            __is_bound = True
 
         db.generate_mapping(create_tables=True)
