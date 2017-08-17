@@ -260,6 +260,28 @@ class Workflow(db.Entity):
                 return s.tool_issue_status_type == "in progress"
         return False
 
+    def get_projects(self, key_only):
+        from augur.api import get_jira
+        project_keys = [p.tool_project_key for p in self.projects]
+
+        if project_keys:
+            if key_only:
+                # if this workflow specifies projects with keys and the caller
+                #   just wants keys returned then we can just return this list.
+                return project_keys
+            else:
+                # Call into jira to get the list of projects with these keys
+                projects = get_jira().get_projects_with_key(project_keys)
+        elif self.categories:
+            # Call into jira to get the list of projects with the given categories.
+            projects = []
+            for c in self.categories:
+                projects.extend(augur.api.get_projects_by_category(c.tool_category_name))
+
+        if key_only:
+            return [p['key'] for p in projects]
+        else:
+            return projects
 
 class Group(db.Entity):
     id = orm.PrimaryKey(int, auto=True)
