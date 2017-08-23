@@ -10,7 +10,7 @@ from augur.models import team
 import datetime
 
 TOOL_ISSUE_STATUS_TYPES = ["open", "in progress", "done"]
-STATUS = ["Unknown", "Active", "Deactivate"]
+STATUS = ["Unknown", "Active", "Inactive"]
 ROLES = ["Unknown", "Developer", "QE", "Manager", "Director", "DevTeamLead", "Engagement Manager", "PM",
          "Business Analyst", "QA", "Technical Manager"]
 TOOL_ISSUE_RESOLUTION_TYPES = ["positive", "negative"]
