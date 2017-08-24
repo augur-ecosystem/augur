@@ -64,7 +64,7 @@ class AugurDashboardFetcher(AugurDataFetcher):
         # and we don't have a cron job that updates the data in the background.  So it has to be updated by
         # visits to the page with the same user and the same look back days
 
-        devs = api.get_all_developer_info(self.force_update)
+        devs = api.get_all_developer_info(context=self.context, force_update=self.force_update)
 
         # these JQL generators could return None in cases where the data required to generate the JQL is not available.
         idle_jql = self._get_jql_for_idle_tickets(IDLE_DAYS)

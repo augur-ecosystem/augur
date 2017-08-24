@@ -15,6 +15,7 @@ import arrow
 
 import copy
 
+from jira import JIRAError
 from pony import orm
 from pony.orm import select
 from pony.orm import serialization
@@ -192,7 +193,14 @@ def get_abridged_sprint_list_for_team(team_id, limit=None):
 
     team_ob = get_team_by_id(team_id)
     if team_ob.agile_board:
-        team_sprints_abridged = get_jira().get_sprints_from_board(team_ob.agile_board.jira_id)
+        try:
+            team_sprints_abridged = get_jira().get_sprints_from_board(team_ob.agile_board.jira_id)
+        except JIRAError, e:
+            if e.status_code == 404:
+                api_logger.error("Could not find the Agile Board with ID %d"%team_ob.agile_board.jira_id)
+                team_sprints_abridged = []
+            else:
+                raise e
     else:
         team_sprints_abridged = []
         api_logger.warning("No agile board has been defined for this team")
@@ -309,6 +317,7 @@ def get_sprint_info_for_team(team_id, sprint_id=const.SPRINT_LAST_COMPLETED, con
 def update_current_sprint_stats(context=None, force_update=False):
     """
     Used to update the currently stored sprint data for all teams
+    :param force_update:
     :param context: The context object to use during requests (defaults to using the default context if not given)
     :return: Returns a result array containing the teams updated and the number of issues found.
     """

@@ -87,10 +87,10 @@ class AugurSprintDataFetcher(AugurDataFetcher):
         if not self.team_id:
             # get current or last sprint for all teams
             results = []
-            for team_id in augur.api.get_teams_as_dictionary().keys():
-                stats = augur.api.get_abridged_team_sprint(team_id, self.sprint_id)
+            for team in augur.api.get_teams():
+                stats = augur.api.get_abridged_team_sprint(team.id, self.sprint_id)
                 results.append({
-                    'team_id': team_id,
+                    'team_id': team.id,
                     'success': stats is not None
                 })
 
