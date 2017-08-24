@@ -48,6 +48,10 @@ class AugurMongoSerializer(object):
                 d[key] = value.value
             elif isinstance(value, datetime.timedelta):
                 d[key] = AugurMongoSerializer._encode_timedelta(value)
+            elif isinstance(value,datetime.datetime):
+                # datetime is a type of date so we have to put this here to ensure that
+                # datetime's don't get serialized to dates without times (see below)
+                d[key] = value
             elif isinstance(value, datetime.date):
                 # BSON does not recognize date formats but we can initialize a datetime when a zero time.
                 d[key] = datetime.datetime.combine(value, datetime.datetime.min.time())
