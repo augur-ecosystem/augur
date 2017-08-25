@@ -346,17 +346,21 @@ class AugurJira(object):
         result_json = tempo.get_worklogs(start, end, team_id, username=username, project_key=project_key)
         team_info = tempo.get_team_details(team_id)
 
-        consultants = api.get_consultants()
-
+        staff = {c.jira_username: c for c in api.get_all_staff()}
         final_consultants = {}
 
         for log in result_json:
             username = log['author']['name']
-            staff_member = AugurModel.find_model_in_collection(consultants, "jira_username", username)
-            log['author']['consultant_info'] = staff_member.get_props_as_dict() if staff_member else None
+            staff_member = staff[username] if username in staff else None
 
-            if username not in final_consultants:
+            if staff_member:
+                log['author']['consultant_info'] = staff_member.to_dict()
+                final_consultants[username] = staff_member.to_dict()
+            else:
+                log['author']['consultant_info'] = {}
                 final_consultants[username] = log['author']['consultant_info'] or {}
+
+            if 'total_hours' not in final_consultants:
                 final_consultants[username]['total_hours'] = 0.0
 
             final_consultants[username]['total_hours'] += float(log['timeSpentSeconds'] / 3600.0)
