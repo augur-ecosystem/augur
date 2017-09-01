@@ -11,8 +11,6 @@ from augur import settings
 from augur.common import cache_store
 from augur.common.timer import Timer
 from augur.integrations.augurtempo import AugurTempo
-from augur.models import AugurModel
-
 
 class TeamSprintNotFoundException(Exception):
     pass
@@ -20,6 +18,19 @@ class TeamSprintNotFoundException(Exception):
 
 class DeveloperNotFoundException(Exception):
     pass
+
+
+def project_key_from_issue_key(issue_key):
+    """
+    Gets the project key from an issue key
+    :param issue_key: The issue key to parse
+    :return: Returns None if invalid issue key given.
+    """
+    try:
+        project_key, val = issue_key.split("-")
+        return project_key
+    except ValueError:
+        return None
 
 
 def defect_filter_to_jql(defect_filters, include_issue_types=True):
@@ -264,7 +275,7 @@ class AugurJira(object):
                 result["incomplete"] += points
                 result['developer_stats'][assignee_cleaned ]['incomplete'] += points
 
-            if not points:
+            if not points and not context.workflow.is_abandoned(status, resolution):
                 result['unpointed'] += 1
 
             ########

@@ -24,7 +24,6 @@ from augur import common
 from augur.common.cache_store import AugurCachedResultSets
 
 from augur.common import const, cache_store
-from augur.models.team import Team
 from augur import db
 
 CACHE = dict()
@@ -217,6 +216,112 @@ def get_abridged_sprint_list_for_team(team_id, limit=None):
         return filtered_sorted_list[-limit:]
     else:
         return filtered_sorted_list
+
+
+def get_epics_from_sprint(sprint, context):
+    """
+    Gets a list of all epics associated with the given sprint.
+    :param sprint: The object returned from get_sprint_info_for_team
+    :return: Returns a dictionary containing all the epics
+    """
+    assert context
+
+    from augur.integrations.augurjira import project_key_from_issue_key
+
+    epics = {}
+    points_field_name = get_issue_field_from_custom_name('Story Points')
+    epic_link_field_name = get_issue_field_from_custom_name('Epic Link')
+    assert points_field_name
+    assert epic_link_field_name
+
+    team_ob = orm.get(t for t in db.Team if sprint['board_id'] == t.agile_board.jira_id)
+    projects = context.workflow.get_projects(key_only=True)
+
+    def update_epic_data(epics_inner, issue_inner):
+
+        # ignore any issues that are not part of the context.
+        if project_key_from_issue_key(issue['key']).upper() not in projects:
+            return None
+
+        if 'currentEstimateStatistic' not in issue_inner and 'estimateStatisticRequired' not in issue_inner:
+            # this is the full blow issue_inner dict
+            points = issue_inner['fields'][points_field_name] if points_field_name in issue_inner['fields'] else 0.0
+            status = issue_inner['fields']['status']['name']
+            issue_type = issue_inner['fields']['issuetype']
+            done = context.workflow.is_resolved(status.lower(),issue_inner['resolution'])
+            epic_key = common.deep_get(issue_inner, 'fields', epic_link_field_name) or "NONE"
+
+        else:
+            if 'currentEstimateStatistic' in issue_inner and issue_inner['currentEstimateStatistic']:
+                # this is the abbreviated form of the issue_inner dict (returned by sprint endpoints)
+                points = float(issue_inner['currentEstimateStatistic']['statFieldValue']['value']
+                               if 'value' in issue_inner['currentEstimateStatistic']['statFieldValue'] else 0.0)
+            else:
+                points = 0.0
+
+            status = issue_inner['status']['name']
+            issue_type = issue_inner['typeName']
+            done = issue_inner['done']
+            epic_key = common.deep_get(issue_inner, 'epicField', 'epicKey') or "NONE"
+
+        if epic_key not in epics_inner:
+
+            epic_info = None
+            if epic_key != "NONE":
+                epic_info = get_epic_analysis(epic_key,context=context,brief=True,force_update=False)
+
+            epics_inner[epic_key] = {
+                "key": epic_key,
+                "text": epic_info['milestone']['fields']['summary'] if epic_key != "NONE" else "No epic assigned",
+                "analysis": epic_info or {},
+                "sprint_completed_points": 0.0,
+                "sprint_total_points":0.0,
+                "sprint_incomplete_points": 0.0,
+                "issues": [],
+                "devs": [],
+                "teams": []
+            }
+
+        assignee = issue_inner['assigneeKey'] if 'assigneeKey' in issue_inner else ""
+        epics_inner[epic_key]['issues'].append({
+            "key": issue_inner['key'],
+            "summary": issue_inner['summary'],
+            "assignee": assignee,
+            "status": status,
+            "issue_type": issue_type,
+            "points": points
+        })
+
+        if assignee:
+            if assignee not in epics_inner[epic_key]["devs"]:
+                epics_inner[epic_key]["devs"].append(assignee)
+
+            if team_ob.name not in epics_inner[epic_key]["teams"]:
+                epics_inner[epic_key]['teams'].append(team_ob.name)
+
+        if done:
+            epics_inner[epic_key]['sprint_completed_points'] += points
+        else:
+            epics_inner[epic_key]['sprint_incomplete_points'] += points
+
+        epics_inner[epic_key]['sprint_total_points'] += points
+
+        # return the epic that was created/updated.
+        return epics_inner[epic_key]
+
+    cache_key = 'sprint_epics_%s'%str(sprint['team_sprint_data']['sprint']['id'])
+    cached_data = get_cached_data(cache_key)
+    if not cached_data:
+        for issue in sprint['team_sprint_data']['contents']['completedIssues']:
+            update_epic_data(epics, issue)
+
+        for issue in sprint['team_sprint_data']['contents']['issuesNotCompletedInCurrentSprint']:
+            update_epic_data(epics, issue)
+        cache_data({'data': epics}, cache_key, storage_type="sprint_epics")
+    else:
+        epics = cached_data[0]['data']
+
+    return epics
 
 
 def get_abridged_team_sprint(team_id, sprint_id=const.SPRINT_CURRENT):
@@ -450,17 +555,19 @@ def get_jql_analysis(jql, brief=False, context=None, force_update=False):
     return fetcher.fetch(jql=jql, brief=brief)
 
 
-def get_epic_analysis(epic_key, context, force_update=False):
+def get_epic_analysis(epic_key, context, brief=False, force_update=False):
     """
     Gets the epic's details requested in the arguments
-    :param:epic_key The key for the epic to analyze
+    :param force_update: Ignores cache and retrieves from source
+    :param brief: True to only return totals and not issue details.
+    :param epic_key: The key for the epic to analyze
     :param context: The context object to use during requests (defaults to using the default context if not given)
     :return: A dictionary of epics keyed on the epic key
     """
     context = context or get_default_context()
     from augur.fetchers import AugurMilestoneDataFetcher
     fetcher = AugurMilestoneDataFetcher(force_update=force_update, context=context, augurjira=get_jira())
-    return fetcher.fetch(epic_key=epic_key, brief=False)
+    return fetcher.fetch(epic_key=epic_key, brief=brief)
 
 
 def get_user_worklog(start, end, team_id, username=None, project_key=None, context=None, force_update=False):
@@ -588,7 +695,7 @@ def get_team_by_name(name):
     :param name: The name to search for
     :return: A Team object.
     """
-    return orm.get(t for t in Team if t.name == name)
+    return orm.get(t for t in db.Team if t.name == name)
 
 
 def get_team_by_id(team_id):
@@ -663,16 +770,19 @@ def get_memory_cached_data(key):
         return None
 
 
-def cache_data(document, key):
+def cache_data(document, key, storage_type=None):
     """
     Store arbitrary data in the cache 
     :param document: The data to store (json object)
     :param key: The key to uniquely identify this object with
-    :return: None
+    :param storage_type: The storage_type is a way of further disambiguating this cached value from
+                            other cached values in the collection.  For example, cache type
+                            might be "engineering_report"
+    :return: Returns a mongo document array
     """
     mongo = cache_store.AugurStatsDb()
     cache = AugurCachedResultSets(mongo)
-    cache.save_with_key(document, key)
+    cache.save_with_key(document, key, storage_type=storage_type)
     return document
 
 

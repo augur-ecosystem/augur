@@ -5,14 +5,9 @@ from bson import ObjectId
 from jira.client import ResultList
 from jira.resources import Component, Issue
 
-from augur.models import AugurModelProp
-
-
 class AugurJsonEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, AugurModelProp):
-            return obj.value
-        elif isinstance(obj, datetime.timedelta):
+        if isinstance(obj, datetime.timedelta):
             return obj.total_seconds()
         elif isinstance(obj, datetime.datetime):
             return obj.isoformat()
@@ -44,8 +39,6 @@ class AugurMongoSerializer(object):
                 d[key] = value.raw
             if isinstance(value, ResultList):
                 d[key] = [v.raw for v in value]
-            if isinstance(value, AugurModelProp):
-                d[key] = value.value
             elif isinstance(value, datetime.timedelta):
                 d[key] = AugurMongoSerializer._encode_timedelta(value)
             elif isinstance(value,datetime.datetime):

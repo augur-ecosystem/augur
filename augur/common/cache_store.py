@@ -28,7 +28,7 @@ class AugurStatsDb(pymongo.MongoClient):
         super(AugurStatsDb, self).__init__(host, port, document_class, tz_aware, connect, **kwargs)
 
 
-class AugurModel(object):
+class AugurCacheModel(object):
     """
     Handles loading and saving of data in a consistent way including database agnostic unique
     keys and ttl.
@@ -232,7 +232,7 @@ class AugurModel(object):
         return self.data
 
 
-class AugurDashboardData(AugurModel):
+class AugurDashboardData(AugurCacheModel):
     def clear_before_add(self):
         return True
 
@@ -252,7 +252,7 @@ class AugurDashboardData(AugurModel):
         return None
 
 
-class AugurAllTeamsData(AugurModel):
+class AugurAllTeamsData(AugurCacheModel):
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -266,7 +266,7 @@ class AugurAllTeamsData(AugurModel):
         return self.mongo_client.stats.developers
 
 
-class AugurTeamSprintData(AugurModel):
+class AugurTeamSprintData(AugurCacheModel):
     def clear_before_add(self):
         return False
 
@@ -289,7 +289,7 @@ class AugurTeamSprintData(AugurModel):
         return None
 
 
-class AugurPermissionsOrgData(AugurModel):
+class AugurPermissionsOrgData(AugurCacheModel):
     """
     Stores users who have extended permissions to view data on feature dev site.
     """
@@ -311,7 +311,7 @@ class AugurPermissionsOrgData(AugurModel):
             return None
 
 
-class AugurTeamOpenPullRequestsData(AugurModel):
+class AugurTeamOpenPullRequestsData(AugurCacheModel):
     """
     Store open PRs.  Clears the cache with each update.
     """
@@ -347,7 +347,7 @@ class AugurTeamOpenPullRequestsData(AugurModel):
         super(AugurTeamOpenPullRequestsData, self).save(data)
 
 
-class AugurTeamPullRequestsData(AugurModel):
+class AugurTeamPullRequestsData(AugurCacheModel):
     """
     Stores PRs across the
     """
@@ -391,7 +391,7 @@ class AugurTeamPullRequestsData(AugurModel):
         super(AugurTeamPullRequestsData, self).save(data)
 
 
-class AugurDeveloperData(AugurModel):
+class AugurDeveloperData(AugurCacheModel):
     def get_ttl(self):
         return datetime.timedelta(hours=1)
 
@@ -416,7 +416,7 @@ class AugurDeveloperData(AugurModel):
             return None
 
 
-class AugurEngineeringReportData(AugurModel):
+class AugurEngineeringReportData(AugurCacheModel):
     def get_ttl(self):
         return datetime.timedelta(hours=24)
 
@@ -440,7 +440,7 @@ class AugurEngineeringReportData(AugurModel):
             return None
 
 
-class AugurJiraWorklogData(AugurModel):
+class AugurJiraWorklogData(AugurCacheModel):
     def get_ttl(self):
         return datetime.timedelta(hours=8)
 
@@ -478,7 +478,7 @@ class AugurJiraWorklogData(AugurModel):
             return None
 
 
-class AugurJiraDefectData(AugurModel):
+class AugurJiraDefectData(AugurCacheModel):
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -502,7 +502,7 @@ class AugurJiraDefectData(AugurModel):
             return None
 
 
-class AugurJiraDefectHistoryData(AugurModel):
+class AugurJiraDefectHistoryData(AugurCacheModel):
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -526,7 +526,7 @@ class AugurJiraDefectHistoryData(AugurModel):
             return None
 
 
-class RecentEpicData(AugurModel):
+class RecentEpicData(AugurCacheModel):
     def get_ttl(self):
         return datetime.timedelta(hours=24)
 
@@ -547,7 +547,7 @@ class RecentEpicData(AugurModel):
             return result
 
 
-class AugurJiraEpicData(AugurModel):
+class AugurJiraEpicData(AugurCacheModel):
     def get_ttl(self):
         return datetime.timedelta(hours=8)
 
@@ -571,7 +571,7 @@ class AugurJiraEpicData(AugurModel):
             return None
 
 
-class AugurJiraOrgData(AugurModel):
+class AugurJiraOrgData(AugurCacheModel):
     def get_ttl(self):
         return datetime.timedelta(hours=24)
 
@@ -585,7 +585,7 @@ class AugurJiraOrgData(AugurModel):
         return True
 
 
-class AugurJiraMilestoneData(AugurModel):
+class AugurJiraMilestoneData(AugurCacheModel):
     def get_ttl(self):
         return datetime.timedelta(hours=2)
 
@@ -609,7 +609,7 @@ class AugurJiraMilestoneData(AugurModel):
             return None
 
 
-class AugurJiraSprintsData(AugurModel):
+class AugurJiraSprintsData(AugurCacheModel):
     def get_unique_key(self):
         return 'id'
 
@@ -631,9 +631,17 @@ class AugurJiraSprintsData(AugurModel):
         }, order_by='endDate', sort_order=pymongo.DESCENDING)
 
 
-class AugurCachedResultSets(AugurModel):
+class AugurCachedResultSets(AugurCacheModel):
+
+    def __init__(self, *args, **kwargs):
+        super(AugurCachedResultSets, self).__init__(*args,**kwargs)
+        self.current_storage_type = None
+
     def get_ttl(self):
         return datetime.timedelta(hours=2)
+
+    def get_unique_type(self):
+        return self.current_storage_type
 
     def clear_before_add(self):
         return False
@@ -649,7 +657,9 @@ class AugurCachedResultSets(AugurModel):
             'key': key
         }, override_ttl=override_ttl)
 
-    def save_with_key(self, data, key):
+    def save_with_key(self, data, key, storage_type=None):
+
+        self.current_storage_type = storage_type
 
         # first, remove anything with this key
         self.mongo_client.stats.result_cache.remove({'key': key})
@@ -658,7 +668,7 @@ class AugurCachedResultSets(AugurModel):
         super(AugurCachedResultSets, self).save(data)
 
 
-class AugurProductReportData(AugurModel):
+class AugurProductReportData(AugurCacheModel):
     def __init__(self, mongo_client):
         super(AugurProductReportData, self).__init__(mongo_client)
 
@@ -675,7 +685,7 @@ class AugurProductReportData(AugurModel):
         return True
 
 
-class AugurReleaseData(AugurModel):
+class AugurReleaseData(AugurCacheModel):
     """
     Used to store information about releases
     """
@@ -704,7 +714,7 @@ class AugurReleaseData(AugurModel):
             return None
 
 
-class AugurTempoTeamData(AugurModel):
+class AugurTempoTeamData(AugurCacheModel):
     """
 
     """
@@ -732,7 +742,7 @@ class AugurTempoTeamData(AugurModel):
             return None
 
 
-class AugurComponentOwnership(AugurModel):
+class AugurComponentOwnership(AugurCacheModel):
     """
     Used to store component owners and maintainers as retrieved from github
     """

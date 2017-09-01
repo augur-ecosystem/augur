@@ -3,7 +3,6 @@ import augur.api
 from augur import settings
 from augur.common import const, cache_store
 from augur.fetchers.fetcher import AugurDataFetcher
-from augur.models import AugurModel
 
 
 class AugurTeamMetaDataFetcher(AugurDataFetcher):

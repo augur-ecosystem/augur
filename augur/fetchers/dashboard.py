@@ -5,7 +5,6 @@ from augur import api
 from augur.common import cache_store
 from augur.fetchers.fetcher import AugurDataFetcher
 from augur.integrations import augurjira
-from augur.models.group import Group
 
 SUPER_IDLE_DAYS = 14
 IDLE_DAYS = 5

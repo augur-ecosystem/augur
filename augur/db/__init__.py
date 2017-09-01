@@ -1,11 +1,9 @@
 import json
 
 from pony import orm
-from pony.orm import db_session, commit, sql_debug
+from pony.orm import sql_debug
 
 import augur
-from augur.models import staff, product, workflow, group
-from augur.models import team
 
 import datetime
 
@@ -279,7 +277,7 @@ class Workflow(db.Entity):
                 projects.extend(augur.api.get_projects_by_category(c.tool_category_name))
 
         if key_only:
-            return [p['key'] for p in projects]
+            return [p['key'].upper() for p in projects]
         else:
             return projects
 

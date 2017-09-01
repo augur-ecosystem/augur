@@ -8,6 +8,7 @@ from augur import common
 from augur.common import const, cache_store
 from augur.common.timer import Timer
 from augur.fetchers.fetcher import AugurDataFetcher
+from augur.integrations.augurjira import projects_to_jql, project_key_from_issue_key
 
 SPRINT_SORTBY_ENDDATE = 'enddate'
 
@@ -180,7 +181,13 @@ class AugurSprintDataFetcher(AugurDataFetcher):
             # Get point completion standard deviation
             standard_dev_map = defaultdict(int)
             total_completed_points = 0
+            projects = self.context.workflow.get_projects(key_only=True)
             for issue in sprint_ob['contents']['completedIssues']:
+
+                # ignore any issues that are not part of the context.
+                if project_key_from_issue_key(issue['key']).upper() not in projects:
+                    continue
+
                 points = issue.get('currentEstimateStatistic', {}).get('statFieldValue', {'value': 0}).get('value', 0)
                 total_completed_points += points
                 if 'assignee' in issue:
@@ -199,18 +206,25 @@ class AugurSprintDataFetcher(AugurDataFetcher):
 
             if sprint_ob['contents']['issueKeysAddedDuringSprint']:
 
-                results = self.augurjira.execute_jql("key in ('%s')" % "','".join(
-                    sprint_ob['contents']['issueKeysAddedDuringSprint'].keys()))
+                # get issues that were added during the sprint that are part of this context.
+                results = self.augurjira.execute_jql("(%s) and key in ('%s')" %
+                             (projects_to_jql(self.context.workflow),
+                              "','".join(sprint_ob['contents']['issueKeysAddedDuringSprint'].keys())))
 
                 sprint_ob['contents']['issueKeysAddedDuringSprint'] = results
                 t.split("Got issue data for issues added during sprint")
 
             if sprint_ob['contents']['issuesNotCompletedInCurrentSprint']:
                 incomplete_keys = [x['key'] for x in sprint_ob['contents']['issuesNotCompletedInCurrentSprint']]
-                jql = "key in ('%s')" % "','".join(incomplete_keys)
+
+                # get all the incomplete tickets that are part of this context
+                jql = "(%s) and key in ('%s')" % \
+                      (projects_to_jql(self.context.workflow), "','".join(incomplete_keys))
                 results = self.augurjira.execute_jql_with_analysis(jql, total_only=False, context=self.context)
+
                 sprint_ob['contents']['issuesNotCompletedInCurrentSprint'] = results['issues'].values()
                 sprint_ob['contents']['incompleteIssuesFullDetail'] = results['issues'].values()
+
                 t.split("Got issue data for issues not completed during sprint")
 
             team_stats = {

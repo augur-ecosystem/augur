@@ -3,7 +3,6 @@ import unittest
 import datetime
 from jira import JIRA, Issue
 
-from augur.models.workflow import Workflow
 from augurjira import AugurJira
 from augur.api import get_jira
 

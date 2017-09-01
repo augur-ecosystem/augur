@@ -6,14 +6,16 @@ import augur
 from augur.common import const, transform_status_string, cache_store
 from augur.fetchers.fetcher import AugurDataFetcher
 from augur.api import get_jira
+from augur.integrations.augurjira import projects_to_jql
 
 
 class Milestone(object):
-    def __init__(self):
+    def __init__(self,context):
         self.type = None # can be one of [epic, filter, adhoc]
         self.id = None
         self.ob = None # object type based on milestone type
         self.jql = None # all types must have jql associated with them.
+        self.context = context
 
     def get_id(self):
         return self.id
@@ -33,7 +35,7 @@ class Milestone(object):
         self.ob = augur.api.get_issue_details(epic_key)
         if not self.ob:
             raise LookupError("Unable to find an epic with the key %s"%epic_key)
-        self.jql  = '"Epic Link"="%s"' % epic_key
+        self.jql  = '(%s) and "Epic Link"="%s"' % (projects_to_jql(self.context.workflow), epic_key)
 
     def set_adhoc(self, jql):
         self.type = 'adhoc'
@@ -52,7 +54,7 @@ class AugurMilestoneDataFetcher(AugurDataFetcher):
 
     """
     def __init__(self,*args, **kwargs):
-        self.milestone = Milestone()
+        self.milestone = Milestone(context=kwargs['context'])
         self.brief = False
         super(AugurMilestoneDataFetcher, self).__init__(*args, **kwargs)
 
@@ -131,9 +133,9 @@ class AugurMilestoneDataFetcher(AugurDataFetcher):
                         group_by_status[status].append(issue)
                         points_by_status[status] += story_points
 
-                    stats['in_progress_items'] = in_progress_items
-                    stats['group_by_status'] = group_by_status
-                    stats['group_by_assignee'] = group_by_developers
+                stats['in_progress_items'] = in_progress_items
+                stats['group_by_status'] = group_by_status
+                stats['group_by_assignee'] = group_by_developers
 
                 stats['points_by_status'] = points_by_status
                 stats['points_by_assignee'] = points_by_developers
