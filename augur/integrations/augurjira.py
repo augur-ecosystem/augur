@@ -531,10 +531,13 @@ class AugurJira(object):
         :return: Returns the datetime.timedelta time in status.
         """
         status_name = status.tool_issue_status_name
-
-        history_list = issue['changelog']['histories']
         track_time = None
         total_time = datetime.timedelta()
+
+        if 'changelog' not in issue or not issue['changelog']:
+            return total_time
+
+        history_list = issue['changelog']['histories']
 
         for history in history_list:
             items = history['items']

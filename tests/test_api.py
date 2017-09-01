@@ -14,10 +14,20 @@ from augur.integrations.augurjira import AugurJira
 
 
 class TestApi(unittest.TestCase):
+
+    def __init__(self, *args, **kwargs):
+        self.sqlite_path = os.path.join(settings.main.project.base_dir, "tests/db.sqlite")
+        try:
+            os.remove(self.sqlite_path)
+        except:
+            print ("No db file found. Creating...")
+
+        super(TestApi, self).__init__(*args, **kwargs)
+
     def setUp(self):
 
         os.environ['DB_TYPE'] = 'sqlite'
-        os.environ['SQLITE_PATH'] = os.path.join(settings.main.project.base_dir, "tests/db.sqlite")
+        os.environ['SQLITE_PATH'] = self.sqlite_path
 
         settings.load_settings()
 
@@ -36,7 +46,7 @@ class TestApi(unittest.TestCase):
                 "last_name": "Shehadeh",
                 "company": "Under Armour",
                 "avatar_url": "",
-                "role": "Manager",
+                "role": "Technical Manager",
                 "email": "me@email.com",
                 "rate": 0.0,
                 "start_date": datetime.date(year=2015, month=3, day=8),
@@ -136,10 +146,6 @@ class TestApi(unittest.TestCase):
         orm.commit()
 
         self.group_id = group.id
-
-    def tearDown(self):
-        if self.sqlite_db_path:
-            os.remove(self.sqlite_db_path)
 
     @db_session
     def runTest(self):
