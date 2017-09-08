@@ -64,7 +64,8 @@ class AugurWorklogDataFetcher(AugurDataFetcher):
             project_key=self.project)
 
         if worklogs:
-            return self.cache_data({
+            # do not cache (too big for a single document)
+            self.recent_data = {
                 'start': self.start.datetime,
                 'end': self.end.datetime,
                 'team_id': self.team_id,
@@ -73,6 +74,9 @@ class AugurWorklogDataFetcher(AugurDataFetcher):
                 'consultants': worklogs['consultants'],
                 'logs': worklogs['logs'],
                 'tempo_team_info': worklogs['tempo_team_info']
-            })
+            }
+
+            return self.recent_data
+
         else:
             raise Exception("The specified worklogs could not be found")

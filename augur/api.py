@@ -432,6 +432,14 @@ def update_current_sprint_stats(context=None, force_update=False):
     return fetcher.fetch(sprint_id=const.SPRINT_CURRENT)
 
 
+def get_vendors():
+    """
+    Gets all the vendors stored in the database
+    :return: Returns a list of vendors
+    """
+    return orm.select(v for v in db.Vendor)[:]
+
+
 def get_issue_details(key):
     """
     Return details about an issue based on an issue key.  This does not pull from any cache.

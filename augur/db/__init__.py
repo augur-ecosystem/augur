@@ -49,6 +49,41 @@ class ToolIssueType(db.Entity):
     workflows = orm.Set('Workflow', reverse="issue_types")
 
 
+class Vendor(db.Entity):
+    """
+    Represents a third-party vendor who is either providing services or products to the group
+    """
+    id = orm.PrimaryKey(int, auto=True)
+    name = orm.Required(unicode)
+    engagement_contact_first_name = orm.Optional(unicode)
+    engagement_contact_last_name = orm.Optional(unicode)
+    engagement_contact_email = orm.Optional(unicode)
+    billing_contact_first_name = orm.Optional(unicode)
+    billing_contact_last_name = orm.Optional(unicode)
+    billing_contact_email = orm.Optional(unicode)
+    tempo_id = orm.Optional(int)
+    consultants = orm.Set('Staff', reverse='vendor')
+
+    def get_engagement_contact_full_name(self):
+        if self.engagement_contact_first_name and self.engagement_contact_last_name:
+            return "%s %s"%(self.engagement_contact_first_name, self.engagement_contact_last_name)
+        elif self.engagement_contact_last_name:
+            return self.engagement_contact_last_name
+        elif self.engagement_contact_first_name:
+            return self.engagement_contact_first_name
+        else:
+            return "None Given"
+
+    def get_billing_contact_full_name(self):
+        if self.billing_contact_first_name and self.billing_contact_last_name:
+            return "%s %s"%(self.billing_contact_first_name, self.billing_contact_last_name)
+        elif self.billing_contact_last_name:
+            return self.engagement_contact_last_name
+        elif self.billing_contact_first_name:
+            return self.engagement_contact_first_name
+        else:
+            return "None Given"
+
 class Product(db.Entity):
     """
     Represents a single member of a team.  A team member can be on multiple teams and a team can have multiple
@@ -86,7 +121,7 @@ class Staff(db.Entity):
     """
     first_name = orm.Required(unicode)
     last_name = orm.Required(unicode)
-    company = orm.Required(unicode)
+    company = orm.Optional(unicode)
     avatar_url = orm.Optional(unicode)
     role = orm.Required(unicode, py_check=lambda v: v in ROLES)
     email = orm.Required(unicode)
@@ -100,6 +135,20 @@ class Staff(db.Entity):
     base_daily_cost = orm.Optional(float)
     base_weekly_cost = orm.Optional(float)
     base_annual_cost = orm.Optional(float)
+    vendor = orm.Optional(Vendor, reverse='consultants')
+
+    def get_company(self):
+        if self.vendor:
+            return self.vendor.name
+        else:
+            return "None Given"
+
+
+    def before_insert(self):
+        self.calculate_costs()
+
+    def before_update(self):
+        self.calculate_costs()
 
     def calculate_costs(self):
 

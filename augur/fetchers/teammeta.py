@@ -53,7 +53,7 @@ class AugurTeamMetaDataFetcher(AugurDataFetcher):
                 member = {'funnel': team_ob.product.name if team_ob.product else "None",
                           'email': staff_ob.email,
                           'is_consultant': staff_ob.type == "consultant",
-                          'vendor': staff_ob.company,
+                          'vendor': staff_ob.get_company(),
                           'start_date': staff_ob.start_date,
                           'fullname': staff_ob.first_name + " " + staff_ob.last_name
                           }
