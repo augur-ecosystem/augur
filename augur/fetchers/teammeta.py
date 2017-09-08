@@ -63,6 +63,11 @@ class AugurTeamMetaDataFetcher(AugurDataFetcher):
                     member['team_name'] = team_ob.name
                     flat[staff_ob.jira_username] = member
 
+                if staff_ob.vendor:
+                    member['company'] = staff_ob.vendor.name
+
+                member['fullname'] = staff_ob.get_fullname()
+                
                 if member['is_consultant']:
                     team_json['consultant_count'] += 1
                 else:

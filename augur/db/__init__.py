@@ -143,6 +143,11 @@ class Staff(db.Entity):
         else:
             return "None Given"
 
+    def get_fullname(self):
+        if self.first_name and self.last_name:
+            return "%s %s"%(self.first_name,self.last_name)
+        else:
+            return self.first_name if self.first_name else self.last_name or "None Given"
 
     def before_insert(self):
         self.calculate_costs()
