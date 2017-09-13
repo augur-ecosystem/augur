@@ -215,8 +215,27 @@ class Workflow(db.Entity):
     defect_projects = orm.Set(WorkflowDefectProjectFilter, reverse="workflows")
     groups = orm.Set('Group', reverse="workflow")
 
-    def get_defect_project_filters(self):
-        return self.defect_projects
+    def get_defect_projects(self):
+        """
+        Gets all the projects that are considered defect projects for this workflow
+        :return: Returns a list of dicts that look like this:
+            {
+                [
+                    key: <string>,
+                    issue_types: [<string>, <string>, ...]
+                ]
+            }
+        """
+        defect_projects = [p for p in self.defect_projects]
+
+        if defect_projects:
+            # if this workflow specifies projects with keys and the caller
+            #   just wants keys returned then we can just return this list.
+            return [dict({"key":df.project_key,
+                          "issue_types": df.get_issue_types_as_string_list()})
+                    for df in defect_projects]
+        else:
+            return []
 
     def status_ob_from_string(self, status_name):
         try:
@@ -312,7 +331,10 @@ class Workflow(db.Entity):
                 return s.tool_issue_status_type == "in progress"
         return False
 
-    def get_projects(self, key_only):
+    def get_project_keys(self):
+        return self.get_projects(key_only=True)
+
+    def get_projects(self, key_only=False):
         from augur.api import get_jira
         project_keys = [p.tool_project_key for p in self.projects]
 
@@ -334,6 +356,7 @@ class Workflow(db.Entity):
             return [p['key'].upper() for p in projects]
         else:
             return projects
+
 
 class Group(db.Entity):
     id = orm.PrimaryKey(int, auto=True)

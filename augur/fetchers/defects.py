@@ -74,13 +74,13 @@ class AugurDefectFetcher(AugurDataFetcher):
 
         defects = self.augurjira.execute_jql(
             "%s AND created >= startOfDay(-%dd) ORDER BY created DESC" %
-            (augurjira.defect_filter_to_jql(self.context.workflow.get_defect_project_filters(), True),
+            (augurjira.defect_filter_to_jql(self.context.workflow.defect_projects, True),
                 self.lookback_days))
 
         defects_previous_period = \
             self.augurjira.execute_jql(
                 "%s AND created >= startOfDay(-%dd) and created <= startOfDay(-%dd) ORDER BY created DESC"
-                % (augurjira.defect_filter_to_jql(self.context.workflow.get_defect_project_filters(), True),
+                % (augurjira.defect_filter_to_jql(self.context.workflow.defect_projects, True),
                     self.lookback_days * 2, self.lookback_days))
 
         grouped_by_severity_current = defaultdict(list)
@@ -162,7 +162,7 @@ class AugurDefectHistoryFetcher(AugurDataFetcher):
 
             defects = self.augurjira.execute_jql(
                 "%s AND created >= '%s' AND created <= '%s' ORDER BY created DESC" %
-                (augurjira.defect_filter_to_jql(self.context.workflow.get_defect_project_filters(), True),
+                (augurjira.defect_filter_to_jql(self.context.workflow.defect_projects, True),
                  start_str, end_str))
 
             weeks.append({

@@ -672,20 +672,33 @@ def get_all_dev_stats(context=None, force_update=False):
     return AugurOrgStatsFetcher(get_jira(), context=context, force_update=force_update).fetch()
 
 
-def get_all_staff():
-    return orm.select(s for s in db.Staff)
+def get_all_staff(active_only=True):
+    """
+    :param active_only: Set to True to only retrieve those who are active in the system.
+    :type active_only: object
+    """
+
+    if active_only:
+        return orm.select(s for s in db.Staff if s.status == 'Active')
+    else:
+        return orm.select(s for s in db.Staff)
 
 
 def get_all_staff_as_dictionary():
     return serialization.to_dict(get_all_staff())
 
 
-def get_consultants():
+def get_consultants(active_only=True):
     """
     Retrieves a list of Staff model objects containing all the known consultants.
-    :return: An array of Staff objects. 
+    :type active_only: bool
+    :param active_only: Set to True if you want to only retrieve active consultants
+    :return: An array of Staff objects.
     """
-    return orm.select(t for t in db.Staff if t.type == "Consultant")
+    if active_only:
+        return orm.select(t for t in db.Staff if t.type == "Consultant" and t.status == "Active")
+    else:
+        return orm.select(t for t in db.Staff if t.type == "Consultant")
 
 
 def get_fulltime_staff():
