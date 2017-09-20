@@ -28,7 +28,7 @@ class AugurWorklogDataFetcher(AugurDataFetcher):
     def get_cached_data(self):
         self.recent_data = self.cache.load_worklog(start=self.start, end=self.end,
                                                    username=self.username, team_id=self.team_id,
-                                                   project=self.project)
+                                                   project=self.project, context=self.context)
         return self.recent_data
 
     def validate_input(self, **args):

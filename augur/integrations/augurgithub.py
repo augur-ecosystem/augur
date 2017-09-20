@@ -329,7 +329,7 @@ class AugurGithub(object):
         :return: Returns a dict containing the data.
         """
         ds = cache_store.AugurComponentOwnership(self.mongo)
-        data = ds.load_org(org)
+        data = ds.load_org(org,context=None)
         if not data:
             repos = self.get_repos_in_org(org) or []
             data = {

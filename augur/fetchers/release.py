@@ -23,7 +23,7 @@ class AugurRelease(AugurDataFetcher):
         return self.recent_data
 
     def get_cached_data(self):
-        self.recent_data = self.cache.load_release_data(start=self.start.datetime, end=self.end.datetime)
+        self.recent_data = self.cache.load_release_data(start=self.start.datetime, end=self.end.datetime, context=self.context)
 
         # when retrieving from cache, we get a list back by default.  we don't want that.
         if isinstance(self.recent_data, list) and len(self.recent_data) > 0:

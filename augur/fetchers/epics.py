@@ -18,7 +18,7 @@ class RecentEpicsDataFetcher(AugurDataFetcher):
         return self.recent_data
 
     def get_cached_data(self):
-        self.recent_data = self.cache.load_recent_epics()
+        self.recent_data = self.cache.load_recent_epics(context=self.context)
         return self.recent_data
 
     def validate_input(self, **args):

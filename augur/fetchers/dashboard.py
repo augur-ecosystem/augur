@@ -22,11 +22,11 @@ class AugurDashboardFetcher(AugurDataFetcher):
 
     def cache_data(self, data):
         self.recent_data = data
-        self.cache.save(self.recent_data)
+        self.cache.save(self.recent_data,context=self.context)
         return self.recent_data
 
     def get_cached_data(self):
-        self.recent_data = self.cache.load()
+        self.recent_data = self.cache.load(context=self.context)
         return self.recent_data
 
     def validate_input(self, **args):
@@ -43,7 +43,7 @@ class AugurDashboardFetcher(AugurDataFetcher):
         if in_progress_statues:
             return "%s and status in ('%s') and updated < -%dd" % (project_jql, "','".join(in_progress_statues), idle_days)
         else:
-            None
+            return None
 
     def _get_jql_for_orphaned_tickets(self):
         """

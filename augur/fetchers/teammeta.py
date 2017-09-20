@@ -11,11 +11,11 @@ class AugurTeamMetaDataFetcher(AugurDataFetcher):
 
     def cache_data(self, data):
         self.recent_data = data
-        self.cache.save(self.recent_data)
+        self.cache.save(data=self.recent_data, context=self.context)
         return self.recent_data
 
     def get_cached_data(self):
-        self.recent_data = self.cache.load()
+        self.recent_data = self.cache.load(context=self.context)
         if self.recent_data:
             # First check to see if the teams that are stored are different than the ones supported.
             # If they are then force a refresh of the cache
@@ -43,7 +43,7 @@ class AugurTeamMetaDataFetcher(AugurDataFetcher):
             'team_count': 0
         }
 
-        team_objects = augur.api.get_teams()
+        team_objects = augur.api.get_teams(context=self.context)
 
         flat = {}
         for team_ob in team_objects:

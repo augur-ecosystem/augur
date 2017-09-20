@@ -151,7 +151,7 @@ class AugurSprintDataFetcher(AugurDataFetcher):
 
             # see if it's in the cache.  If it is, then check if it's cached in the active state.  If it is,
             #   then throw away the cached version and reload from JIRA
-            team_stats = self.cache.load_sprint(sprint_abridged['id'])
+            team_stats = self.cache.load_sprint(sprint_abridged['id'], context=self.context)
 
             if team_stats and team_stats['team_sprint_data']['sprint']['state'] == 'CLOSED':
                 return team_stats

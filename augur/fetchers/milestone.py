@@ -66,7 +66,7 @@ class AugurMilestoneDataFetcher(AugurDataFetcher):
         return self.recent_data
 
     def get_cached_data(self):
-        self.recent_data = self.cache.load_milestone(self.milestone.get_id())
+        self.recent_data = self.cache.load_milestone(self.milestone.get_id(), context=self.context)
         return self.recent_data
 
     def validate_input(self,**args):

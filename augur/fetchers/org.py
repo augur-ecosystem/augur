@@ -18,7 +18,7 @@ class AugurOrgStatsFetcher(AugurDataFetcher):
         return self.recent_data
 
     def get_cached_data(self):
-        self.recent_data = self.cache.load()
+        self.recent_data = self.cache.load(context=self.context)
         if isinstance(self.recent_data, list) and len(self.recent_data) > 0:
             self.recent_data = self.recent_data[0]
 

@@ -25,11 +25,11 @@ class AugurDefectFetcher(AugurDataFetcher):
 
     def cache_data(self, data):
         self.recent_data = data
-        self.cache.save(self.recent_data)
+        self.cache.save(self.recent_data,context=self.context)
         return self.recent_data
 
     def get_cached_data(self):
-        self.recent_data = self.cache.load_defects(self.lookback_days)
+        self.recent_data = self.cache.load_defects(self.lookback_days, context=self.context)
         return self.recent_data
 
     def validate_input(self, **args):
@@ -140,7 +140,7 @@ class AugurDefectHistoryFetcher(AugurDataFetcher):
         return self.recent_data
 
     def get_cached_data(self):
-        self.recent_data = self.cache.load_defects(self.num_weeks)
+        self.recent_data = self.cache.load_defects(self.num_weeks, context=self.context)
         return self.recent_data
 
     def validate_input(self, **args):

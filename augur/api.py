@@ -672,20 +672,21 @@ def get_all_dev_stats(context=None, force_update=False):
     return AugurOrgStatsFetcher(get_jira(), context=context, force_update=force_update).fetch()
 
 
-def get_all_staff(active_only=True):
+def get_all_staff(context):
     """
-    :param active_only: Set to True to only retrieve those who are active in the system.
-    :type active_only: object
+    :param context: The context to use in determining which staff to return (None returns all)
     """
-
-    if active_only:
-        return orm.select(s for s in db.Staff if s.status == 'Active')
+    if not context:
+        return orm.select(s for s in db.Staff).order_by(lambda x: x.last_name)[:]
     else:
-        return orm.select(s for s in db.Staff)
-
-
-def get_all_staff_as_dictionary():
-    return serialization.to_dict(get_all_staff())
+        context_staff = []
+        valid_team_ids = [t.id for t in context.group.teams]
+        staff = orm.select(s for s in db.Staff if s.teams)[:]
+        for s in staff:
+            for t in s.teams:
+                if t.id in valid_team_ids:
+                    context_staff.append(s)
+        return context_staff
 
 
 def get_consultants(active_only=True):
@@ -729,21 +730,24 @@ def get_team_by_id(team_id):
     return db.Team[team_id]
 
 
-def get_teams_as_dictionary():
+def get_teams_as_dictionary(context=None):
     """
     Gets all teams as dictionary instead of a list.  The keys of the dictionary are the team_ids
     :return: Returns a dictionary of Team objects
     """
-    teams = get_teams()
+    teams = get_teams(context)
     return serialization.to_dict(teams)
 
 
-def get_teams():
+def get_teams(context=None):
     """
     Retrieves a list of team objects containing all the known teams in e-comm
     :return: An array of Team objects. 
     """
-    return select(t for t in db.Team)[:]
+    if not context:
+        return select(t for t in db.Team).order_by(lambda x: x.name)[:]
+    else:
+        return context.group.teams.order_by(lambda x: x.name)
 
 
 def get_products():
@@ -817,7 +821,7 @@ def get_cached_data(key, override_ttl=None):
 
     mongo = cache_store.AugurStatsDb()
     cache = AugurCachedResultSets(mongo)
-    return cache.load_from_key(key, override_ttl=override_ttl)
+    return cache.load_from_key(key, override_ttl=override_ttl, context=get_default_context())
 
 
 def simplify_issue(issue):

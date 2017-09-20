@@ -5,8 +5,11 @@ from bson import ObjectId
 from jira.client import ResultList
 from jira.resources import Component, Issue
 
+
 class AugurJsonEncoder(json.JSONEncoder):
     def default(self, obj):
+        from augur import AugurContext
+
         if isinstance(obj, datetime.timedelta):
             return obj.total_seconds()
         elif isinstance(obj, datetime.datetime):
@@ -19,6 +22,10 @@ class AugurJsonEncoder(json.JSONEncoder):
             return obj.raw
         elif isinstance(obj, Issue):
             return obj.raw
+        elif isinstance(obj,AugurContext):
+            return {
+                "group_id": obj.group.id
+            }
 
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)

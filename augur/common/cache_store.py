@@ -37,6 +37,7 @@ class AugurCacheModel(object):
     def __init__(self, mongo_client):
         self.mongo_client = mongo_client
         self.data = []
+        self.context = None
 
         if self.get_unique_key():
             self.get_collection().create_index([(self.get_unique_key(), pymongo.ASCENDING)], unique=True)
@@ -45,7 +46,7 @@ class AugurCacheModel(object):
         """
         If you want to ensure that we don't add a duplicate to the collection return
         the name of the field that will act as the unique key. By default there is no unique index.
-        :return:
+        :return: The name of the field or None if there is no unique key
         """
         return None
 
@@ -131,12 +132,16 @@ class AugurCacheModel(object):
             for d in self.data:
                 d['storage_time'] = datetime.datetime.utcnow()
                 d['storage_type'] = storage_type
+                d['group_id'] = self.context.group.id if self.context else 0
 
         else:
             self.data['storage_time'] = datetime.datetime.utcnow()
             self.data['storage_type'] = storage_type
+            self.data['group_id'] = self.context.group.id if self.context else 0
 
-    def save(self, data=None):
+    def save(self, data=None, context=None):
+
+        self.context = context
 
         if data:
             # use the given data instead of stored data if given in call
@@ -162,8 +167,7 @@ class AugurCacheModel(object):
             updates = []
             unique_key = self.get_unique_key()
             for d in self.data:
-                updates.append({"id": d[unique_key]})
-                self.get_collection().find_one_and_replace({"id": d[unique_key]}, augur.common.serializers.to_mongo(d), upsert=True)
+                self.get_collection().find_one_and_replace({unique_key: d[unique_key]}, augur.common.serializers.to_mongo(d), upsert=True)
 
             augur.signals.cache_updated.send(sender=self.__class__, cache_name=self.get_collection().name,
                                              update_info=updates, key_count=len(self.data))
@@ -176,11 +180,12 @@ class AugurCacheModel(object):
 
         return success
 
-    def load(self, query_object=None, limit=None, order_by=None, sort_order=pymongo.DESCENDING, override_ttl=None):
+    def load(self, query_object=None, context=None, limit=None, order_by=None, sort_order=pymongo.DESCENDING, override_ttl=None):
 
         with Timer("Cache load of '%s'" % type(self).__name__) as t:
 
             self.clear_data()
+            self.context = context
 
             if not override_ttl:
                 ttl = self.get_ttl()
@@ -195,6 +200,11 @@ class AugurCacheModel(object):
             if ttl and 'storage_time' not in query_object:
                 query_object.update({
                     'storage_time': {"$gte": datetime.datetime.utcnow() - ttl},
+                })
+
+            if self.context:
+                query_object.update({
+                    'group_id': self.context.group.id
                 })
 
             if self.get_unique_type():
@@ -234,7 +244,11 @@ class AugurCacheModel(object):
 
 class AugurDashboardData(AugurCacheModel):
     def clear_before_add(self):
-        return True
+        return False
+
+    def get_unique_key(self):
+        # there should not be more than one dashboard cache record for each group
+        return 'group_id'
 
     def get_ttl(self):
         return datetime.timedelta(hours=3)
@@ -244,12 +258,6 @@ class AugurDashboardData(AugurCacheModel):
 
     def get_collection(self):
         return self.mongo_client.stats.dashboard
-
-    def load_dashboard(self):
-        results = self.load(limit=1, order_by='storage_time', sort_order=pymongo.DESCENDING)
-        if len(results) > 0:
-            return results[0]
-        return None
 
 
 class AugurAllTeamsData(AugurCacheModel):
@@ -404,11 +412,11 @@ class AugurDeveloperData(AugurCacheModel):
     def requires_transform(self):
         return True
 
-    def load_user(self, username, look_back_days):
+    def load_user(self, username, look_back_days, context):
         user_array = self.load({
             'username': username,
             'num_days': look_back_days
-        })
+        }, context=context)
 
         if len(user_array) > 0:
             return user_array[0]
@@ -429,10 +437,10 @@ class AugurEngineeringReportData(AugurCacheModel):
     def requires_transform(self):
         return True
 
-    def load_data(self, week_number):
+    def load_data(self, week_number,context):
         results = self.load({
             'week_number': week_number
-        })
+        }, context=self.context)
 
         if len(results) > 0:
             return results[0]
@@ -453,7 +461,7 @@ class AugurJiraWorklogData(AugurCacheModel):
     def requires_transform(self):
         return True
 
-    def load_worklog(self, start, end, team_id, username=None, project=None):
+    def load_worklog(self, start, end, team_id, username=None, project=None,context=None):
 
         if not start or not end or not team_id:
             raise LookupError("You must specify start, end and team_id at least")
@@ -470,7 +478,7 @@ class AugurJiraWorklogData(AugurCacheModel):
         if username:
             query['username'] = username
 
-        worklog_data = self.load(query)
+        worklog_data = self.load(query, context=self.context)
 
         if len(worklog_data) > 0:
             return worklog_data[0]
@@ -491,10 +499,10 @@ class AugurJiraDefectData(AugurCacheModel):
     def requires_transform(self):
         return True
 
-    def load_defects(self, lookback_days):
+    def load_defects(self, lookback_days,context):
         defect_data = self.load({
             'lookback_days': lookback_days
-        })
+        }, context=context)
 
         if len(defect_data) > 0:
             return defect_data[0]
@@ -515,10 +523,10 @@ class AugurJiraDefectHistoryData(AugurCacheModel):
     def requires_transform(self):
         return True
 
-    def load_defects(self, num_weeks):
+    def load_defects(self, num_weeks, context):
         defect_data = self.load({
             'num_weeks': num_weeks
-        })
+        },context=self.context)
 
         if len(defect_data) > 0:
             return defect_data[0]
@@ -539,8 +547,8 @@ class RecentEpicData(AugurCacheModel):
     def requires_transform(self):
         return True
 
-    def load_recent_epics(self):
-        result = self.load()
+    def load_recent_epics(self, context):
+        result = self.load(context=context)
         if isinstance(result, list) and len(result) > 0:
             return result[0]
         else:
@@ -560,10 +568,10 @@ class AugurJiraEpicData(AugurCacheModel):
     def requires_transform(self):
         return True
 
-    def load_epic(self, epic_key):
+    def load_epic(self, epic_key, context):
         epics = self.load({
             'epic.key': epic_key
-        })
+        },context=self.context)
 
         if len(epics) > 0:
             return epics[0]
@@ -598,10 +606,10 @@ class AugurJiraMilestoneData(AugurCacheModel):
     def requires_transform(self):
         return True
 
-    def load_milestone(self, milestone_id):
+    def load_milestone(self, milestone_id,context):
         filter_ob = self.load({
             'milestone.id': str(milestone_id)
-        })
+        }, context=self.context)
 
         if len(filter_ob) > 0:
             return filter_ob[0]
@@ -625,10 +633,10 @@ class AugurJiraSprintsData(AugurCacheModel):
     def requires_transform(self):
         return True
 
-    def load_team_sprints(self, team_id):
+    def load_team_sprints(self, team_id, context):
         return self.load({
             'team_id': team_id
-        }, order_by='endDate', sort_order=pymongo.DESCENDING)
+        }, order_by='endDate', sort_order=pymongo.DESCENDING, context=self.context)
 
 
 class AugurCachedResultSets(AugurCacheModel):
@@ -652,12 +660,12 @@ class AugurCachedResultSets(AugurCacheModel):
     def requires_transform(self):
         return True
 
-    def load_from_key(self, key, override_ttl=None):
+    def load_from_key(self, key, override_ttl=None,context=None):
         return self.load(query_object={
             'key': key
-        }, override_ttl=override_ttl)
+        }, override_ttl=override_ttl, context=self.context)
 
-    def save_with_key(self, data, key, storage_type=None):
+    def save_with_key(self, data, key, storage_type=None,context=None):
 
         self.current_storage_type = storage_type
 
@@ -665,7 +673,7 @@ class AugurCachedResultSets(AugurCacheModel):
         self.mongo_client.stats.result_cache.remove({'key': key})
 
         data['key'] = key
-        super(AugurCachedResultSets, self).save(data)
+        super(AugurCachedResultSets, self).save(data,context=context)
 
 
 class AugurProductReportData(AugurCacheModel):
@@ -702,11 +710,11 @@ class AugurReleaseData(AugurCacheModel):
     def get_collection(self):
         return self.mongo_client.stats.release
 
-    def load_release_data(self, start, end):
+    def load_release_data(self, start, end, context):
         release_data = self.load({
             'release_date_start': start,
             'release_date_end': end
-        })
+        },context=context)
 
         if len(release_data) > 0:
             return release_data[0]
@@ -731,10 +739,10 @@ class AugurTempoTeamData(AugurCacheModel):
     def get_collection(self):
         return self.mongo_client.stats.release
 
-    def load_team_data(self, team_id):
+    def load_team_data(self, team_id, context):
         data = self.load({
             'team_id': team_id
-        })
+        }, context=context)
 
         if len(data) > 0:
             return data[0]
@@ -762,10 +770,10 @@ class AugurComponentOwnership(AugurCacheModel):
     def requires_transform(self):
         return False
 
-    def load_org(self, org):
+    def load_org(self, org, context):
         data = self.load({
             'org': org
-        })
+        }, context=context)
 
         if len(data) > 0:
             return data[0]
