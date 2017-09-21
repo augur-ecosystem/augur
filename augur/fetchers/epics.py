@@ -30,8 +30,9 @@ class RecentEpicsDataFetcher(AugurDataFetcher):
         """
         project_jql = augurjira.projects_to_jql(self.context.workflow)
         in_progress_statues = map(lambda x: x.tool_issue_status_name, self.context.workflow.in_progress_statuses())
-
-        return "%s and sprint in openSprints() and sprint not in futureSprints() and status in ('%s')" % \
+        dev_team_names = map(lambda t: t.name, self.context.group.teams)
+        return "%s and sprint in openSprints() and " \
+               "sprint not in futureSprints() and status in ('%s')" % \
                (project_jql, "','".join(in_progress_statues))
 
     def _fetch(self):

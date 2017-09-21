@@ -538,8 +538,11 @@ class RecentEpicData(AugurCacheModel):
     def get_ttl(self):
         return datetime.timedelta(hours=24)
 
+    def get_unique_key(self):
+        return 'group_id'
+
     def clear_before_add(self):
-        return False
+        return True
 
     def get_collection(self):
         return self.mongo_client.stats.recent_epics
