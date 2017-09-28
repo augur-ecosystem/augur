@@ -381,7 +381,7 @@ class AugurJira(object):
         result_json = tempo.get_worklogs(start, end, team_id, username=username, project_key=project_key)
         team_info = tempo.get_team_details(team_id)
 
-        staff = {c.jira_username: c for c in api.get_all_staff()}
+        staff = {c.jira_username: c for c in api.get_all_staff(context=None)}
         final_consultants = {}
 
         for log in result_json:
