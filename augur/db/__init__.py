@@ -297,6 +297,9 @@ class Workflow(db.Entity):
 
         return False
 
+    def positive_resolutions(self):
+        return filter(lambda x: x.tool_issue_resolution_type.lower() == "positive", self.resolutions)
+
     def done_statuses(self):
         """
         Returns a list of all the statuses that are considered to be "done".
@@ -357,6 +360,22 @@ class Workflow(db.Entity):
         else:
             return projects
 
+    def get_projects_jql(self):
+        """
+        Generates the JQL for the portion of the expression that limits the projects to this workspace only.
+        :return: Returns a string with the projects JQL
+        """
+        from augur.integrations import augurjira
+        return augurjira.projects_to_jql(self)
+
+    def get_positive_resolution_jql(self):
+        """
+        Generates the JQL for the portion of the expression that limits the issues to those that have positive
+        resolutions (which is defined by the statuses and resolutions defined in this workflow)
+        :return: Returns a JQL string
+        """
+        from augur.integrations import augurjira
+        return augurjira.positive_resolution_jql(self)
 
 class Group(db.Entity):
     id = orm.PrimaryKey(int, auto=True)
@@ -376,14 +395,23 @@ def init_db():
             sql_debug(True)
 
         if augur.settings.main.datastores.main.type == "sqlite":
-            filename = augur.settings.main.datastores.main.sqlite.path
-            print "Opening sqlite database with filename %s"%filename
-            db.bind('sqlite', filename=filename, create_db=True)
+            dbtype = augur.settings.main.datastores.main.type
+            dbtarget = augur.settings.main.datastores.main.sqlite.path
+            db.bind('sqlite', filename=dbtarget, create_db=True)
             __is_bound = True
         elif augur.settings.main.datastores.main.type == "postgres":
             pg_settings = augur.settings.main.datastores.main.postgres
+            dbtype = augur.settings.main.datastores.main.type
+            dbtarget = pg_settings.host + "/" + pg_settings.dbname + ":" + pg_settings.port
             db.bind('postgres', user=pg_settings.username, password=pg_settings.password,
                     host=pg_settings.host, database=pg_settings.dbname, port=pg_settings.port)
             __is_bound = True
 
-        db.generate_mapping(create_tables=True)
+        if __is_bound:
+            print "Database Configuration:"
+            print "Type: %s" % dbtype
+            print "Target: %s" % dbtarget
+
+            db.generate_mapping(create_tables=True)
+        else:
+            print "No valid database configuration found"

@@ -20,6 +20,19 @@ class DeveloperNotFoundException(Exception):
     pass
 
 
+def positive_resolution_jql(workflow):
+    """
+    Returns a JQL segment that filters based on done statuses and positive resolutions for the given workflow.
+     > e.g. ((status in (resolve,closed) and resolution in ("fixed","done", "complete")
+    :param workflow: The workflow object to use as a source for information about what constitutes positive resolution
+    :return: Returns the JQL
+    """
+    done_statuses = [d.tool_issue_status_name for d in workflow.done_statuses()]
+    done_resolutions = [d.tool_issue_resolution_name for d in workflow.positive_resolutions()]
+
+    return "(status in (\"%s\") and resolution in (\"%s\"))"%('","'.join(done_statuses), '","'.join(done_resolutions))
+
+
 def project_key_from_issue_key(issue_key):
     """
     Gets the project key from an issue key
@@ -163,7 +176,7 @@ class AugurJira(object):
         else:
             return None
 
-    def execute_jql(self, jql, expand=None, include_changelog=False, max_results=500):
+    def execute_jql(self, jql, expand=None, include_changelog=False, max_results=100):
         """
         Simply a pass through to the JIRA search_issues call.
         :param include_changelog: If true, then regardless of what expand is set to, the changelog will be included.
@@ -178,6 +191,8 @@ class AugurJira(object):
             # this is necessary because of a bug in the Jira python library where it interprets 0 as None
             #   and returns all the results.
             max_results = "0"
+        elif max_results > 100:
+            max_results = 100
 
         hashed_query = hashlib.md5(jql).hexdigest()
         with Timer("Executing jql: %s" % jql):
@@ -193,6 +208,15 @@ class AugurJira(object):
                     expand = expand.replace("changelog", "")
 
                 results_json = self.jira.search_issues(jql, expand=expand, maxResults=max_results, json_result=True)
+                cnt = len(results_json['issues'])
+                maxi = max_results
+                idx = 0
+                while cnt == maxi:
+                    idx += maxi
+                    resource = self.jira.search_issues(jql, expand=expand, maxResults=maxi, json_result=True, startAt=idx)
+                    results_json['issues'].extend(resource['issues'])
+                    cnt = len(resource['issues'])
+
                 issues_json = [common.clean_issue(r) for r in results_json['issues']]
 
                 if len(issues_json) < 100:

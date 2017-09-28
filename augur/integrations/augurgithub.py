@@ -328,30 +328,24 @@ class AugurGithub(object):
         :param org: The organization object or name
         :return: Returns a dict containing the data.
         """
-        ds = cache_store.AugurComponentOwnership(self.mongo)
-        data = ds.load_org(org,context=None)
-        if not data:
-            repos = self.get_repos_in_org(org) or []
-            data = {
-                'org': None,
-                'repos': []
-            }
+        repos = self.get_repos_in_org(org) or []
+        data = {
+            'org': None,
+            'repos': []
+        }
 
-            for repo in repos:
+        for repo in repos:
 
-                further_review = self.get_repo_further_review(repo)
-                readme_summary_list = self.get_repo_readme_summary(repo)
+            further_review = self.get_repo_further_review(repo)
+            readme_summary_list = self.get_repo_readme_summary(repo)
 
-                repo.raw_data["further_review"] = further_review or {}
-                repo.raw_data['readme_summary'] = readme_summary_list[0] if len(readme_summary_list) else ""
-                repo.raw_data["ua_stats"] = self.get_repo_commit_stats(repo)
+            repo.raw_data["further_review"] = further_review or {}
+            repo.raw_data['readme_summary'] = readme_summary_list[0] if len(readme_summary_list) else ""
+            repo.raw_data["ua_stats"] = self.get_repo_commit_stats(repo)
 
-                data['repos'].append(repo.raw_data)
-                if not data['org']:
-                    data['org'] = repo.owner.login
-
-            # cache in case anything else wants to use this info
-            ds.save(data)
+            data['repos'].append(repo.raw_data)
+            if not data['org']:
+                data['org'] = repo.owner.login
 
         return data
 
