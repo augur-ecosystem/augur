@@ -444,9 +444,18 @@ def get_issue_details(key):
     """
     Return details about an issue based on an issue key.  This does not pull from any cache.
     :param key: The key of the issue to retrieve
-    :return: The issue object
+    :return: The issue dict
     """
     return get_jira().get_issue(key)
+
+
+def get_epic_from_issue(issue):
+    """
+    Retrieves the epic issue from the given key
+    :param issue: The issue to find the epic
+    :return: Returns a dict containing the issue
+    """
+    return get_jira().get_associated_epic(issue)
 
 
 def get_defect_data(lookback_days=14, context=None, force_update=False):

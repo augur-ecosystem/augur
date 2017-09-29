@@ -308,9 +308,14 @@ class AugurJira(object):
             if not total_only:
 
                 # initialize all the keys for stats
+                total_time_to_complete = 0
                 for s in context.workflow.in_progress_statuses():
                     status_str_prepped = "time_%s" % AugurJira._status_to_dict_key(s)
-                    issue[status_str_prepped] = AugurJira.get_time_in_status(issue, s)
+                    status_time = AugurJira.get_time_in_status(issue, s)
+                    total_time_to_complete += status_time.total_seconds()
+                    issue[status_str_prepped] = status_time
+
+                issue['total_time_to_complete'] = datetime.timedelta(seconds=total_time_to_complete)
 
             ########
             # Status counts
