@@ -225,6 +225,7 @@ def get_epics_from_sprint(sprint, context):
     :return: Returns a dictionary containing all the epics
     """
     assert context
+    assert sprint
 
     from augur.integrations.augurjira import project_key_from_issue_key
 
