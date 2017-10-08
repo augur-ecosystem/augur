@@ -4,7 +4,7 @@ import os
 def make_project_path(proj_rel_path):
     """
     Create an absolute path to the project using the given relative path.
-    
+    which
     Args:
         proj_rel_path(str): The relative path (from the project root)
     """
@@ -65,4 +65,4 @@ def publish(bump_version_type=None, upload=False):
         local("python setup.py sdist upload -r local")
     else:
         print "Building package"
-        local("python setup.py sdist build -r local")
+        local("python setup.py sdist build")
