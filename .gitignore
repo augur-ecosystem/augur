@@ -3,5 +3,6 @@
 *.pyc
 *.iml
 config/local.json
-augur.egg-info/**
+build/**
 dist/**
+augur.egg-info/**

@@ -99,7 +99,7 @@ def publish(bump_version_type=None, upload=False, update_in_vcs=False):
 def run_migrations():
     load_local_settings()    
     db = settings.main.datastores.main.postgres
-    migration_dir = os.path.dirname(os.path.abspath(__file__))
+    migration_dir = make_project_path("augur/db/migrations")
 
     print "Augur Migration"
     print "---------------"
