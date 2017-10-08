@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+PROJECT_ROOT=$1
+
+# go to the root of the project
+cd PROJECT_ROOT
+
 if [[ $* == *--bump_patch* ]]
 then
     echo "Bumping version..."
