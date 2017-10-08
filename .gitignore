@@ -2,6 +2,6 @@
 .vscode
 *.pyc
 *.iml
-/augur/tests/env.py
+config/local.json
 augur.egg-info/**
 dist/**
