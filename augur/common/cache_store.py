@@ -81,7 +81,7 @@ class AugurCacheModel(object):
         return True
 
     def get_collection(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     def clear_data(self):
         self.data = list()

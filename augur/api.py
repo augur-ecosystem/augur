@@ -1,11 +1,22 @@
 """
 AUGUR API
 
+The Augur API provides easy access to some of the most benefecial data 
+that can be collected by the library.  While not exhaustive it is meant
+to conveniently retrieve the most commonly needed data.
 
-The Augur API provides easy access to some of the most benefecial data that can be collected by the library.
-Rather than instantiating data classes or integrations directly, the API provides a layer of abstraction in the form
-of functions.  Data that is returns is almost always in the form of a dictionary that can be easily converted into
-JSON as necessary.
+Rather than instantiating data classes or integrations directly, the API 
+provides a layer of abstraction in the form of functions.  Data that is 
+returned is almost always in the form of a dictionary that can be easily 
+converted into JSON as necessary.
+
+Most functions within the api will take an AugurContext object which
+defines the constraints within which the data should be retrieved
+and interpreted. 
+
+See the Augur readme for some information about how data is organized,
+the meaning of groups, workflows, etc.
+
 """
 
 import datetime
@@ -38,7 +49,9 @@ api_logger = logging.getLogger("augurapi")
 class AugurContext(object):
     """
     This contains information that is used by the Augur library to identify constraints that should be
-    used when requesting data.
+    used when requesting data.  The Context object is defined by a "Group".  Groups 
+    are associated with a workflow, teams and other information.  Many functions within
+    augur will require a context object in order to know how to filter and interpret data.
     """
 
     def __init__(self, group_id):

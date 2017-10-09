@@ -10,47 +10,6 @@ SMTP_PORT = 587
 SMTP_USERNAME = "postmaster@sandboxd61d71687b2c4094af7f13c045cae41d.mailgun.org"
 SMTP_PASSWORD = "slartibartfast"
 
-
-def send_email_aws(to_addresses=(), subject="", body_text="", body_html=""):
-    """
-    Send email to the given addresses using the default smtp server.
-    :param from_address: A single valid email address
-    :param to_addresses: One or more recipient addresses
-    :param subject: The subject of the email
-    :param body_text: The body of the text version of the email
-    :param body_html: The body of the html version of the email
-    :return:
-    """
-    client = boto3.client('ses',region_name='us-west-2')
-    res = client.send_email(Source='kshehadeh@aws.ua-ecm.com',
-                      Destination={
-                          'ToAddresses': to_addresses,
-                          'CcAddresses': [],
-                          'BccAddresses': []
-                      },
-                      Message={
-                          'Subject': {
-                              'Data': subject,
-                              'Charset': 'utf-8'
-                          },
-                          'Body': {
-                              'Text': {
-                                  'Data': body_text
-                              },
-                              'Html': {
-                                  'Data': body_html
-                              }
-                          }
-                      },
-                      ReplyToAddresses=[
-                          'kshehadeh@aws.ua-ecm.com',
-                      ]
-                      )
-
-    logging.info("Attempt to send email to %s returned the following response: \n%s" % (";".join(to_addresses), str(res)))
-    return res
-
-
 def send_email(to_addresses=(), subject="", body_text="", body_html="", from_address=''):
     """
     Send email to the given addresses using the default smtp server.
