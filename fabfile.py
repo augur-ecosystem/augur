@@ -88,13 +88,15 @@ def publish(bump_version_type=None, upload=False, update_in_vcs=False):
         local('git -C %s push'%augur_root)
 
     # Build/Publish
+    root_path = make_project_path("")
     path_to_setup = make_project_path("setup.py")
+
+    print "Building package in %s"%root_path
+    local("cd %s; python setup.py build"%(root_path))
+    
     if upload:
-        print "Build and publish version to python index..."
-        local("python %s sdist upload -r local"%path_to_setup)
-    else:
-        print "Building package"
-        local("python %s sdist build"%path_to_setup)
+        print "Uploading to artifact repository..."
+        local("cd %s; python setup.py sdist upload -r local "%(root_path))
 
 def run_migrations():
     load_local_settings()    
