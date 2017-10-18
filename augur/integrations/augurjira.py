@@ -568,6 +568,9 @@ class AugurJira(object):
 
         history_list = issue['changelog']['histories']
 
+        # added sorting past > present because the API is inconsistently ordering the results.
+        history_list.sort(key=lambda x: x['id'], reverse=False)
+
         for history in history_list:
             items = history['items']
 
@@ -578,13 +581,23 @@ class AugurJira(object):
                     break
                 elif track_time and item['field'] == 'status' and item['fromString'].lower() == status_name.lower():
                     # end status
-                    total_time += (parse(history['created']) - track_time)
+                    if track_time:
+                        # only recalculate if track_time has a value.  It can happen that track_time has no
+                        # value if the API only returns X number of historical items and the
+                        total_time += (parse(history['created']) - track_time)
+                    track_time = None
                     break
 
         if track_time and not total_time:
             # In this case the issue is currently in the requested status which means we need to set the "end" time to
             #   NOW because there's no record of the *next* status to subtract from.
             total_time = common.utc_to_local(datetime.datetime.now()) - track_time
+
+        if total_time.total_seconds() > 1728000:
+            print "Found an issue with a time in status greater than 20 days:"
+            print " -- Status: %s"%status_name
+            print " -- Issue: %s"%issue['key']
+            print " -- Time in Status: %s"%str(total_time)
 
         return total_time
 
