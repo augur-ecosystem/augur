@@ -310,10 +310,14 @@ class AugurJira(object):
                 # initialize all the keys for stats
                 total_time_to_complete = 0
                 for s in context.workflow.in_progress_statuses():
-                    status_str_prepped = "time_%s" % AugurJira._status_to_dict_key(s)
-                    status_time = AugurJira.get_time_in_status(issue, s)
-                    total_time_to_complete += status_time.total_seconds()
-                    issue[status_str_prepped] = status_time
+                    total_status_str_prepped = "time_%s" % AugurJira._status_to_dict_key(s)
+                    start_status_str_prepped = "start_time_%s" % AugurJira._status_to_dict_key(s)
+                    end_status_str_prepped = "end_time_%s" % AugurJira._status_to_dict_key(s)
+                    timing = AugurJira.get_issue_status_timing_info(issue, s)
+                    total_time_to_complete += timing['total_time'].total_seconds()
+                    issue[total_status_str_prepped] = timing['total_time']
+                    issue[start_status_str_prepped] = timing['start_time']
+                    issue[end_status_str_prepped] = timing['end_time']
 
                 issue['total_time_to_complete'] = datetime.timedelta(seconds=total_time_to_complete)
 
@@ -549,15 +553,16 @@ class AugurJira(object):
     def _clean_username(username):
         return username.replace(".", "_")
 
-
     @staticmethod
-    def get_time_in_status(issue, status):
+    def get_issue_status_timing_info(issue, status):
         """
-        Gets a single tickets time in a given status.  Calculates by looking at the history for the issue
-        and adding up all the time that the ticket was in the given status.
+        Gets a single tickets timing information including when in started, ended and the total time in the status.
         :param issue: The ticket in dictionary form
         :param status: The ToolIssueStatus to look for.
-        :return: Returns the datetime.timedelta time in status.
+        :return: Returns a dict containing:
+                    start_time: datetime when the issue first started in the status
+                    end_time: datetime when the issue last left the status
+                    total_time: timedelta with the total time in status
         """
         status_name = status.tool_issue_status_name
         track_time = None
@@ -571,6 +576,8 @@ class AugurJira(object):
         # added sorting past > present because the API is inconsistently ordering the results.
         history_list.sort(key=lambda x: x['id'], reverse=False)
 
+        start_time = None
+        end_time = None
         for history in history_list:
             items = history['items']
 
@@ -578,6 +585,9 @@ class AugurJira(object):
                 if item['field'] == 'status' and item['toString'].lower() == status_name.lower():
                     # start status
                     track_time = parse(history['created'])
+                    if not start_time:
+                        start_time = track_time
+
                     break
                 elif track_time and item['field'] == 'status' and item['fromString'].lower() == status_name.lower():
                     # end status
@@ -591,15 +601,31 @@ class AugurJira(object):
         if track_time and not total_time:
             # In this case the issue is currently in the requested status which means we need to set the "end" time to
             #   NOW because there's no record of the *next* status to subtract from.
-            total_time = common.utc_to_local(datetime.datetime.now()) - track_time
+            end_time = common.utc_to_local(datetime.datetime.now())
+            total_time = end_time - track_time
+        else:
+            end_time = track_time
 
-        if total_time.total_seconds() > 1728000:
-            print "Found an issue with a time in status greater than 20 days:"
-            print " -- Status: %s"%status_name
-            print " -- Issue: %s"%issue['key']
-            print " -- Time in Status: %s"%str(total_time)
+        return {
+            "start_time":start_time,
+            "end_time":end_time,
+            "total_time":total_time
+        }
 
-        return total_time
+    @staticmethod
+    def get_time_in_status(issue, status):
+        """
+        Gets a single tickets time in a given status.  Calculates by looking at the history for the issue
+        and adding up all the time that the ticket was in the given status.
+        :param issue: The ticket in dictionary form
+        :param status: The ToolIssueStatus to look for.
+        :return: Returns the datetime.timedelta time in status.
+        """
+        timing_info = AugurJira.get_issue_status_timing_info(issue,status)
+        if timing_info:
+            return timing_info['total_time']
+        else:
+            return None
 
     @staticmethod
     def _status_to_dict_key(status):
