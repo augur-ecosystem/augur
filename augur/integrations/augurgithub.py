@@ -3,6 +3,7 @@ import exceptions
 import json
 import logging
 import re
+from types import MethodType
 
 import github
 import yaml
@@ -11,7 +12,6 @@ from github.GithubObject import GithubObject
 
 from augur import settings
 from augur.common import cache_store
-from augur.common.timer import Timer
 from augur.api import get_jira
 import augur.api
 
@@ -55,6 +55,17 @@ class AugurGithub(object):
             org_further_reviews[r.name] = self.get_repo_further_review(r)
 
         return org_further_reviews
+
+    def get_commit_info(self, commit_hash):
+        """
+        Gets details about a single commit based on the given commit hash.  If there is more than one returned
+        from github, the first is returned from this function
+        :param commit_hash: The sha1 hash of the commit (shortened or full length)
+        :return: Return github.Commit.Commit
+        """
+        commits = self.github.search_commits(query="hash:%s"%commit_hash)
+        if commits.totalCount > 0:
+            return commits[0]
 
     def _prepare_pr_search(self, orgs, state, since, sort, order):
         """
