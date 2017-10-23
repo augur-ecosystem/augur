@@ -49,10 +49,16 @@ To upload a new version of augur, you can modify your .pypirc file with the foll
     password: <password>
 
 
-Then build and upload the new version from within the augur root directory:
+You can use fabric to build and publish.  
 
-    python setup.py sdist upload -r local
+    >> pip install -g fabric
+    >> cd /path/to/augur
+    >> fab publish:bump_version_type=<major,minor or patch>,upload=<True,False>,update_in_vcs=<True,False>
 
+fab publish can perform all aspects of deployment optionally.  By default, it will only build  
+a new package.  But you can also have it automatically bump the version (major,minor or patch),
+publish the new build to whatever artifact repo you've configured in .pypirc and automically
+commit and push the changes to git.
 
 # Augur Integration
 
@@ -147,7 +153,7 @@ We can also indicate which issue types we should pay attention to.  This is help
 projects have issue types that are used for tracking information that has nothing
 to do with the workflow - like individual todo items, etc.
 
-##### Defect Projewcts
+##### Defect Projects
 Finally, defect projects are projects that we specifically call out for consisting
 entirely of bugs found in production.  We can use this information to collect defect
 metrics over time.  A defect project is not necessarily just all tickets in the project

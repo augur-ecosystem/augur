@@ -24,6 +24,10 @@ class JenkinsEventData(EventData):
             return None
 
     @property
+    def org_and_repo_name(self):
+        return "%s/%s"%(self.org_name,self.repo_name)
+
+    @property
     def org_name(self):
         try:
             return self.data.orgName
