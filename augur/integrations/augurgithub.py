@@ -56,16 +56,43 @@ class AugurGithub(object):
 
         return org_further_reviews
 
-    def get_commit_info(self, commit_hash):
+    def get_commit_info(self, commit_hash, org_repo=None):
         """
         Gets details about a single commit based on the given commit hash.  If there is more than one returned
         from github, the first is returned from this function
         :param commit_hash: The sha1 hash of the commit (shortened or full length)
+        :param org_repo: The name of the org/repo combo (<org>/<repo>) to search. When you specify the repo, it
+                            gives you better results.
         :return: Return github.Commit.Commit
         """
-        commits = self.github.search_commits(query="hash:%s"%commit_hash)
-        if commits.totalCount > 0:
-            return commits[0]
+
+        if not org_repo:
+            commits = self.github.search_commits(query="hash:%s"%commit_hash)
+            if commits.totalCount > 0:
+                return commits[0]
+            else:
+                logging.warning("Unable to find the following commit: %s"%commit_hash)
+                return None
+        else:
+            try:
+                org,repo = org_repo.split("/")
+            except ValueError:
+                logging.error("Got an invalid org_repo parameter in get_commit_info")
+                return None
+
+            org_ob, repo_ob = self.get_org_and_repo_from_params(repo, org)
+            if repo_ob:
+                commit = repo_ob.get_commit(commit_hash)
+                if not commit:
+                    logging.warning("Unable to find the following commit (with repo): %s"%commit_hash)
+                    return None
+                else:
+                    return commit
+            else:
+                logging.error("Unable to find the given repo (%s) or org (%s)"%(repo,org))
+                return None
+
+
 
     def _prepare_pr_search(self, orgs, state, since, sort, order):
         """
@@ -313,7 +340,7 @@ class AugurGithub(object):
             raise TypeError(
                 "If org is given then repo should be a string otherwise there's no reason to pass the org")
 
-        if org and isinstance(org, str):
+        if org and isinstance(org, (str,unicode)):
             org_ob = self.github.get_organization(org)
 
         elif org and isinstance(org, GithubObject):

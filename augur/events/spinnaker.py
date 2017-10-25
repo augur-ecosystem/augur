@@ -15,11 +15,8 @@ class SpinnakerEventData(EventData):
     """
     def __init__(self, event_data):
         self.data = munchify(event_data)
-
-        # save this the first time the property is called below
-        #   so we don't have to build it every time.
-        self._image_desc = None
-
+        self._stage_context = None
+        self._gh_context = None
 
     @property
     def type(self):
@@ -27,6 +24,22 @@ class SpinnakerEventData(EventData):
             return self.data.payload.details.type
         except AttributeError:
             return None
+
+    @property
+    def stage_name(self):
+        try:
+            return self.data.payload.content.context.stageDetails.type
+        except AttributeError:
+            return None
+
+
+    @property
+    def pipeline_name(self):
+        try:
+            return self.data.payload.content.execution.name
+        except AttributeError:
+            return None
+
 
     @property
     def application(self):
@@ -51,51 +64,73 @@ class SpinnakerEventData(EventData):
 
     @property
     def org_and_repo(self):
-        return "%s/%s"%(self.image_desc.repo, self.image_desc.org)
-
-    @property
-    def image_desc(self):
-        """
-        """
         try:
-            if not self._image_desc:
-                desc = self.data.payload.content.context.containers[0].imageDescription
-                tag = desc.tag
-                org,branch,commit,docker = tag.split("-")
-                self._image_desc = munchify({
-                    "org": org,
-                    "repo": desc.repository,
-                    "artifact": desc.imageId,
-                    "branch": branch,
-                    "commit": commit,
-                    "docker": docker
-                })
-
-            return self._image_desc
-
-        except AttributeError:
-            return None
+            return "%s/%s"%(self.org, self.repo)
+        except (AttributeError,ValueError,IndexError):
+            return ""
 
     @property
-    def commit_hash(self):
-        desc = self.image_desc
-        return desc.commit if desc else None
+    def stage_context(self):
+        if not self._stage_context:
+            sn = self.stage_name
+            stage = filter(lambda s: s.type == sn, self.data.payload.content.execution.stages)
+            if len(stage) > 0:
+                self._stage_context = stage[0]
+
+        return self._stage_context
+
+    @property
+    def ghcheck_stage_context(self):
+        if not self._gh_context:
+            stage = filter(lambda s: s.name.lower() == 'gh-check', self.data.payload.content.execution.stages)
+            if len(stage) > 0:
+                self._gh_context = stage[0]
+
+        return self._gh_context
+
+    @property
+    def repo(self):
+        try:
+            return self.ghcheck_stage_context.context.pipelineParameters.APPLICATION
+        except AttributeError:
+            return ""
 
     @property
     def org(self):
-        desc = self.image_desc()
-        return desc.org if desc else None
+        try:
+            parts = self.ghcheck_stage_context.context.pipelineParameters.ARTIFACT.split("-")
+            if len(parts):
+                return parts[0]
+
+        except (ValueError, AttributeError):
+            return ""
 
     @property
-    def is_deployment(self):
+    def artifact(self):
         try:
-            return 'deployment' in self.data.payload.content.context
-        except AttributeError:
-            return False
+            return self.ghcheck_stage_context.context.pipelineParameters.ARTIFACT
+        except(ValueError,AttributeError):
+            return ""
+
+    @property
+    def commit_hash(self):
+        try:
+            parts = self.ghcheck_stage_context.context.pipelineParameters.ARTIFACT.split("-")
+            if len(parts):
+                return parts[-2]
+        except (ValueError, AttributeError):
+            return ""
 
     @property
     def environment(self):
         try:
-            return self.data.payload.content.context.account
-        except AttributeError:
-            return None
+            # we use the pipeline name as a way to determine where this is being deployed.  If it
+            #   ends in -staging then it's staging, if it ends in anything else its production
+            full_env = self.pipeline_name
+            parts = full_env.split("-")
+            if len(parts) and parts[-1] == "staging":
+                return "staging"
+            else:
+                return "production"
+        except (AttributeError, ValueError):
+            return ""
