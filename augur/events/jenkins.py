@@ -16,6 +16,18 @@ class JenkinsEventData(EventData):
         except AttributeError:
             return None
 
+
+    @property
+    def pr(self):
+        try:
+            parts = self.branch.split("-")
+            if len(parts) > 1 and parts[0].lower() == "pr":
+                return int(parts[1])
+            else:
+                return 0
+        except AttributeError:
+            return 0
+
     @property
     def branch(self):
         try:
@@ -93,3 +105,4 @@ class JenkinsEventData(EventData):
             return self.data.dockerImage
         except AttributeError:
             return None
+
