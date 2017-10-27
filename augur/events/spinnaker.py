@@ -95,6 +95,22 @@ class SpinnakerEventData(EventData):
         except AttributeError:
             return ""
 
+
+    @property
+    def pr(self):
+        """
+        If this is an event for a PR build this will return the PR number
+        :return: The PR id (as an integer)
+        """
+        try:
+            parts = self.ghcheck_stage_context.context.pipelineParameters.ARTIFACT.split("-")
+            if len(parts) > 2:
+                if parts[1].lower() == 'pr':
+                    return int(parts[2])
+
+        except (ValueError, AttributeError):
+            return None
+
     @property
     def org(self):
         try:

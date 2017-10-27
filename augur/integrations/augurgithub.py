@@ -232,6 +232,23 @@ class AugurGithub(object):
         org_ob = self.get_organization(organization)
         return [m.raw_data for m in org_ob.get_members()] if org_ob else []
 
+    def get_pr(self, org, repo, number):
+        """
+        Gets the PR object from the given org/repo and PR number.
+        :param org: The org string or Organization object
+        :param repo: The repo string or Repo object
+        :param number: The PR number
+        :return: The PullRequest object.
+        """
+        try:
+            org_ob, repo_ob = self.get_org_and_repo_from_params(repo,org)
+            return repo_ob.get_pull(number)
+        except TypeError:
+            logging.error("Could not get org and repo objects from given data")
+            return None
+
+
+
     def get_organization(self, org):
         """
         Takes an organization name and returns an organization object
