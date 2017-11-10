@@ -746,8 +746,14 @@ def get_staff_member_by_field(first_name=None, last_name=None, email=None, usern
     def search_by_name():
         try:
             # try searching by first, last name
-            return orm.get(s for s in db.Staff if s.first_name.lower() == first_name.lower() and
-                           s.last_name.lower() == last_name.lower())
+            if first_name and last_name:
+                return orm.get(s for s in db.Staff if s.first_name.lower() == first_name.lower() and
+                               s.last_name.lower() == last_name.lower())
+            elif first_name:
+                return orm.get(s for s in db.Staff if s.first_name.lower() == first_name.lower())
+            elif last_name:
+                return orm.get(s for s in db.Staff if s.last_name.lower() == last_name.lower())
+
         except (orm.MultipleObjectsFoundError,orm.ObjectNotFound):
             return False
 
@@ -765,7 +771,7 @@ def get_staff_member_by_field(first_name=None, last_name=None, email=None, usern
     if not result and email:
         result = search_by_email()
 
-    if not result and (first_name and last_name):
+    if not result and (first_name or last_name):
         result = search_by_name()
 
     return result
