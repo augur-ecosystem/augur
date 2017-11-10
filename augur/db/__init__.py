@@ -10,8 +10,8 @@ import datetime
 NOTIFY_TYPES = ["none","email","slack"]
 TOOL_ISSUE_STATUS_TYPES = ["open", "in progress", "done"]
 STATUS = ["Unknown", "Active", "Inactive", "Pending"]
-ROLES = ["Unknown", "Developer", "SDET", "Technical Manager", "Director", "Lead Developer", "Engagement Manager", "Project Manager",
-         "Business Analyst", "QA", "Technical Manager"]
+ROLES = ["Unknown", "Developer", "SDET", "Technical Manager", "Product Manager", "Director", "Lead Developer", "Engagement Manager", "Project Manager",
+         "Business Analyst", "QA", "Technical Manager", "Product Owner", "Vice President"]
 TOOL_ISSUE_RESOLUTION_TYPES = ["positive", "negative"]
 TOOL_ISSUE_TYPE_TYPES = ["story", "task", "bug", "question"]
 STAFF_TYPES = ["FTE", "Consultant"]
