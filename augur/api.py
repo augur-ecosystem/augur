@@ -712,6 +712,68 @@ def get_all_staff(context):
         return context_staff
 
 
+def get_staff_member_by_github_username(username):
+    """
+    Searches staff based on a given github username
+    :param username: The github username t osearch for
+    :return: Returns a db.Staff object or None if not found
+    """
+    assert username
+    try:
+        return orm.get(s for s in db.Staff if s.github_username == username)
+    except (orm.MultipleObjectsFoundError,orm.ObjectNotFound):
+        return None
+
+
+def get_staff_member_by_field(first_name=None, last_name=None, email=None, username=None):
+    """
+    Search for a staff member by fields other than ID.  This will try to match on email first (if given)
+    then will try to find it based on first,last name.  First and last name must be given to do the search.
+    :param username: One of the stored usernames (e.g. jira or github)
+    :param first_name: The first name of the user (if given, last name must also be given)
+    :param last_name: The last name of the user (if given, first name must also be given.
+    :param email: The email of the user to find.
+    :return: Returns a db.Staff object if found, otherwise None.
+    """
+    if not email:
+        if not first_name or not last_name:
+            raise ValueError("You must provide a first AND last name if not providing an email")
+
+    def search_by_username():
+        try:
+            # try searching by first, last name
+            return orm.get(s for s in db.Staff if s.github_username == username or
+                           s.jira_username == username)
+        except (orm.MultipleObjectsFoundError,orm.ObjectNotFound):
+            return False
+
+    def search_by_name():
+        try:
+            # try searching by first, last name
+            return orm.get(s for s in db.Staff if s.first_name.lower() == first_name.lower() and
+                           s.last_name.lower() == last_name.lower())
+        except (orm.MultipleObjectsFoundError,orm.ObjectNotFound):
+            return False
+
+    def search_by_email():
+        try:
+            # try searching by first, last name
+            return orm.get(s for s in db.Staff if s.email.lower() == email.lower())
+        except (orm.ObjectNotFound,orm.MultipleObjectsFoundError):
+            return False
+
+    result = None
+    if username:
+        result = search_by_username()
+
+    if not result and email:
+        result = search_by_email()
+
+    if not result and (first_name and last_name):
+        result = search_by_name()
+
+    return result
+
 def get_consultants(active_only=True):
     """
     Retrieves a list of Staff model objects containing all the known consultants.
@@ -990,3 +1052,5 @@ def add_staff_to_team(team, staff):
 
 def add_group(name, teams, workflow, products):
     return db.Group(name=name, teams=teams, workflow=workflow, products=products)
+
+

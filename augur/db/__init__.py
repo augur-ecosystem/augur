@@ -7,6 +7,7 @@ import augur
 
 import datetime
 
+NOTIFY_TYPES = ["none","email","slack"]
 TOOL_ISSUE_STATUS_TYPES = ["open", "in progress", "done"]
 STATUS = ["Unknown", "Active", "Inactive", "Pending"]
 ROLES = ["Unknown", "Developer", "SDET", "Technical Manager", "Director", "Lead Developer", "Engagement Manager", "Project Manager",
@@ -17,6 +18,7 @@ STAFF_TYPES = ["FTE", "Consultant"]
 
 db = orm.Database()
 __is_bound = False
+
 
 class ToolIssueResolution(db.Entity):
     """
@@ -129,6 +131,7 @@ class Staff(db.Entity):
     start_date = orm.Required(datetime.date)
     type = orm.Required(str, py_check=lambda v: v in STAFF_TYPES, default="FTE")
     jira_username = orm.Required(unicode)
+    slack_id = orm.Optional(unicode)
     github_username = orm.Optional(unicode)
     status = orm.Required(unicode, py_check=lambda v: v in STATUS)
     teams = orm.Set('Team', reverse="members")
@@ -136,6 +139,7 @@ class Staff(db.Entity):
     base_weekly_cost = orm.Optional(float)
     base_annual_cost = orm.Optional(float)
     vendor = orm.Optional(Vendor, reverse='consultants')
+    notification = orm.Optional("Notifications", reverse="staff")
 
     def get_company(self):
         if self.vendor:
@@ -185,9 +189,42 @@ class Team(db.Entity):
     agile_board = orm.Optional(AgileBoard, reverse='team', sql_default=0)
     product = orm.Optional(Product, reverse='teams', sql_default=0)
     groups = orm.Set('Group', reverse="teams")
+    notification = orm.Optional("Notifications", reverse="team")
 
     def get_agile_board_jira_id(self):
         return self.agile_board.jira_id
+
+
+class Notifications(db.Entity):
+    """
+    Represents a set of notification preferences that can be associated with a staff member or team
+    """
+    id = orm.PrimaryKey(int,auto=True)
+    build = orm.Required(unicode, default="email,slack")
+    deploy = orm.Required(unicode, default="email,slack")
+    staff = orm.Optional(Staff)
+    team = orm.Optional(Team)
+
+    def should_send_build_x(self, ntype):
+        ntypes = str(self.build).split(",")
+        return ntype in ntypes
+
+    def should_send_deploy_x(self, ntype):
+        ntypes = str(self.deploy).split(",")
+        return ntype in ntypes
+
+    def should_send_build_email(self):
+        return self.should_send_build_x("email")
+
+    def should_send_build_slack(self):
+        return self.should_send_build_x("slack")
+
+    def should_send_deploy_email(self):
+        return self.should_send_deploy_x("email")
+
+    def should_send_deploy_slack(self):
+        return self.should_send_deploy_x("slack")
+
 
 
 class WorkflowDefectProjectFilter(db.Entity):
@@ -376,6 +413,7 @@ class Workflow(db.Entity):
         """
         from augur.integrations import augurjira
         return augurjira.positive_resolution_jql(self)
+
 
 class Group(db.Entity):
     id = orm.PrimaryKey(int, auto=True)
