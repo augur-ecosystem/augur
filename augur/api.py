@@ -735,10 +735,6 @@ def get_staff_member_by_field(first_name=None, last_name=None, email=None, usern
     :param email: The email of the user to find.
     :return: Returns a db.Staff object if found, otherwise None.
     """
-    if not email:
-        if not first_name or not last_name:
-            raise ValueError("You must provide a first AND last name if not providing an email")
-
     def search_by_username():
         try:
             # try searching by first, last name
@@ -773,6 +769,7 @@ def get_staff_member_by_field(first_name=None, last_name=None, email=None, usern
         result = search_by_name()
 
     return result
+
 
 def get_consultants(active_only=True):
     """
