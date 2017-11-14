@@ -17,6 +17,7 @@ class SpinnakerEventData(EventData):
         self.data = munchify(event_data)
         self._stage_context = None
         self._gh_context = None
+        self._system_test_contexts = None
 
     @property
     def type(self):
@@ -87,6 +88,15 @@ class SpinnakerEventData(EventData):
                 self._gh_context = stage[0]
 
         return self._gh_context
+
+    @property
+    def system_test_stage_contexts(self):
+        if not self._system_test_contexts:
+            stages = filter(lambda s: "system tests" in s.name.lower(), self.data.payload.content.execution.stages)
+            if len(stages) > 0:
+                self._system_test_contexts = stages
+
+        return self._system_test_contexts
 
     @property
     def repo(self):
