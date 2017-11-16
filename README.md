@@ -178,3 +178,23 @@ This is to ensure that only sprints that are associated with the team are
 included in the metrics.  Due to the way Jira works, it is possible for a 
 sprint that is part of a different agile board to be included in the metrics
 if this formatting restriction is not used.
+
+##### Notifications
+The Augur database supports notification settings for individual staff members.  
+
+Staff can customize notifications by channel and by content.  For example, we can turn off email or slack messages
+for build notification but we can also specify what type of build notifications we want to get.  
+
+In the `notifications` table there are these fields:
+* build - Can be one or more of [slack,email] separated by commas
+* deploy - Can be one or more of [slack,email] separated by commas
+* build_types - Can be one or more of [all,upstream,myteam,otherteams] separated by commas
+
+*Build Types Explained*
+All - If all is in there, then everything else is ignored and all build types are sent
+upstream - This means that notifications for builds that occur in a non-team org and are the master branch will be sent
+myteam - This means that notification for builds that occur in the committers own team org will be sent
+otherteams - This means that notifications for builds that occur in team orgs other than the committers will be sent.
+
+ 
+ 
