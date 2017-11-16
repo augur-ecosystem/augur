@@ -14,6 +14,7 @@ ROLES = ["Unknown", "Developer", "SDET", "Technical Manager", "Product Manager",
          "Business Analyst", "QA", "Technical Manager", "Product Owner", "Vice President"]
 TOOL_ISSUE_RESOLUTION_TYPES = ["positive", "negative"]
 TOOL_ISSUE_TYPE_TYPES = ["story", "task", "bug", "question"]
+BUILD_TYPES = ['all','master','myteam','otherteams']
 STAFF_TYPES = ["FTE", "Consultant"]
 
 db = orm.Database()
@@ -147,6 +148,12 @@ class Staff(db.Entity):
         else:
             return "None Given"
 
+    def is_in_team(self, team_name):
+        for t in self.teams:
+            if team_name.lower() in t.name.lower():
+                return True
+        return False
+
     def get_fullname(self):
         if self.first_name and self.last_name:
             return "%s %s"%(self.first_name,self.last_name)
@@ -204,6 +211,7 @@ class Notifications(db.Entity):
     deploy = orm.Required(unicode, default="email,slack")
     staff = orm.Optional(Staff)
     team = orm.Optional(Team)
+    build_types = orm.Required(unicode, default="all")
 
     def should_send_build_x(self, ntype):
         ntypes = str(self.build).split(",")

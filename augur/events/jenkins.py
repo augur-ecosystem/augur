@@ -40,6 +40,19 @@ class JenkinsEventData(EventData):
         return "%s/%s"%(self.org_name,self.repo_name)
 
     @property
+    def team_name(self):
+        """
+        Determines the team name based on an organization name that has this format: "Team<Name>"
+        :return: Returns the team name or None if no recognizable team name.
+        """
+        if 'team' in self.org_name.lower():
+            parts = self.org_name.split("Team")
+            if len(parts) >= 2:
+                return parts[1]
+
+        return None
+
+    @property
     def org_name(self):
         try:
             return self.data.orgName
