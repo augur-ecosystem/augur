@@ -178,4 +178,3 @@ This is to ensure that only sprints that are associated with the team are
 included in the metrics.  Due to the way Jira works, it is possible for a 
 sprint that is part of a different agile board to be included in the metrics
 if this formatting restriction is not used.
-
