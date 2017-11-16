@@ -14,7 +14,7 @@ ROLES = ["Unknown", "Developer", "SDET", "Technical Manager", "Product Manager",
          "Business Analyst", "QA", "Technical Manager", "Product Owner", "Vice President"]
 TOOL_ISSUE_RESOLUTION_TYPES = ["positive", "negative"]
 TOOL_ISSUE_TYPE_TYPES = ["story", "task", "bug", "question"]
-BUILD_TYPES = ['all','master','myteam','otherteams']
+BUILD_TYPES = ['all','upstream','myteam','otherteams']
 STAFF_TYPES = ["FTE", "Consultant"]
 
 db = orm.Database()
