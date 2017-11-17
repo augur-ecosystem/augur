@@ -28,7 +28,7 @@ import copy
 
 from jira import JIRAError
 from pony import orm
-from pony.orm import select
+from pony.orm import select, delete
 from pony.orm import serialization
 
 from augur import common
@@ -36,6 +36,7 @@ from augur.common.cache_store import AugurCachedResultSets
 
 from augur.common import const, cache_store
 from augur import db
+from augur.db import EventLog
 
 CACHE = dict()
 
@@ -1053,7 +1054,22 @@ def add_staff_to_team(team, staff):
     staff.teams.add(staff)
 
 
-def add_group(name, teams, workflow, products):
-    return db.Group(name=name, teams=teams, workflow=workflow, products=products)
+def clear_event_data(days_to_keep=30):
+    """
+    Remove all logs older than days_to_keep days
+    :param days_to_keep: The number of days to keep and remove all other log entries.
+    :return: None
+    """
+    delete(e for e in EventLog if e.event_time < (datetime.datetime.now()-datetime.timedelta(days=30)))
 
 
+def log_event_data(event_type,event_data):
+    """
+    Stores a log entry in the database
+    :param event_type:
+    :param event_data:
+    :return:
+    """
+    event_time = datetime.datetime.now()
+    el = EventLog(event_time=event_time, event_type=event_type, event_data=event_data)
+    return el is not None

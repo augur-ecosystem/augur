@@ -1,7 +1,7 @@
 import json
 
 from pony import orm
-from pony.orm import sql_debug
+from pony.orm import sql_debug, Json
 
 import augur
 
@@ -50,6 +50,16 @@ class ToolIssueType(db.Entity):
     tool_issue_type_type = orm.Required(unicode, py_check=lambda v: v in TOOL_ISSUE_TYPE_TYPES)
     workflow_defect_project_filters = orm.Set('WorkflowDefectProjectFilter', reverse="issue_types")
     workflows = orm.Set('Workflow', reverse="issue_types")
+
+
+class EventLog(db.Entity):
+    """
+    Represents an event log entry
+    """
+    id = orm.PrimaryKey(int,auto=True)
+    event_time = orm.Required(datetime.datetime)
+    event_type = orm.Required(unicode)
+    event_data = orm.Optional(Json)
 
 
 class Vendor(db.Entity):
