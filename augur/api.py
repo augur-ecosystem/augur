@@ -1058,9 +1058,9 @@ def clear_event_data(days_to_keep=30):
     """
     Remove all logs older than days_to_keep days
     :param days_to_keep: The number of days to keep and remove all other log entries.
-    :return: None
+    :return: Returns the number of rows deleted
     """
-    delete(e for e in EventLog if e.event_time < (datetime.datetime.now()-datetime.timedelta(days=30)))
+    return delete(e for e in EventLog if e.event_time < (datetime.datetime.now()-datetime.timedelta(days=days_to_keep)))
 
 
 def log_event_data(event_type,event_data):
