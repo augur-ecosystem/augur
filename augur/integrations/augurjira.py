@@ -4,6 +4,9 @@ import hashlib
 import logging
 from dateutil.parser import parse
 from jira import JIRA, Issue, Project
+from munch import Munch
+
+from web import util
 
 from augur import api, db
 from augur import common
@@ -548,6 +551,34 @@ class AugurJira(object):
         """
         return self.jira._get_json('rapid/charts/sprintreport?rapidViewId=%s&sprintId=%s' % (board_id, sprint_id),
                                    base=self.jira.AGILE_BASE_URL)
+
+    @staticmethod
+    def estimate_time_spent_in_hours(issue, statuses):
+        """
+        Calculates the number of hours spent on a ticket based only on the time spent in a given
+        status.  This is useful when the engineer has not been keeping track of work hours using the work log
+        feature in Jira.
+        :param issue: The issue dict (as retrieved through augurjira)
+        :param statuses: A list of statuses (strings).
+        :return: Returns a float that equals the number of hours calculated.
+        """
+        assert issue
+
+        total_hours = 0.0
+        for status in statuses:
+            timing = AugurJira.get_issue_status_timing_info(issue,status)
+            if timing:
+                timing = Munch(timing)
+                total_hours += timing.total_time.hours()
+                if timing.total_time.days() > 0:
+                    # if more than a day then we have to adjust the total hours to take into account
+                    #   that people don't work 24 hours a day. We also have to make sure that we exclude
+                    #   weekend hours.
+                    num_weekends = util.calc_weekends(timing.start_time, timing.end_time)
+                    num_weekend_days = num_weekends*2
+                    num_work_days = timing.total_time.days() - num_weekend_days
+                    total_hours += num_work_days*8
+        return total_hours
 
     @staticmethod
     def _clean_username(username):

@@ -30,22 +30,6 @@ class TestAugurGithub(unittest.TestCase):
         self.assertIsNotNone(repo_ob)
         self.assertEqual(repo_ob.name,'service-tax')
 
-    def test_fetch_prs(self):
-        gh = augur.api.get_github()
-        since=datetime.datetime.now()-datetime.timedelta(days=15)
-        prs = gh.fetch_prs(org=["apps"], state="merged", since=since)
-        self.assertTrue(len(prs) != 0)
-
-    def test_fetch_prs_to_review(self):
-        gh = augur.api.get_github()
-        prs = gh.fetch_prs_to_review(username="schaki")
-        self.assertTrue(len(prs) != 0)
-
-    def test_fetch_author_open_prs(self):
-        gh = augur.api.get_github()
-        prs = gh.fetch_author_open_prs(username="kshehadeh")
-        self.assertTrue(len(prs) != 0)
-
     def test_fetch_organization_members(self):
         gh = augur.api.get_github()
         members = gh.fetch_organization_members('apps')

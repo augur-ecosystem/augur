@@ -244,7 +244,6 @@ class Notifications(db.Entity):
         return self.should_send_deploy_x("slack")
 
 
-
 class WorkflowDefectProjectFilter(db.Entity):
     id = orm.PrimaryKey(int, auto=True)
     project_key = orm.Required(str)

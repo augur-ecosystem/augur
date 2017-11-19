@@ -92,8 +92,6 @@ class AugurGithub(object):
                 logging.error("Unable to find the given repo (%s) or org (%s)"%(repo,org))
                 return None
 
-
-
     def _prepare_pr_search(self, orgs, state, since, sort, order):
         """
         Prepare the basic query for a PR search including state, beginning date, orgs/repos
@@ -152,49 +150,6 @@ class AugurGithub(object):
 
         return dev_stats_ob.as_dict()
 
-    def fetch_prs(self, org, state, since=None, sort="created", order="desc"):
-        """
-        Gets the PRs for the given repo(s) of the given type.  You can specify PRs of certain types
-        :param order: The sort order can be asc or desc
-        :param sort: The sort order.  Can be comments, created, or updated
-        :param state: The state of the pr (open, closed, merged)
-        :param org: The name of the organization (as a string)
-        :param since: The earliest date when the PRs were first opened
-        :return: Returns a list of search results
-        """
-
-        try:
-            query = self._prepare_pr_search(orgs=org, state=state, since=since, sort=sort, order=order)
-            results = self.github.search_issues(query=query, sort=sort, order=order)
-            return [r.raw_data for r in results]
-
-        except GithubException as e:
-            self.logger.error(
-                "Error while retrieving %s PRs since %s from %s: %s" % (state, str(since), org, e.message))
-
-        return []
-
-    def fetch_prs_to_review(self, username=None, orgs=None, sort="created", order="desc"):
-        """
-        Searches for all PRs that the given user is responsible for reviewing or has already
-        started reviewing and the PR is still open.
-        :param username: The github username or None if all PRs to review should be searched.
-        :param sort: Can be one of comments,created or updated
-        :param order: Can be one of asc or desc
-        :return:
-        """
-        if not username and not orgs:
-            raise exceptions.ValueError("you must specific a username or orgs to restrict "
-                                        "this to - result set will be too large without those constraints")
-
-        query = self._prepare_pr_search(orgs=orgs, state="open", since=None, sort=sort, order=order)
-
-        if username:
-            query += " review-requested:%s" % username
-
-        results = self.github.search_issues(query=query, sort=sort, order=order)
-        return [r.raw_data for r in results]
-
     def fetch_author_merged_prs(self, username, since, sort="created", order="desc"):
         """
         This will retrieve one or more authors prs in the given state
@@ -205,20 +160,6 @@ class AugurGithub(object):
         :return: Returns a list of search results as a list of dictionaries
         """
         query = self._prepare_pr_search(orgs=None, state="merged", since=since, sort=sort, order=order)
-        query += " author:%s" % username
-        results = self.github.search_issues(query=query, sort=sort, order=order)
-        return [r.raw_data for r in results]
-
-    def fetch_author_open_prs(self, username, sort="created", order="desc"):
-        """
-        This will retrieve one or more authors prs in the given state
-        :param username: A string or list of usernames
-        :param state: Can be one of open, closed, merged
-        :param sort: The sort order can be one of comments, created or updated
-        :param order: Can be one of asc or desc
-        :return: Returns a list of search results as a list of dictionaries
-        """
-        query = self._prepare_pr_search(orgs=None, state="open", since=None, sort=sort, order=order)
         query += " author:%s" % username
         results = self.github.search_issues(query=query, sort=sort, order=order)
         return [r.raw_data for r in results]
@@ -246,8 +187,6 @@ class AugurGithub(object):
         except TypeError:
             logging.error("Could not get org and repo objects from given data")
             return None
-
-
 
     def get_organization(self, org):
         """
