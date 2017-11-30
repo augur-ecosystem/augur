@@ -6,12 +6,10 @@ from dateutil.parser import parse
 from jira import JIRA, Issue, Project
 from munch import Munch
 
-from web import util
-
 from augur import api, db
 from augur import common
 from augur import settings
-from augur.common import cache_store
+from augur.common import cache_store,calc_weekends
 from augur.common.timer import Timer
 from augur.integrations.augurtempo import AugurTempo
 
@@ -574,7 +572,7 @@ class AugurJira(object):
                     # if more than a day then we have to adjust the total hours to take into account
                     #   that people don't work 24 hours a day. We also have to make sure that we exclude
                     #   weekend hours.
-                    num_weekends = util.calc_weekends(timing.start_time, timing.end_time)
+                    num_weekends = calc_weekends(timing.start_time, timing.end_time)
                     num_weekend_days = num_weekends*2
                     num_work_days = timing.total_time.days() - num_weekend_days
                     total_hours += num_work_days*8

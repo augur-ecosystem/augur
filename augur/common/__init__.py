@@ -191,3 +191,22 @@ def deep_get(dictionary, *keys):
     """
     default = None
     return reduce(lambda d, key: d.get(key) if d else default, keys, dictionary)
+
+
+def calc_weekends(start_day, end_day):
+    """
+    Calculate the number of weekends in a given date range.
+    :param start_day: Start of the range (datetime)
+    :param end_day: End of the range  (datetime)
+    :return: Returns the number of weekend
+    """
+    duration = end_day - start_day
+    days_until_weekend = [5, 4, 3, 2, 1, 1, 6]
+    adjusted_duration = duration - days_until_weekend[start_day]
+    if adjusted_duration < 0:
+        weekends = 0
+    else:
+        weekends = (adjusted_duration/7)+1
+    if start_day == 5 and duration % 7 == 0:
+        weekends += 1
+    return weekends
