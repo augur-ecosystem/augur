@@ -527,7 +527,7 @@ def get_historical_defect_data(num_weeks=8, context=None, force_update=False):
     return fetcher.fetch(num_weeks=num_weeks)
 
 
-def get_releases_since(start, end, force_update=False):
+def get_releases_since(start, end, context=None, force_update=False):
     """
     Gets all releases within the period between start and end
     Returns a dict that looks something like this:
@@ -555,7 +555,7 @@ def get_releases_since(start, end, force_update=False):
         end = start.ceil('day')
 
     from augur.fetchers import AugurRelease
-    fetcher = AugurRelease(force_update=force_update, augurjira=get_jira())
+    fetcher = AugurRelease(context=context, force_update=force_update, augurjira=get_jira())
     return fetcher.fetch(start=start, end=end)
 
 

@@ -24,6 +24,28 @@ COMPLETE_STATUSES = ["complete","resolved"]
 POSITIVE_RESOLUTIONS = ["fixed", "done", "deployed"]
 _CACHE = {}
 
+# Note: The order matters in this list.  Time based matches are first to ensure that
+#   the time is not truncated in cases where date matches are found then the rest of the
+#   list is skipped.
+POSSIBLE_DATE_TIME_FORMATS = [
+    "YYYY-MM-DD HH:mm",
+    "MM-DD-YYYY HH:mm",
+    "MM/DD/YYYY HH:mm",
+    "YYYY/MM/DD HH:mm",
+    "MM/DD/YYYY HH:mm",
+    "M/D/YYYY HH:mm",
+    "M/D/YY HH:mm",
+]
+
+POSSIBLE_DATE_FORMATS = [
+    "YYYY-MM-DD",
+    "MM-DD-YYYY",
+    "MM/DD/YYYY",
+    "YYYY/MM/DD",
+    "M/D/YYYY",
+    "M/D/YY",
+]
+
 SITE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 

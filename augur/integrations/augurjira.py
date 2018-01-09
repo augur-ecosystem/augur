@@ -598,7 +598,12 @@ class AugurJira(object):
         total_time = datetime.timedelta()
 
         if 'changelog' not in issue or not issue['changelog']:
-            return total_time
+            return {
+                "start_time":None,
+                "end_time":None,
+                "total_time":datetime.timedelta(seconds=0)
+            }
+
 
         history_list = issue['changelog']['histories']
 

@@ -1,6 +1,7 @@
 import datetime
 import json
 
+from arrow import Arrow
 from bson import ObjectId
 from jira.client import ResultList
 from jira.resources import Component, Issue
@@ -57,6 +58,8 @@ class AugurMongoSerializer(object):
                 d[key] = datetime.datetime.combine(value, datetime.datetime.min.time())
             elif isinstance(value, dict):
                 d[key] = self.transform_incoming(value)
+            elif isinstance(value, Arrow):
+                d[key] = value.datetime
             elif isinstance(value, list):
                 for item in value:
                     self.transform_incoming(item)
