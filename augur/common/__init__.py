@@ -130,10 +130,7 @@ def extract_jira_tickets(text):
     :return: A list of strings
     """
     match = re.search(JIRA_KEY_REGEX,text)
-    if match:
-        return match.groups()
-    else:
-        return []
+    return match.groups() or []
 
 
 def transform_status_string(status):
@@ -204,8 +201,8 @@ def get_date_range_from_strings(start,end, default_start=None, default_end=None)
 
 def deep_get(dictionary, *keys):
     """
-    Retrieves a deeply nested dictionary key checking for existing keys along the way.  Returns None if any key
-    is not found.
+    Retrieves a deeply nested dictionary key checking for existing keys along the way.  
+    Returns None if any key is not found.
     :param dictionary: The dictionary to retrieve the data from.
     :param default: The default value to return if there is a problem during the search
     :param keys: Ordered parameters representing the keys (in the order they should be referenced)

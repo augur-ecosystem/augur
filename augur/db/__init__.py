@@ -209,7 +209,13 @@ class Team(db.Entity):
     notification = orm.Optional("Notifications", reverse="team")
 
     def get_agile_board_jira_id(self):
-        return self.agile_board.jira_id
+        return self.agile_board.jira_id if self.agile_board else 0
+
+    def get_groups_as_string(self):
+        names = []
+        for g in self.groups:
+            names.append(g.name)
+        return ', '.join(names) if len(names) > 0 else "None"
 
 
 class Notifications(db.Entity):
