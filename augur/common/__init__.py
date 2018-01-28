@@ -1,5 +1,6 @@
 import os
 import re
+import string
 
 import arrow
 import datetime
@@ -97,20 +98,17 @@ def sprint_belongs_to_team(sprint, team_id):
     """
     Makes a decision about whether the given sprint (represented by a dict returned by the _sprints method
     :param sprint: The abridged version of the sprict dict.
-    :param team: The team id
+    :param team_id: The team id
     :return: Returns the True if the sprint belongs to the given team, false otherwise
     """
-    sprint_name_parts = sprint['name'].split('-')
-    team_from_sprint = ""
+    sprint_name = sprint['name']
     team_from_id = augur.api.get_team_by_id(team_id)
-    if len(sprint_name_parts) > 1:
-        team_from_sprint = sprint_name_parts[1].strip()
 
-    if not team_from_sprint:
-        is_valid_sprint = False
-    elif team_from_id.name not in team_from_sprint and team_from_sprint not in team_from_id.name:
-        # this checks both directions because it might be that the sprint name uses a
-        #   shortened version of the team's name.
+    # Remove the word "Team" from the team name (if necessary)
+    team_replace = re.compile(re.escape('team'), re.IGNORECASE)
+    team_name = team_replace.sub('', team_from_id.name).strip()
+
+    if team_name.lower() not in sprint_name.lower():
         is_valid_sprint = False
     else:
         is_valid_sprint = True
