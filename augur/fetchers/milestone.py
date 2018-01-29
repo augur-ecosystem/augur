@@ -144,6 +144,8 @@ class AugurMilestoneDataFetcher(AugurDataFetcher):
                 # remove the list of issues to keep the payload brief
                 stats['issues'] = {}
 
+            stats['workflow_info'] = self.context.workflow.as_json()
+
             return self.cache_data(stats)
         else:
             raise Exception("An invalid (or no) milestone was given")

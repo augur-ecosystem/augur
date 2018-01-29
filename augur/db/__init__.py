@@ -297,6 +297,17 @@ class Workflow(db.Entity):
         else:
             return []
 
+    def is_defect_ticket(self, project_key, issue_type):
+        if not project_key or not issue_type:
+            return False
+
+        for df in self.defect_projects:
+            if project_key.lower() == df.project_key.lower():
+                for df_type in df.issue_types:
+                    if df_type.tool_issue_type_name.lower() == issue_type.lower():
+                        return True
+        return False
+
     def status_ob_from_string(self, status_name):
         try:
             return filter(lambda x: x.tool_issue_status_name.lower() == status_name.lower(),
@@ -359,6 +370,16 @@ class Workflow(db.Entity):
 
     def positive_resolutions(self):
         return filter(lambda x: x.tool_issue_resolution_type.lower() == "positive", self.resolutions)
+
+    def negative_resolutions(self):
+        return filter(lambda x: x.tool_issue_resolution_type.lower() == "negative", self.resolutions)
+
+    def open_statuses(self):
+        """
+        Returns a list of all the statuses that are considered to be "open".
+        :return: A list of ToolIssueStatus objects.
+        """
+        return filter(lambda x: x.tool_issue_status_type.lower() == "open", self.statuses)
 
     def done_statuses(self):
         """
@@ -436,6 +457,20 @@ class Workflow(db.Entity):
         """
         from augur.integrations import augurjira
         return augurjira.positive_resolution_jql(self)
+
+    def as_json(self):
+        return {
+            "statuses": {
+                "open": [s.tool_issue_status_name for s in self.open_statuses()],
+                "in progress": [s.tool_issue_status_name for s in self.in_progress_statuses()],
+                "done": [s.tool_issue_status_name for s in self.done_statuses()]
+            },
+            "projects": self.get_project_keys(),
+            "resolutions": {
+                "positive":[pr.tool_issue_resolution_name for pr in self.positive_resolutions()],
+                "negative":[pr.tool_issue_resolution_name for pr in self.negative_resolutions()],
+            }
+        }
 
 
 class Group(db.Entity):
