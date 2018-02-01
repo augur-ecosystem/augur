@@ -1,8 +1,6 @@
 import datetime
 from collections import defaultdict
 
-from dateutil.parser import parse
-
 import augur
 from augur import common
 from augur.common import const, cache_store
@@ -32,6 +30,7 @@ class AugurSprintDataFetcher(AugurDataFetcher):
         self.team_id = None
         self.get_history = None
         self.sprint_id = None
+        self.limit = 5
         super(AugurSprintDataFetcher, self).__init__(*args, **kwargs)
 
     def init_cache(self):
@@ -55,6 +54,8 @@ class AugurSprintDataFetcher(AugurDataFetcher):
 
         # get_history is not a required param. If not given then it defaults to False.
         self.get_history = args['get_history'] if 'get_history' in args else False
+
+        self.limit = args['limit'] if 'limit' in args else 5
 
         if not self.team_id and self.sprint_id not in (const.SPRINT_LAST_COMPLETED, const.SPRINT_CURRENT):
             raise LookupError("You cannot request a specific sprint ID if you do not specify a team ID.")
@@ -97,7 +98,7 @@ class AugurSprintDataFetcher(AugurDataFetcher):
 
         elif self.get_history:
             # get the sprint history for a specific team
-            sprints = self.get_detailed_sprint_list_for_team(self.team_id, limit=5)
+            sprints = self.get_detailed_sprint_list_for_team(self.team_id, limit=self.limit)
             to_calculate = []
             separated_sprint_data = []
             for s in sprints:
@@ -117,16 +118,6 @@ class AugurSprintDataFetcher(AugurDataFetcher):
 
         self.recent_data = results
         return results
-
-    @staticmethod
-    def _clean_detailed_sprint_info(sprint_data):
-        # convert date strings to dates
-        for key, value in sprint_data['sprint'].iteritems():
-            if key in ['startDate', 'endDate', 'completeDate']:
-                try:
-                    sprint_data['sprint'][key] = parse(value)
-                except ValueError:
-                    sprint_data['sprint'][key] = None
 
     def get_detailed_sprint_info_for_team(self, team_id, sprint_id):
         """

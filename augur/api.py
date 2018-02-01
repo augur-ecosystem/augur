@@ -160,18 +160,6 @@ def get_groups():
     return orm.select(g for g in db.Group)[:]
 
 
-def get_historic_sprint_stats(team, context=None, force_update=False):
-    """
-    Gets all the sprint objects for a team (decorated with other custom info) and runs them through the
-     analyzer to get specific ticket info for each sprint.  This caches both the sprint objects and the
-      converted sprint data.
-    """
-    context = context or get_default_context()
-    from augur.fetchers import AugurSprintDataFetcher
-    fetcher = AugurSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
-    return fetcher.fetch(get_history=True, team_id=team)
-
-
 def get_sprint_info(team_id, sprint=None, context=None, force_update=False):
     """
     Returns a timedelta showing the remaining time
@@ -338,6 +326,146 @@ def get_epics_from_sprint(sprint, context):
 
     return epics
 
+
+def get_sprint_history_by_team(team, sort_by=SPRINT_SORTBY_ENDDATE, descending=True, limit=None):
+    """
+    Gets a list of sprints for the given team.  This will load from cache in some cases and get the most recent
+     when it makes to do so.
+    :param team: The ID of the team to retrieve sprints for.
+    :return: Returns an array of sprint objects.
+    """
+    ua_sprints = augur.api.get_abridged_sprint_list_for_team(team, limit)
+    sprintdict_list = []
+
+    for s in ua_sprints:
+        # get_detailed... will handle caching
+        sprint_ob = self.get_detailed_sprint_info_for_team(team, s['id'])
+
+        if sprint_ob: sprintdict_list.append(sprint_ob)
+
+    def sort_by_end_date(cmp1, cmp2):
+        return -1 if cmp1['team_sprint_data']['sprint']['endDate'] < cmp2['team_sprint_data']['sprint'][
+            'endDate'] else 1
+
+    SORTKEYS = {
+        SPRINT_SORTBY_ENDDATE: sort_by_end_date
+    }
+
+    if sort_by in SORTKEYS:
+        return sorted(sprintdict_list, SORTKEYS[sort_by], reverse=descending)
+    else:
+        return sprintdict_list
+
+
+def get_sprint_by_id(self, sprint_id):
+    """
+    This will get sprint data for the the given sprint.  You can specify you want the current or the
+    most recently closed sprint for the team by using one of the SPRINT_XXX consts.  You can also specify an ID
+    of a sprint if you know what you want.  Or you can pass in a sprint object to confirm that it's a valid
+    sprint object.  If it is, it will be returned, otherwise a SprintNotFoundException will be thrown.
+    :param team_id: The ID of the team
+    :param sprint_id: The ID, const, or sprint object.
+    :return: Returns a sprint object
+    """
+
+    # We either don't have anything cached or we decided not to use it.  So start from scratch by retrieving
+    # the detailed sprint data from Jira
+    sprint_abridged = augur.api.get_abridged_team_sprint(team_id, sprint_id)
+    t.split("Retrieve abridged sprint data")
+
+    if not sprint_abridged:
+        return None
+
+    # see if it's in the cache.  If it is, then check if it's cached in the active state.  If it is,
+    #   then throw away the cached version and reload from JIRA
+    team_stats = self.cache.load_sprint(sprint_abridged['id'])
+
+    if team_stats and team_stats['team_sprint_data']['sprint']['state'] == 'CLOSED':
+        return team_stats
+
+    team_object = augur.api.get_team_by_id(team_id)
+    sprint_ob = self.augurjira.sprint_info(team_object.get_agile_board_jira_id(), sprint_abridged['id'])
+    t.split("Retrieve full sprint data")
+
+    if not sprint_ob:
+        return None
+
+    # convert date strings to actual dates.
+    self._clean_detailed_sprint_info(sprint_ob)
+    t.split("Cleaned sprint data")
+
+    now = datetime.datetime.now().replace(tzinfo=None)
+
+    if sprint_ob['sprint']['state'] == 'ACTIVE':
+        sprint_ob['actual_length'] = now - sprint_ob['sprint']['startDate']
+        sprint_ob['overdue'] = sprint_ob['actual_length'] > datetime.timedelta(days=16)
+    else:
+        sprint_ob['actual_length'] = sprint_ob['sprint']['completeDate'] - sprint_ob['sprint']['startDate']
+
+        # not applicable if the sprint is complete or happens in the future.
+        sprint_ob['overdue'] = False
+
+    # Get point completion standard deviation
+    standard_dev_map = defaultdict(int)
+    total_completed_points = 0
+    projects = self.context.workflow.get_projects(key_only=True)
+    for issue in sprint_ob['contents']['completedIssues']:
+
+        # ignore any issues that are not part of the context.
+        if project_key_from_issue_key(issue['key']).upper() not in projects:
+            continue
+
+        points = issue.get('currentEstimateStatistic', {}).get('statFieldValue', {'value': 0}).get('value', 0)
+        total_completed_points += points
+        if 'assignee' in issue:
+            standard_dev_map[issue['assignee']] += points
+        else:
+            print "Found a completed issue without an assignee - %s" % issue['key']
+
+    std_dev = common.standard_deviation(standard_dev_map.values())
+    t.split("Calculated standard deviation and point sums")
+
+    # Replace "null" with 0
+    for val in ('completedIssuesEstimateSum', 'issuesNotCompletedEstimateSum', 'puntedIssuesEstimateSum'):
+        if val in sprint_ob['contents'] and isinstance(sprint_ob['contents'][val], dict) and \
+                sprint_ob['contents'][val]['text'] == 'null':
+            sprint_ob['contents'][val]['text'] = "0"
+
+    if sprint_ob['contents']['issueKeysAddedDuringSprint']:
+
+        # get issues that were added during the sprint that are part of this context.
+        results = self.augurjira.execute_jql("(%s) and key in ('%s')" %
+                                             (projects_to_jql(self.context.workflow),
+                                              "','".join(sprint_ob['contents']['issueKeysAddedDuringSprint'].keys())))
+
+        sprint_ob['contents']['issueKeysAddedDuringSprint'] = results
+        t.split("Got issue data for issues added during sprint")
+
+    if sprint_ob['contents']['issuesNotCompletedInCurrentSprint']:
+        incomplete_keys = [x['key'] for x in sprint_ob['contents']['issuesNotCompletedInCurrentSprint']]
+
+        # get all the incomplete tickets that are part of this context
+        jql = "(%s) and key in ('%s')" % \
+              (projects_to_jql(self.context.workflow), "','".join(incomplete_keys))
+        results = self.augurjira.execute_jql_with_analysis(jql, total_only=False, context=self.context)
+
+        sprint_ob['contents']['issuesNotCompletedInCurrentSprint'] = results['issues'].values()
+        sprint_ob['contents']['incompleteIssuesFullDetail'] = results['issues'].values()
+
+        t.split("Got issue data for issues not completed during sprint")
+
+    team_stats = {
+        "team_name": team_object.name,
+        "team_id": team_id,
+        "sprint_id": sprint_id,
+        "board_id": team_object.agile_board.jira_id,
+        "std_dev": std_dev,
+        "contributing_devs": standard_dev_map.keys(),
+        "team_sprint_data": sprint_ob,
+        "total_completed_points": total_completed_points
+    }
+
+    return team_stats
 
 def get_abridged_team_sprint(team_id, sprint_id=const.SPRINT_CURRENT):
     """
@@ -884,6 +1012,16 @@ def get_memory_cached_data(key):
         return None
 
 
+def get_board_metrics(board_id, context):
+    """
+    Retrieves information about the backlog  for the given board.
+    :param board_id:  The ID of the board to get the backlog from
+    :param context: The context to help define how to interpret the data retrieved
+    :return: Returns a dict with information about the backlog
+    """
+    return get_jira().get_board_backlog_metrics(board_id)
+
+
 def cache_data(document, key, storage_type=None):
     """
     Store arbitrary data in the cache 
@@ -945,19 +1083,7 @@ def get_issue_field_from_custom_name(name):
     :param name: The friendly name of the field
     :return: A string with the true name of a field.
     """
-
-    # if we have already stored fields, re-use
-    fields_json = get_memory_cached_data('custom_fields')
-    if not fields_json:
-        # cache the fields for later
-        fields_json = memory_cache_data(get_jira().jira.fields(), 'custom_fields')
-
-    if fields_json:
-        for f in fields_json:
-            if f['name'].lower() == name.lower():
-                return f['id']
-
-    return None
+    return get_jira().get_field_by_name(name)
 
 
 def get_projects_by_category(category):

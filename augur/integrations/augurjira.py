@@ -2,14 +2,17 @@ import datetime
 import hashlib
 
 import logging
+
+from collections import defaultdict
 from dateutil.parser import parse
-from jira import JIRA, Issue, Project
+from jira import JIRA, Issue
+from jira.exceptions import JIRAError
 from munch import Munch
 
-from augur import api, db
+from augur import api, db, const
 from augur import common
 from augur import settings
-from augur.common import cache_store,calc_weekends
+from augur.common import cache_store, calc_weekends, clean_detailed_sprint_info
 from augur.common.timer import Timer
 from augur.integrations.augurtempo import AugurTempo
 
@@ -92,15 +95,16 @@ class AugurJira(object):
     def __init__(self, server=None, username=None, password=None):
 
         self.logger = logging.getLogger("augurjira")
-
         self.server = server or settings.main.integrations.jira.instance
         self.username = username or settings.main.integrations.jira.username
         self.password = password or settings.main.integrations.jira.password
+        self.fields = None
 
         self.jira = JIRA(basic_auth=(
             self.username,
             self.password),
-            server=self.server)
+            server=self.server,
+            options={"agile_rest_path":"agile"})
 
         self.mongo = cache_store.AugurStatsDb()
         self.general_cache = cache_store.AugurCachedResultSets(self.mongo)
@@ -113,9 +117,31 @@ class AugurJira(object):
         return self.jira
 
     ######################################################################
-    # PROJECTS, COMPONENTS AND VERSIONS
+    # PROJECTS, FIELDS, COMPONENTS AND VERSIONS
     #  Get project related information
     ######################################################################
+
+    def get_field_by_name(self, name):
+        """
+        Returns the true field name of a jira field based on its friendly name
+        :param jira: The JIRA object to use to retrieve field data if necessary
+        :param name: The friendly name of the field
+        :return: A string with the true name of a field.
+        """
+        if not self.fields:
+            # if we have already stored fields, re-use
+            self.fields = api.get_memory_cached_data('custom_fields')
+            if not self.fields:
+                # cache the fields for later
+                fields = api.memory_cache_data(self.jira.fields(), 'custom_fields')
+                self.fields = {f['name'].lower():f for f in fields }
+
+        if self.fields:
+            if name.lower() in self.fields:
+                return self.fields[name.lower()]['id']
+
+        # nothing found so return what was passed
+        return name
 
     def get_projects(self):
         """Get a list of project Resources from the server visible to the current authenticated user."""
@@ -549,6 +575,329 @@ class AugurJira(object):
         """
         return self.jira._get_json('rapid/charts/sprintreport?rapidViewId=%s&sprintId=%s' % (board_id, sprint_id),
                                    base=self.jira.AGILE_BASE_URL)
+
+    def get_team_sprints_simple(self, team_id, limit=None):
+        """
+        Gets a list of sprints for the given team.  Will always load this from Jira.  It will also add some data. The
+        list is returned in sequence order which is usually the order in which the sprints occured in time.
+        :param team_id: The ID of the team to retrieve sprints for.
+        :param limit: The number of sprints back to go (limit=5 would mean only the last 5 sprints)
+        :return: Returns an array of sprint objects.
+        """
+
+        team_ob = api.get_team_by_id(team_id)
+        if team_ob.agile_board:
+            try:
+                team_sprints_abridged = self.get_sprints_from_board(team_ob.agile_board.jira_id)
+            except JIRAError, e:
+                if e.status_code == 404:
+                    self.logger.error("Could not find the Agile Board with ID %d"%team_ob.agile_board.jira_id)
+                    team_sprints_abridged = []
+                else:
+                    raise e
+        else:
+            team_sprints_abridged = []
+            self.logger.warning("No agile board has been defined for this team")
+
+        # the initial list can contain sprints from other boards in cases where tickets spent time on
+        # both boards.  So we filter out any that do not belong to the team.
+        if team_sprints_abridged:
+            filtered_sprints = [sprint for sprint in team_sprints_abridged if common.sprint_belongs_to_team(sprint, team_id)]
+            filtered_sorted_list = sorted(filtered_sprints, key=lambda k: k['sequence'])
+        else:
+            filtered_sorted_list = []
+
+        if limit:
+            return filtered_sorted_list[-limit:]
+        else:
+            return filtered_sorted_list
+
+    def get_sprints_by_team(self, team_id, sort_by=const.SPRINT_SORTBY_ENDDATE, descending=True, limit=None):
+        """
+        This returns detailed information about each sprint associated with a team.  The team must have an
+        agile board associated it.
+        :param team_id: The ID of the team to retrieve sprints for.
+        :return: Returns an array of sprint objects.
+        """
+        ua_sprints = augur.api.get_abridged_sprint_list_for_team(team_id, limit)
+        sprintdict_list = []
+
+        for s in ua_sprints:
+            # get_detailed... will handle caching
+            sprint_ob = self.get_detailed_sprint_info_for_team(team, s['id'])
+
+            if sprint_ob: sprintdict_list.append(sprint_ob)
+
+        def sort_by_end_date(cmp1, cmp2):
+            return -1 if cmp1['team_sprint_data']['sprint']['endDate'] < cmp2['team_sprint_data']['sprint'][
+                'endDate'] else 1
+
+        SORTKEYS = {
+            SPRINT_SORTBY_ENDDATE: sort_by_end_date
+        }
+
+        if sort_by in SORTKEYS:
+            return sorted(sprintdict_list, SORTKEYS[sort_by], reverse=descending)
+        else:
+            return sprintdict_list
+
+    def get_sprints_by_board(self, board_id, sort_by=const.SPRINT_SORTBY_ENDDATE, descending=True, limit=None):
+
+        ua_sprints = augur.api.get_abridged_sprint_list_for_team(team_id, limit)
+        sprintdict_list = []
+
+        for s in ua_sprints:
+            # get_detailed... will handle caching
+            sprint_ob = self.get_detailed_sprint_info_for_team(team, s['id'])
+
+            if sprint_ob: sprintdict_list.append(sprint_ob)
+
+        def sort_by_end_date(cmp1, cmp2):
+            return -1 if cmp1['team_sprint_data']['sprint']['endDate'] < cmp2['team_sprint_data']['sprint'][
+                'endDate'] else 1
+
+        SORTKEYS = {
+            SPRINT_SORTBY_ENDDATE: sort_by_end_date
+        }
+
+        if sort_by in SORTKEYS:
+            return sorted(sprintdict_list, SORTKEYS[sort_by], reverse=descending)
+        else:
+            return sprintdict_list
+
+    def get_sprint_simple_by_id(self, sprint_id, team_id):
+        """
+        Retrieves the sprint object identified by the given ID.  If the given object
+        is a sprint object already it will be returned.  Otherwise, the sprint ID will be looked up in JIRA
+        :param sprint_id: Either one of the SPRINT_XXX consts, an ID, or a sprint object.
+        :param team_id: (optional) The ID of the team only required if the sprint ID given is one of the SPRINT_
+                                    constants
+        :return: Returns a sprint object or throws a TeamSprintNotFoundException
+        """
+
+        def get_key(item):
+            return item['sequence']
+
+        sprints = self.get_team_sprints_simple(team_id)
+        sprints = sorted(sprints, key=get_key, reverse=True)
+
+        sprint = None
+
+        if sprint_id == const.SPRINT_LAST_COMPLETED:
+            # Note: get_issue_sprints returns results that are sorted in descending order by end date
+            for s in sprints:
+                if s['state'] == 'FUTURE':
+                    continue
+                if s['state'] == 'ACTIVE' and not 'overdue' in s:
+                    # this is an active sprint that is not completed yet.
+                    continue
+                elif s['state'] == 'ACTIVE' and 'overdue' in s:
+                    # this is a sprint that should have been marked complete but hasn't been yet
+                    sprint = s
+                elif s['state'] == 'CLOSED':
+                    # this is the first sprint that is not marked as active so we can assume that it's the last
+                    # completed sprint.
+                    sprint = s
+                    break
+
+        elif sprint_id == const.SPRINT_BEFORE_LAST_COMPLETED:
+            # Note: get_issue_sprints returns results that are sorted in descending order by end date
+            sprint_last = None
+            sprint_before_last = None
+            for s in sprints:
+                if s['state'] == 'CLOSED':
+                    # this is the first sprint that is not marked as active so we can assume that it's the last
+                    # completed sprint.
+                    if not sprint_last:
+                        # so we've gotten to the most recently closed one but we're looking for the one before that.
+                        sprint_last = s
+                    else:
+                        # this is the one before the last one.
+                        sprint_before_last = s
+                        break
+
+            sprint = sprint_before_last
+
+        elif sprint_id == const.SPRINT_CURRENT:
+            # Note: get_issue_sprints returns results that are sorted in descending order by end date
+            for s in sprints:
+                if s['state'] == 'ACTIVE':
+                    # this is an active sprint that is not completed yet.
+                    sprint = s
+                    break
+                else:
+                    continue
+
+        elif isinstance(sprint_id, dict):
+            # a sprint object was given instead of just an id
+            sprint = sprint_id
+        else:
+            # Note: get_issue_sprints returns results that are sorted in descending order by end date
+            for s in sprints:
+                if s['id'] == sprint_id:
+                    sprint = s
+                    break
+                else:
+                    continue
+
+        return sprint
+
+    def get_sprint_by_id(self, sprint_id, context, team_id=None):
+        """
+        This will get sprint data for the the given sprint.  You can specify you want the current or the
+        most recently closed sprint for the team by using one of the SPRINT_XXX consts.  You can also specify an ID
+        of a sprint if you know what you want.  Or you can pass in a sprint object to confirm that it's a valid
+        sprint object.  If it is, it will be returned, otherwise a SprintNotFoundException will be thrown.
+        :param sprint_id: The ID, const, or sprint object.
+        :param team_id: The ID of the team (required if the sprint ID is one of the SPRINT_ constants.
+        :return: Returns a sprint object
+        """
+
+        # We either don't have anything cached or we decided not to use it.  So start from scratch by retrieving
+        # the detailed sprint data from Jira
+        sprint_abridged = self.get_sprint_simple_by_id(sprint_id, team_id)
+
+        if not sprint_abridged:
+            return None
+
+        team_object = api.get_team_by_id(team_id)
+        sprint_ob = self.sprint_info(team_object.get_agile_board_jira_id(), sprint_abridged['id'])
+
+        if not sprint_ob:
+            return None
+
+        # convert date strings to actual dates.
+        clean_detailed_sprint_info(sprint_ob)
+
+        now = datetime.datetime.now().replace(tzinfo=None)
+
+        if sprint_ob['sprint']['state'] == 'ACTIVE':
+            sprint_ob['actual_length'] = now - sprint_ob['sprint']['startDate']
+            sprint_ob['overdue'] = sprint_ob['actual_length'] > datetime.timedelta(days=16)
+        else:
+            sprint_ob['actual_length'] = sprint_ob['sprint']['completeDate'] - sprint_ob['sprint']['startDate']
+
+            # not applicable if the sprint is complete or happens in the future.
+            sprint_ob['overdue'] = False
+
+        # Get point completion standard deviation
+        standard_dev_map = defaultdict(int)
+        total_completed_points = 0
+        projects = context.workflow.get_projects(key_only=True)
+        for issue in sprint_ob['contents']['completedIssues']:
+
+            # ignore any issues that are not part of the context.
+            if project_key_from_issue_key(issue['key']).upper() not in projects:
+                continue
+
+            points = issue.get('currentEstimateStatistic', {}).get('statFieldValue', {'value': 0}).get('value', 0)
+            total_completed_points += points
+            if 'assignee' in issue:
+                standard_dev_map[issue['assignee']] += points
+            else:
+                print "Found a completed issue without an assignee - %s" % issue['key']
+
+        std_dev = common.standard_deviation(standard_dev_map.values())
+
+        # Replace "null" with 0
+        for val in ('completedIssuesEstimateSum', 'issuesNotCompletedEstimateSum', 'puntedIssuesEstimateSum'):
+            if val in sprint_ob['contents'] and isinstance(sprint_ob['contents'][val], dict) and \
+                    sprint_ob['contents'][val]['text'] == 'null':
+                sprint_ob['contents'][val]['text'] = "0"
+
+        if sprint_ob['contents']['issueKeysAddedDuringSprint']:
+
+            # get issues that were added during the sprint that are part of this context.
+            results = self.augurjira.execute_jql("(%s) and key in ('%s')" %
+                                                 (projects_to_jql(self.context.workflow),
+                                                  "','".join(sprint_ob['contents']['issueKeysAddedDuringSprint'].keys())))
+
+            sprint_ob['contents']['issueKeysAddedDuringSprint'] = results
+
+        if sprint_ob['contents']['issuesNotCompletedInCurrentSprint']:
+            incomplete_keys = [x['key'] for x in sprint_ob['contents']['issuesNotCompletedInCurrentSprint']]
+
+            # get all the incomplete tickets that are part of this context
+            jql = "(%s) and key in ('%s')" % \
+                  (projects_to_jql(self.context.workflow), "','".join(incomplete_keys))
+            results = self.augurjira.execute_jql_with_analysis(jql, total_only=False, context=self.context)
+
+            sprint_ob['contents']['issuesNotCompletedInCurrentSprint'] = results['issues'].values()
+            sprint_ob['contents']['incompleteIssuesFullDetail'] = results['issues'].values()
+
+        team_stats = {
+            "team_name": team_object.name,
+            "team_id": team_id,
+            "sprint_id": sprint_id,
+            "board_id": team_object.agile_board.jira_id,
+            "std_dev": std_dev,
+            "contributing_devs": standard_dev_map.keys(),
+            "team_sprint_data": sprint_ob,
+            "total_completed_points": total_completed_points
+        }
+
+        return team_stats
+
+    def get_board_backlog_metrics(self, board_id):
+        result = self.jira.get_backlog_issues(board_id,json_result=True)
+        simplified_issue_list = []
+
+        metrics = {
+            "issues": simplified_issue_list,
+            "points":{
+                "unpointed":[],
+                # pointed stories will be grouped by number of points keyed on their point value converted to string
+            },
+            "grade":""
+        }
+
+        pointed = 0
+        unpointed = 0
+
+        for issue in result['issues']:
+            simple_issue = api.simplify_issue(issue)
+            simplified_issue_list.append(simple_issue)
+
+            points = simple_issue['points']
+            if not points:
+                metrics['points']['unpointed'].append(simple_issue)
+                unpointed += 1
+            else:
+                pointed += 1
+                key = str(points)
+                if key not in metrics['points']:
+                    metrics['points'][key] = []
+
+                metrics['points'][key].append(simple_issue)
+
+        total = pointed+unpointed
+        if total > 0:
+            percentage = (float(pointed)/float(total))*100.0
+        else:
+            percentage = 0.0
+
+        metrics['total_unpointed_tickets'] = unpointed
+        metrics['total_pointed_tickets'] = pointed
+        metrics['pointed_percentage'] = percentage
+
+        # now look at velocity for that board
+        sprints = self.get_sprints_from_board()by_team(team)
+
+        if percentage >= 90.0:
+            grade = "A"
+        elif percentage >= 80.0:
+            grade = "B"
+        elif percentage >= 70.0:
+            grade = "C"
+        elif percentage >= 60.0:
+            grade = "D"
+        else:
+            grade = "E"
+
+        metrics['grade'] = grade
+
+        return metrics
+
 
     @staticmethod
     def estimate_time_spent_in_hours(issue, statuses):

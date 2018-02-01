@@ -17,6 +17,8 @@ import serializers
 import formatting
 
 from math import sqrt
+from dateutil.parser import parse
+
 import const
 
 JIRA_KEY_REGEX = r"([A-Za-z]+\-\d{1,6})"
@@ -94,26 +96,19 @@ def clean_issue(issue):
     }
 
 
-def sprint_belongs_to_team(sprint, team_id):
+def find_team_name_in_string(team_name, string_to_search):
     """
-    Makes a decision about whether the given sprint (represented by a dict returned by the _sprints method
-    :param sprint: The abridged version of the sprict dict.
-    :param team_id: The team id
-    :return: Returns the True if the sprint belongs to the given team, false otherwise
-    """
-    sprint_name = sprint['name']
-    team_from_id = augur.api.get_team_by_id(team_id)
+    Utility that searches the given string for the given team name.  It does the work of stripping out the
+    word "Team" from the team_name for you so it's more permissive than just doing a substring search.
 
+    :param team_name: The name of the team
+    :param string_to_search: The source string to search for the team name
+    :return: Returns the True if the name was found, False otherwise.
+    """
     # Remove the word "Team" from the team name (if necessary)
     team_replace = re.compile(re.escape('team'), re.IGNORECASE)
-    team_name = team_replace.sub('', team_from_id.name).strip()
-
-    if team_name.lower() not in sprint_name.lower():
-        is_valid_sprint = False
-    else:
-        is_valid_sprint = True
-
-    return is_valid_sprint
+    team_name = team_replace.sub('', team_name).strip()
+    return team_name.lower() in string_to_search.lower()
 
 
 def utc_to_local(utc_dt):
@@ -227,3 +222,19 @@ def calc_weekends(start_day, end_day):
     if start_day == 5 and duration % 7 == 0:
         weekends += 1
     return weekends
+
+
+def clean_detailed_sprint_info(sprint_data):
+    """
+    Takes the given sprint object and cleans it up to replace the date time values to actual python datetime objects.
+    :param sprint_data:
+    :return:
+    """
+    # convert date strings to dates
+    for key, value in sprint_data['sprint'].iteritems():
+        if key in ['startDate', 'endDate', 'completeDate']:
+            try:
+                sprint_data['sprint'][key] = parse(value)
+            except ValueError:
+                sprint_data['sprint'][key] = None
+
