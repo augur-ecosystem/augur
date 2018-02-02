@@ -36,6 +36,7 @@ from augur.common.cache_store import AugurCachedResultSets
 
 from augur.common import const, cache_store
 from augur import db
+from augur.common.const import SPRINT_SORTBY_ENDDATE
 from augur.db import EventLog
 
 CACHE = dict()

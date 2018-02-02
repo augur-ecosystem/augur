@@ -1,7 +1,7 @@
 import unittest
 
 import datetime
-from jira import JIRA, Issue
+from objects import JIRA, Issue
 
 from augurjira import AugurJira
 from augur.api import get_jira

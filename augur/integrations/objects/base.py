@@ -2,23 +2,27 @@ import logging
 
 from dateutil.parser import parse
 
+class InvalidId(Exception):
+    pass
+
+
+class InvalidData(Exception):
+    pass
+
 
 class JiraObject(object):
 
     def __init__(self, source, **kwargs):
         self.source = source
         self.logger = logging.getLogger("augurjira")
-        if not self._options:
-            self._options = kwargs
-        else:
-            self._options.update(kwargs)
+        self._options = kwargs
 
     def option(self, key, default=None):
         return self._options[key] if key in self._options else default
 
     def load(self, **kwargs):
         self._options.update(kwargs)
-        self._load()
+        return self._load()
 
     def _load(self):
         raise NotImplemented()

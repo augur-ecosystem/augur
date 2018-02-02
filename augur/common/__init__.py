@@ -5,8 +5,10 @@ import string
 import arrow
 import datetime
 import pytz
+from munch import munchify
 
 import augur
+from augur import db
 
 __author__ = 'karim'
 
@@ -238,3 +240,127 @@ def clean_detailed_sprint_info(sprint_data):
             except ValueError:
                 sprint_data['sprint'][key] = None
 
+
+def status_to_dict_key(status):
+    if isinstance(status, db.ToolIssueStatus):
+        status_str = status.tool_issue_status_name
+    else:
+        status_str = status
+
+    return "%s" % status_str.lower().replace(" ", "_")
+
+
+def clean_username(username):
+    """
+    This cleans up a username to ensure it doesn't have any characters that would interfere with things
+    like mongo storage, dict key use, database storage, etc.
+    :param username:
+    :return:
+    """
+    return username.replace(".", "_")
+
+
+@staticmethod
+def estimate_time_spent_in_hours(issue, statuses):
+    """
+    Calculates the number of hours spent on a ticket based only on the time spent in a given
+    status.  This is useful when the engineer has not been keeping track of work hours using the work log
+    feature in Jira.
+    :param issue: The issue dict (as retrieved through augurjira)
+    :param statuses: A list of statuses (strings).
+    :return: Returns a float that equals the number of hours calculated.
+    """
+    assert issue
+
+    total_hours = 0.0
+    for status in statuses:
+        timing = AugurJira.get_issue_status_timing_info(issue,status)
+        if timing:
+            timing = Munch(timing)
+            total_hours += timing.total_time.hours()
+            if timing.total_time.days() > 0:
+                # if more than a day then we have to adjust the total hours to take into account
+                #   that people don't work 24 hours a day. We also have to make sure that we exclude
+                #   weekend hours.
+                num_weekends = calc_weekends(timing.start_time, timing.end_time)
+                num_weekend_days = num_weekends*2
+                num_work_days = timing.total_time.days() - num_weekend_days
+                total_hours += num_work_days*8
+    return total_hours
+
+
+def get_issue_status_timing_info(issue, status):
+    """
+    Gets a single tickets timing information including when in started, ended and the total time in the status.
+    :param issue: The ticket in dictionary form
+    :param status: The ToolIssueStatus to look for.
+    :return: Returns a dict containing:
+                start_time: datetime when the issue first started in the status
+                end_time: datetime when the issue last left the status
+                total_time: timedelta with the total time in status
+    """
+    status_name = status.tool_issue_status_name
+    track_time = None
+    total_time = datetime.timedelta()
+
+    if 'changelog' not in issue or not issue['changelog']:
+        return {
+            "start_time":None,
+            "end_time":None,
+            "total_time":datetime.timedelta(seconds=0)
+        }
+
+    history_list = issue['changelog']['histories']
+
+    # added sorting past > present because the API is inconsistently ordering the results.
+    history_list.sort(key=lambda x: x['id'], reverse=False)
+
+    start_time = None
+    end_time = None
+    for history in history_list:
+        items = history['items']
+
+        for item in items:
+            if item['field'] == 'status' and item['toString'].lower() == status_name.lower():
+                # start status
+                track_time = parse(history['created'])
+                if not start_time:
+                    start_time = track_time
+
+                break
+            elif track_time and item['field'] == 'status' and item['fromString'].lower() == status_name.lower():
+                # end status
+                if track_time:
+                    # only recalculate if track_time has a value.  It can happen that track_time has no
+                    # value if the API only returns X number of historical items and the
+                    total_time += (parse(history['created']) - track_time)
+                track_time = None
+                break
+
+    if track_time and not total_time:
+        # In this case the issue is currently in the requested status which means we need to set the "end" time to
+        #   NOW because there's no record of the *next* status to subtract from.
+        end_time = utc_to_local(datetime.datetime.now())
+        total_time = end_time - track_time
+    else:
+        end_time = track_time
+
+    return munchify({
+        "start_time":start_time,
+        "end_time":end_time,
+        "total_time":total_time
+    })
+
+def get_time_in_status(issue, status):
+    """
+    Gets a single tickets time in a given status.  Calculates by looking at the history for the issue
+    and adding up all the time that the ticket was in the given status.
+    :param issue: The ticket in dictionary form
+    :param status: The ToolIssueStatus to look for.
+    :return: Returns the datetime.timedelta time in status.
+    """
+    timing_info = get_issue_status_timing_info(issue,status)
+    if timing_info:
+        return timing_info['total_time']
+    else:
+        return None
