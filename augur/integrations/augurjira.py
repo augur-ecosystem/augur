@@ -15,6 +15,9 @@ from augur import settings
 from augur.common import cache_store, calc_weekends, clean_detailed_sprint_info
 from augur.common.timer import Timer
 from augur.integrations.augurtempo import AugurTempo
+from augur.integrations.objects.board import JiraBoard
+from augur.integrations.objects.metrics import BoardMetrics
+
 
 class TeamSprintNotFoundException(Exception):
     pass
@@ -879,63 +882,12 @@ class AugurJira(object):
 
         return team_stats
 
-    def get_board_backlog_metrics(self, board_id):
-        result = self.jira.get_backlog_issues(board_id,json_result=True)
-        simplified_issue_list = []
+    def get_board_backlog_metrics(self, board_id, context):
 
-        metrics = {
-            "issues": simplified_issue_list,
-            "points":{
-                "unpointed":[],
-                # pointed stories will be grouped by number of points keyed on their point value converted to string
-            },
-            "grade":""
-        }
-
-        pointed = 0
-        unpointed = 0
-
-        for issue in result['issues']:
-            simple_issue = api.simplify_issue(issue)
-            simplified_issue_list.append(simple_issue)
-
-            points = simple_issue['points']
-            if not points:
-                metrics['points']['unpointed'].append(simple_issue)
-                unpointed += 1
-            else:
-                pointed += 1
-                key = str(points)
-                if key not in metrics['points']:
-                    metrics['points'][key] = []
-
-                metrics['points'][key].append(simple_issue)
-
-        total = pointed+unpointed
-        if total > 0:
-            percentage = (float(pointed)/float(total))*100.0
+        board = JiraBoard(self, board_id=board_id)
+        if board.load():
+            metrics = BoardMetrics(context,board)
+            return metrics.backlog_analysis()
         else:
-            percentage = 0.0
-
-        metrics['total_unpointed_tickets'] = unpointed
-        metrics['total_pointed_tickets'] = pointed
-        metrics['pointed_percentage'] = percentage
-
-        # now look at velocity for that board
-        # sprints = self.get_sprints_from_boardby_team(team)
-
-        if percentage >= 90.0:
-            grade = "A"
-        elif percentage >= 80.0:
-            grade = "B"
-        elif percentage >= 70.0:
-            grade = "C"
-        elif percentage >= 60.0:
-            grade = "D"
-        else:
-            grade = "E"
-
-        metrics['grade'] = grade
-
-        return metrics
+            return None
 

@@ -3,11 +3,10 @@ import exceptions
 import json
 import logging
 import re
-from types import MethodType
 
 import github
 import yaml
-from github import Github, GithubException
+from github import Github
 from github.GithubObject import GithubObject
 
 from augur import settings

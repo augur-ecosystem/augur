@@ -2,9 +2,10 @@ import logging
 import unittest
 import json
 import os
+import pprint
 
 import sys
-from munch import Munch, munchify
+from munch import munchify
 from pony import orm
 
 from augur import db, AugurContext
@@ -12,7 +13,7 @@ from augur.integrations.objects.board import JiraBoard, JiraSprint
 from augur import settings
 from augur.integrations.augurjira import AugurJira
 from augur.integrations.objects.issue import JiraIssueCollection
-from augur.integrations.objects.metrics import IssueCollectionMetrics
+from augur.integrations.objects.metrics import IssueCollectionMetrics, BoardMetrics
 
 FIXTURE_DIR = os.path.join(os.path.dirname(__file__),"fixtures")
 
@@ -37,6 +38,7 @@ class TestObject(unittest.TestCase):
             self.fixture = munchify(json.load(f))
 
         self.jira = None
+        self.pp = pprint.PrettyPrinter(indent=4)
 
         os.environ['DB_TYPE'] = self.fixture.connections.db.type
         os.environ["POSTGRES_DB_HOST"] = self.fixture.connections.db.postgres.host
@@ -61,26 +63,31 @@ class TestObject(unittest.TestCase):
         return AugurContext(group_id=self.fixture.context.group)
 
     def test_board(self):
+
         with orm.db_session:
 
-            board_from_id = JiraBoard(self.jira, board_id=self.fixture.jira_test_data.board)
-            board_from_team = JiraBoard(self.jira, team_id=self.fixture.jira_test_data.team)
+            context = self.create_context()
 
-            self.log.info("Retrieving board from ID %d"%self.fixture.jira_test_data.board)
-            self.assertTrue(board_from_id.load())
+            # board_from_id = JiraBoard(self.jira, board_id=self.fixture.jira_test_data.board)
+            #
+            board_from_team = JiraBoard(self.jira, team_id=self.fixture.jira_test_data.team,
+                                        max_sprints=2, restrict_sprints_with_team_name=True,
+                                        include_sprint_reports=True)
 
             self.log.info("Retrieving board from Team %d"%self.fixture.jira_test_data.team)
             self.assertTrue(board_from_team.load())
+            sprints = board_from_team.get_sprints()
+            print (str(sprints))
 
             self.log.info("Getting most recent active sprints...")
             sprint1 = board_from_team.get_most_recent_active_sprint()
             self.assertIsInstance(sprint1, JiraSprint)
 
-            sprint2 = board_from_id.get_most_recent_active_sprint()
+            sprint2 = board_from_team.get_most_recent_active_sprint()
             self.assertIsInstance(sprint2, JiraSprint)
 
             self.log.info("Getting most recent closed sprints...")
-            sprint3 = board_from_id.get_most_recent_closed_sprint()
+            sprint3 = board_from_team.get_most_recent_closed_sprint()
             self.assertIsInstance(sprint3, JiraSprint)
 
             sprint4 = board_from_team.get_most_recent_closed_sprint()
@@ -89,6 +96,18 @@ class TestObject(unittest.TestCase):
             self.log.info("Getting backlog...")
             backlog = board_from_team.get_backlog()
             self.assertIsInstance(backlog, JiraIssueCollection)
+
+            self.log.info("Getting backlog metrics...")
+            board_metrics = BoardMetrics(context,board_from_team)
+            backlog_metrics = board_metrics.backlog_analysis()
+            self.assertIn('points', backlog_metrics)
+            self.assertIn('grade', backlog_metrics)
+            self.pp.pprint(backlog_metrics)
+
+            self.log.info("Getting sprint metrics...")
+            sprint_metrics = board_metrics.historic_sprint_analysis()
+            self.assertIn('avg_velocity', sprint_metrics)
+            self.pp.pprint(sprint_metrics)
 
     def test_issues(self):
         with orm.db_session:

@@ -17,6 +17,8 @@ class JiraSprint(JiraObject):
     Options:
         sprint_id - The ID of the sprint in Jira
         board_id (optional) - The agile board (rapid board) ID in Jira
+        include_reports (optional, Default=False) - If True then, when loading from Jira, there will be two calls.
+                            One to load the sprint details and one to return the sprint report.
     """
 
     def __init__(self, source, **kwargs):
@@ -24,21 +26,43 @@ class JiraSprint(JiraObject):
         self._sprint_report = None
         self._sprint = None
 
+    def __str__(self):
+        if not self._sprint:
+            return "<Unpopulated JiraSprint object>"
+        else:
+            return "%s (start: %s, end: %s)" % (self._sprint.name,
+                                                self.start_date.isoformat() if self.start_date else "None",
+                                                self.end_date.isoformat() if self.end_date else "None")
+
     @property
     def start_date(self):
         if not self._sprint:
             self.logger.error("JiraSprint: No sprint has been loaded yet.")
             return False
 
-        if isinstance(self._sprint.start_date, (str,unicode)):
+        if isinstance(self._sprint.startDate, (str, unicode)):
             # convert if necessary
-            start_date = self._convert_date_string_to_date_time(self._sprint.start_date)
+            start_date = self._convert_date_string_to_date_time(self._sprint.startDate)
             if start_date:
-                self._sprint.start_date = start_date
+                self._sprint.startDate = start_date
             else:
                 return None
 
-        return self._sprint.start_date
+        return self._sprint.startDate
+
+    @property
+    def completed_points(self):
+        if not self._sprint_report:
+            self.logger.error("You must provide the completed sprints")
+
+        return self._sprint_report.completedIssuesEstimateSum.value if 'value' in self._sprint_report.completedIssuesEstimateSum else 0
+
+    @property
+    def incomplete_points(self):
+        if not self._sprint_report:
+            self.logger.error("You must provide the completed sprints")
+
+        return self._sprint_report.issuesNotCompletedEstimateSum.value if 'value' in self._sprint_report.issuesNotCompletedEstimateSum else 0
 
     @property
     def end_date(self):
@@ -46,15 +70,32 @@ class JiraSprint(JiraObject):
             self.logger.error("JiraSprint: No sprint has been loaded yet.")
             return False
 
-        if isinstance(self._sprint.end_date, (str,unicode)):
+        if isinstance(self._sprint.endDate, (str, unicode)):
             # convert if necessary
-            end_date = self._convert_date_string_to_date_time(self._sprint.end_date)
+            end_date = self._convert_date_string_to_date_time(self._sprint.endDate)
             if end_date:
-                self._sprint.end_date = end_date
+                self._sprint.endDate = end_date
             else:
                 return None
 
-        return self._sprint.end_date
+        return self._sprint.endDate
+
+    @property
+    def average_point_size(self):
+        if not self._sprint_report:
+            self.logger.error("JiraSprint: No sprint report has been loaded yet.")
+            return None
+
+        points = 0.0
+        for issue in self._sprint_report.completedIssues:
+            if 'estimateStatistic' in issue and 'statFieldValue' in issue.estimateStatistic and \
+                    'value' in issue.estimateStatistic.statFieldValue:
+                points += float(issue.estimateStatistic.statFieldValue.value)
+
+        if len(self._sprint_report.completedIssues) > 0:
+            return points / float(len(self._sprint_report.completedIssues))
+        else:
+            return 0
 
     @property
     def completed_date(self):
@@ -62,15 +103,15 @@ class JiraSprint(JiraObject):
             self.logger.error("JiraSprint: No sprint has been loaded yet.")
             return None
 
-        if isinstance(self._sprint.completed_date, (str,unicode)):
+        if isinstance(self._sprint.completedDate, (str, unicode)):
             # convert if necessary
-            completed_date = self._convert_date_string_to_date_time(self._sprint.completed_date)
+            completed_date = self._convert_date_string_to_date_time(self._sprint.completedDate)
             if completed_date:
-                self._sprint.completed_date = completed_date
+                self._sprint.completedDate = completed_date
             else:
                 return None
 
-        return self._sprint.completed_date
+        return self._sprint.completedDate
 
     @property
     def name(self):
@@ -87,6 +128,14 @@ class JiraSprint(JiraObject):
             return None
 
         return self._sprint.state
+
+    @property
+    def future(self):
+        if not self._sprint:
+            self.logger.error("JiraSprint: No sprint has been loaded yet")
+            return None
+
+        return self._sprint.state.lower() == "future"
 
     @property
     def active(self):
@@ -119,7 +168,7 @@ class JiraSprint(JiraObject):
         sprint_id = self.option("sprint_id")
         board_id = self.option("board_id")
 
-        sprint_report = munchify(self.source.jira.sprint_report(board_id,sprint_id))
+        sprint_report = munchify(self.source.jira.sprint_report(board_id, sprint_id))
 
         if sprint_report:
 
@@ -129,7 +178,7 @@ class JiraSprint(JiraObject):
             # the sprint report is a superset of the sprint object.  The sprint key in the sprint report object
             #   contains the same keys plus a few more so we can reuse it for the sprint object so that both
             #   can be used without having to do a load twice.
-            self._sprint = munchify(self._sprint_report.sprint)
+            self._sprint = munchify(sprint_report.sprint)
 
             return True
         else:
@@ -144,10 +193,10 @@ class JiraSprint(JiraObject):
             self._sprint = munchify(s)
         else:
             self._sprint = None
-            self.logger.error("JiraSprint: Unable to find the sprint with this id: %s"%str(sprint_id))
+            self.logger.error("JiraSprint: Unable to find the sprint with this id: %s" % str(sprint_id))
             return False
 
-    def prepopulate(self,data):
+    def prepopulate(self, data):
         if 'contents' in data:
             self._sprint_report = munchify(data['contents'])
             self._sprint = munchify(data['sprint'])
@@ -155,11 +204,17 @@ class JiraSprint(JiraObject):
 
         elif 'state' in data and 'name' in data:
             self._sprint = munchify(data)
+            if self.option('include_reports'):
+                if not self.option('board_id'):
+                    self.logger.error("You cannot load reports within a JiraSprint object without a board ID given")
+                    return False
+
+                # do not return False if this fails.
+                self._load_sprint_report()
             return True
         else:
             self.logger.error("JiraSprint: Could not prepopulate because the given data does not match expected values")
             return False
-
 
     @property
     def sprint_id(self):
@@ -181,14 +236,32 @@ class JiraSprintCollection(JiraObject):
     Options:
         - board (Optional) - This can either be a board ID or a JiraBoard object.
         - sprints (Optional) - The JIRA sprint objects as returned from the Jira REST API.
+        - max_sprints (optional, default=None) - If given this is the maximum number of sprints to load keeping
+                            in mind that they are loaded in reverse chronological order.
+        - include_reports (optional, default=False) - If True, this will set make extra calls per
+                            sprint to retrieve detailed sprint reports.
         - team_name - If given, this will restrict the sprints to those which have the given team name in the title.
     """
+
     def __init__(self, source, **kwargs):
         super(JiraSprintCollection, self).__init__(source, **kwargs)
         self._sprints = None
 
     def __iter__(self):
         return iter(self._sprints)
+
+    def __str__(self):
+        return "Sprint Collection:\n\t%s" % format("\n\t".join([str(s) for s in self._sprints]))
+
+    @property
+    def board_id(self):
+        board = self.option('board')
+        if board and isinstance(board, JiraBoard):
+            return board.id
+        elif board:
+            return int(board)
+
+        return None
 
     def _load(self):
         if not self.option('sprints') and not self.option('board'):
@@ -203,12 +276,10 @@ class JiraSprintCollection(JiraObject):
                     board_id = board.id
                 else:
                     board_id = board
-                sprints = []
 
                 # we do it this way because this returns a paginated object that automatically
                 #   makes additional calls when there are more than fit on a single page.
-                for s in self.source.jira.sprints(board_id, maxResults=0):
-                    sprints.append(s)
+                sprints = self.source.jira.sprints(board_id, maxResults=0)
 
             elif self.option('sprints'):
                 sprints = self.option('sprints')
@@ -218,30 +289,38 @@ class JiraSprintCollection(JiraObject):
                 self.logger.error("You must provide a non empty set of sprints or a board to load a sprint collection")
                 return False
 
+            sprints.reverse()
             self._sprints = []
             for s in sprints:
-                if isinstance(s,Sprint):
+                if self.option('max_sprints') and len(self._sprints) > int(self.option('max_sprints')):
+                    # there's no need to look at any more sprints if we've
+                    #   hit the maximum requested.
+                    break
+
+                if isinstance(s, Sprint):
                     jira_sprint_json = s.raw
-                elif isinstance(s,dict):
+                elif isinstance(s, dict):
                     jira_sprint_json = s
                 else:
                     self.logger.error("Unrecognized sprint object found. Skipping...")
                     continue
 
-                sprint_ob = JiraSprint(source=self.source, sprint_id=jira_sprint_json['id'], board_id=self.option('board_id'))
-                sprint_ob.prepopulate(jira_sprint_json)
+                sprint_ob = JiraSprint(source=self.source, sprint_id=jira_sprint_json['id'],
+                                       board_id=self.board_id,
+                                       include_reports=self.option('include_reports'))
 
                 continue_adding = True
 
                 # filter on sprints with names that match the team (if given)
                 if self.option('team_name'):
-                    continue_adding = common.find_team_name_in_string(self.option('team_name'), sprint_ob.name)
+                    continue_adding = common.find_team_name_in_string(self.option('team_name'),
+                                                                      jira_sprint_json['name'])
 
                 if continue_adding:
+                    sprint_ob.prepopulate(jira_sprint_json)
                     self._sprints.append(sprint_ob)
 
             # order them from most recent to oldest by default.
-            self._sprints.reverse()
 
         return self._sprints
 
@@ -252,9 +331,16 @@ class JiraBoard(JiraObject):
     Options:
         - team_id OR board_id OR both- If team ID given then board id will be taken from the database (if it exists). If
                                 board ID is given but not team id then
+        - max_sprints (optional, default=None) - If given this is the maximum number of sprints to load keeping
+                            in mind that they are loaded in reverse chronological order.
         - restrict_sprints_with_team_name (optional, default=False) - If a team is given and if this is set to
                                 True then only sprints that match the team name will be used.
+        - include_sprint_reports (optional, default=False) - If this is specified loading the board will
+                                take much longer as a separate call is made to retrieve the report
+                                for each sprint.
+
     """
+
     def __init__(self, source, **kwargs):
         super(JiraBoard, self).__init__(source, **kwargs)
         self._team = None
@@ -300,7 +386,16 @@ class JiraBoard(JiraObject):
         :return: Returns a JiraSprintCollection
         """
         if not self._sprints:
-            self._sprints = JiraSprintCollection(self.source, board=self)
+
+            if self.option('restrict_sprints_with_team_name'):
+                team_name = self._team.name if self._team else ""
+            else:
+                team_name = None
+
+            self._sprints = JiraSprintCollection(self.source, board=self,
+                                                 include_reports=self.option('include_sprint_reports'),
+                                                 max_sprints=self.option('max_sprints'),
+                                                 team_name=team_name)
             self._sprints.load()
 
         return self._sprints
@@ -340,7 +435,7 @@ class JiraBoard(JiraObject):
             if team:
                 board = team.agile_board
             else:
-                self.logger.error("Unable to find team with ID %d"%team_id)
+                self.logger.error("Unable to find team with ID %d" % team_id)
                 return False
         else:
             board_id = self.option('board_id')
@@ -348,7 +443,7 @@ class JiraBoard(JiraObject):
             if board:
                 team = board.team
             else:
-                self.logger.error("Unable to find board with ID %d"%board_id)
+                self.logger.error("Unable to find board with ID %d" % board_id)
                 return False
 
         self._team = team
@@ -374,7 +469,6 @@ class JiraBoard(JiraObject):
             return False
 
         return True
-
 
     @property
     def board(self):

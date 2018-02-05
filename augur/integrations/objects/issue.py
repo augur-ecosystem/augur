@@ -108,7 +108,7 @@ class JiraIssueCollection(JiraObject):
         fields = self.source.default_fields
 
         if self.option('input_jql'):
-            issues = self.source.jira.search_issues(
+            search_results = self.source.jira.search_issues(
                 self.option('input_jql'),
                 startAt=self.option('paging_start_at'),
                 maxResults=self.option('paging_max_results', 500),
@@ -116,18 +116,27 @@ class JiraIssueCollection(JiraObject):
                 fields=fields.values(),
                 expand=None,
                 json_result=True)
+
+            if issues and 'issues' in search_results:
+                issues = search_results['issues']
+            else:
+                self.logger.error("You must specify one of the input options in order to properly load this object")
+                return False
+
         elif self.option('input_jira_issue_list'):
-            issues = self.option('input_jira_issue_list')
 
-        if issues and 'issues' in issues:
-            self._issues = []
-            for i in issues['issues']:
-                issue_ob = JiraIssue(self.source)
-                if issue_ob.prepopulate(i):
-                    self._issues.append(issue_ob)
+            if isinstance(self.option('input_jira_issue_list'), list):
+                issues = self.option('input_jira_issue_list')
+            else:
+                self.logger.error("JiraIssueCollection: Received 'input_jira_issue_list' that was not "
+                                  "of type JiraIssueCollection")
+                return False
 
-            return True
+        assert(isinstance(issues,list))
+        self._issues = []
+        for i in issues:
+            issue_ob = JiraIssue(self.source)
+            if issue_ob.prepopulate(i):
+                self._issues.append(issue_ob)
 
-        else:
-            self.logger.error("You must specify one of the input options in order to properly load this object")
-            return False
+        return True

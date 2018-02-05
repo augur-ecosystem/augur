@@ -1,13 +1,14 @@
 import datetime
 from munch import Munch, munchify
-
+import logging
 from augur import common
-from pony import orm
+import pandas
 
 
 class Metrics(object):
     def __init__ (self, context):
         self.context = context
+        self.logger = logging.getLogger("augurjira")
 
 
 class IssueCollectionMetrics(Metrics):
@@ -140,19 +141,20 @@ class IssueCollectionMetrics(Metrics):
 
 
 class BoardMetrics(Metrics):
-
     def __init__(self, context, board):
         self._board = board
         super(BoardMetrics, self).__init__(context)
 
-    def backlog_analysis(self, options):
+    def backlog_analysis(self, options=None):
+
+        if not self._board or not self._board.option('include_sprint_reports'):
+            self.logger.error("Board Metrics: The board object given must include sprint reports in order to "
+                              "generate metrics")
+            return False
 
         collection = self._board.get_backlog()
 
-        simplified_issue_list = []
-
         metrics = {
-            "issues": simplified_issue_list,
             "points":{
                 "unpointed":[],
                 # pointed stories will be grouped by number of points keyed on their point value converted to string
@@ -203,3 +205,37 @@ class BoardMetrics(Metrics):
         metrics['grade'] = grade
 
         return munchify(metrics)
+
+    def historic_sprint_analysis(self, options=None):
+        """
+        Analyzes all the sprints in the given board.
+        :param options: No options at this time.
+        :return: Returns a munchified dictionary containing aggregate metrics.
+        """
+
+        sprint_collection = self._board.get_sprints()
+        overall_metrics_list = []
+        for sprint in sprint_collection:
+            tp = (sprint.name, sprint.completed_points, sprint.incomplete_points, sprint.average_point_size)
+            overall_metrics_list.append(tp)
+
+        df_sprints = pandas.DataFrame(overall_metrics_list, columns=[
+            "Name","Points Completed","Incomplete Points","Average Point Size"])
+
+        avg_velocity = df_sprints["Points Completed"].mean()
+        low_velocity = df_sprints["Points Completed"].min()
+        high_velocity = df_sprints["Points Completed"].max()
+        avg_point_size = df_sprints["Average Point Size"].mean()
+        highest_avg_point_size = df_sprints["Average Point Size"].max()
+        lowest_avg_point_size = df_sprints["Average Point Size"].min()
+
+        return munchify({
+            "avg_velocity": avg_velocity,
+            "low_velocity": low_velocity,
+            "high_velocity": high_velocity,
+            "avg_point_size": avg_point_size,
+            "highest_avg_point_size": highest_avg_point_size,
+            "lowest_avg_point_size": lowest_avg_point_size
+        })
+
+
