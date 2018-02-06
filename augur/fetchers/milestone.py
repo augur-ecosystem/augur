@@ -3,10 +3,9 @@ import base64
 import exceptions
 
 import augur
-from augur.common import const, transform_status_string, cache_store
+from augur.common import const, transform_status_string, cache_store, projects_to_jql
 from augur.fetchers.fetcher import AugurDataFetcher
 from augur.api import get_jira
-from augur.integrations.augurjira import projects_to_jql
 
 
 class Milestone(object):

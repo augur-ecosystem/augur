@@ -1,4 +1,5 @@
 import augur
+import augur.common
 from augur.common import deep_get, cache_store
 from augur.fetchers import AugurDataFetcher
 from augur.integrations import augurjira
@@ -28,7 +29,7 @@ class RecentEpicsDataFetcher(AugurDataFetcher):
         """
         :return:
         """
-        project_jql = augurjira.projects_to_jql(self.context.workflow)
+        project_jql = augur.common.projects_to_jql(self.context.workflow)
         in_progress_statues = map(lambda x: x.tool_issue_status_name, self.context.workflow.in_progress_statuses())
         return "%s and sprint in openSprints() and " \
                "sprint not in futureSprints() and status in ('%s')" % \

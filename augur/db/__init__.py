@@ -1,5 +1,3 @@
-import json
-
 from pony import orm
 from pony.orm import sql_debug, Json
 
@@ -7,14 +5,17 @@ import augur
 
 import datetime
 
-NOTIFY_TYPES = ["none","email","slack"]
+import augur.common
+
+NOTIFY_TYPES = ["none", "email", "slack"]
 TOOL_ISSUE_STATUS_TYPES = ["open", "in progress", "done"]
 STATUS = ["Unknown", "Active", "Inactive", "Pending"]
-ROLES = ["Unknown", "Developer", "SDET", "Technical Manager", "Product Manager", "Director", "Lead Developer", "Engagement Manager", "Project Manager",
+ROLES = ["Unknown", "Developer", "SDET", "Technical Manager", "Product Manager", "Director", "Lead Developer",
+         "Engagement Manager", "Project Manager",
          "Business Analyst", "QA", "Technical Manager", "Product Owner", "Vice President"]
 TOOL_ISSUE_RESOLUTION_TYPES = ["positive", "negative"]
 TOOL_ISSUE_TYPE_TYPES = ["story", "task", "bug", "question"]
-BUILD_TYPES = ['all','upstream','myteam','otherteams']
+BUILD_TYPES = ['all', 'upstream', 'myteam', 'otherteams']
 STAFF_TYPES = ["FTE", "Consultant"]
 
 db = orm.Database()
@@ -56,7 +57,7 @@ class EventLog(db.Entity):
     """
     Represents an event log entry
     """
-    id = orm.PrimaryKey(int,auto=True)
+    id = orm.PrimaryKey(int, auto=True)
     event_time = orm.Required(datetime.datetime)
     event_type = orm.Required(unicode)
     event_data = orm.Optional(Json)
@@ -79,7 +80,7 @@ class Vendor(db.Entity):
 
     def get_engagement_contact_full_name(self):
         if self.engagement_contact_first_name and self.engagement_contact_last_name:
-            return "%s %s"%(self.engagement_contact_first_name, self.engagement_contact_last_name)
+            return "%s %s" % (self.engagement_contact_first_name, self.engagement_contact_last_name)
         elif self.engagement_contact_last_name:
             return self.engagement_contact_last_name
         elif self.engagement_contact_first_name:
@@ -89,13 +90,14 @@ class Vendor(db.Entity):
 
     def get_billing_contact_full_name(self):
         if self.billing_contact_first_name and self.billing_contact_last_name:
-            return "%s %s"%(self.billing_contact_first_name, self.billing_contact_last_name)
+            return "%s %s" % (self.billing_contact_first_name, self.billing_contact_last_name)
         elif self.billing_contact_last_name:
             return self.engagement_contact_last_name
         elif self.billing_contact_first_name:
             return self.engagement_contact_first_name
         else:
             return "None Given"
+
 
 class Product(db.Entity):
     """
@@ -166,7 +168,7 @@ class Staff(db.Entity):
 
     def get_fullname(self):
         if self.first_name and self.last_name:
-            return "%s %s"%(self.first_name,self.last_name)
+            return "%s %s" % (self.first_name, self.last_name)
         else:
             return self.first_name if self.first_name else self.last_name or "None Given"
 
@@ -222,7 +224,7 @@ class Notifications(db.Entity):
     """
     Represents a set of notification preferences that can be associated with a staff member or team
     """
-    id = orm.PrimaryKey(int,auto=True)
+    id = orm.PrimaryKey(int, auto=True)
     build = orm.Required(unicode, default="email,slack")
     deploy = orm.Required(unicode, default="email,slack")
     staff = orm.Optional(Staff)
@@ -256,7 +258,7 @@ class WorkflowDefectProjectFilter(db.Entity):
     issue_types = orm.Set(ToolIssueType, reverse='workflow_defect_project_filters')
     workflows = orm.Set('Workflow', reverse="defect_projects")
 
-    def get_issue_types_as_string_list(self, include_issue_types=True):
+    def get_issue_types_as_string_list(self):
         types = []
         for it in self.issue_types:
             types.append(it.tool_issue_type_name)
@@ -291,7 +293,7 @@ class Workflow(db.Entity):
         if defect_projects:
             # if this workflow specifies projects with keys and the caller
             #   just wants keys returned then we can just return this list.
-            return [dict({"key":df.project_key,
+            return [dict({"key": df.project_key,
                           "issue_types": df.get_issue_types_as_string_list()})
                     for df in defect_projects]
         else:
@@ -421,6 +423,7 @@ class Workflow(db.Entity):
     def get_projects(self, key_only=False):
         from augur.api import get_jira
         project_keys = [p.tool_project_key for p in self.projects]
+        projects = []
 
         if project_keys:
             if key_only:
@@ -429,10 +432,9 @@ class Workflow(db.Entity):
                 return project_keys
             else:
                 # Call into jira to get the list of projects with these keys
-                projects = get_jira().get_projects_with_key(project_keys)
+                projects = get_jira().jira.get_projects_with_key(project_keys)
         elif self.categories:
             # Call into jira to get the list of projects with the given categories.
-            projects = []
             for c in self.categories:
                 projects.extend(augur.api.get_projects_by_category(c.tool_category_name))
 
@@ -446,8 +448,7 @@ class Workflow(db.Entity):
         Generates the JQL for the portion of the expression that limits the projects to this workspace only.
         :return: Returns a string with the projects JQL
         """
-        from augur.integrations import augurjira
-        return augurjira.projects_to_jql(self)
+        return augur.common.projects_to_jql(self)
 
     def get_positive_resolution_jql(self):
         """
@@ -455,8 +456,7 @@ class Workflow(db.Entity):
         resolutions (which is defined by the statuses and resolutions defined in this workflow)
         :return: Returns a JQL string
         """
-        from augur.integrations import augurjira
-        return augurjira.positive_resolution_jql(self)
+        return augur.common.positive_resolution_jql(self)
 
     def as_json(self):
         return {
@@ -467,8 +467,8 @@ class Workflow(db.Entity):
             },
             "projects": self.get_project_keys(),
             "resolutions": {
-                "positive":[pr.tool_issue_resolution_name for pr in self.positive_resolutions()],
-                "negative":[pr.tool_issue_resolution_name for pr in self.negative_resolutions()],
+                "positive": [pr.tool_issue_resolution_name for pr in self.positive_resolutions()],
+                "negative": [pr.tool_issue_resolution_name for pr in self.negative_resolutions()],
             }
         }
 
@@ -482,7 +482,6 @@ class Group(db.Entity):
 
 
 def init_db():
-
     global __is_bound
 
     if not __is_bound:
@@ -502,6 +501,8 @@ def init_db():
             db.bind('postgres', user=pg_settings.username, password=pg_settings.password,
                     host=pg_settings.host, database=pg_settings.dbname, port=pg_settings.port)
             __is_bound = True
+        else:
+            raise ValueError("Invalid database type configured: %s" % augur.settings.main.datastores.main.type)
 
         if __is_bound:
             print "Database Configuration:"

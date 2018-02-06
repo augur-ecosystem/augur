@@ -29,24 +29,6 @@ class TestAugurJira(unittest.TestCase):
         self.assertIsNotNone(jp)
         self.assertIsInstance(jp, JIRA)
 
-    def test_get_projects_with_category(self):
-        j = get_jira()
-        p = j.get_projects_with_category("AugurTestCategory")
-        self.assertIsInstance(p, list)
-        self.assertTrue(len(p) == 1)
-        self.assertIsInstance(p[0], dict)
-
-    def test_get_projects_with_key(self):
-        j = get_jira()
-        p = j.get_projects_with_key("AGTEST")
-        self.assertIsInstance(p, list)
-        self.assertTrue(len(p) == 1)
-        self.assertIsInstance(p[0], dict)
-
-        p = j.get_projects_with_key("AGTEST____")
-        self.assertIsInstance(p, list)
-        self.assertTrue(len(p) == 0)
-
     def test_get_project_components(self):
         j = get_jira()
         c = j.get_project_components("AGTEST")
@@ -144,18 +126,6 @@ class TestAugurJira(unittest.TestCase):
 
         result = j.delete_ticket(i.key)
         self.assertTrue(result)
-
-    def test_sprint_retrieval(self):
-        j = get_jira()
-        sprints = j.get_sprints_from_board(863)
-
-        self.assertIsInstance(sprints, list)
-        self.assertTrue(len(sprints) > 0)
-
-        sprint = sprints[0]
-        self.assertIn('id', sprint)
-        sprint_details = j.sprint_info(862,sprint['id'])
-        self.assertIsInstance(sprint_details, dict)
 
     def test_clean_username(self):
         result = AugurJira._clean_username("this.has.periods")

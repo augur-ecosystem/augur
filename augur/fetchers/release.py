@@ -4,9 +4,8 @@ import datetime
 from arrow import Arrow
 
 import augur
-from augur.common import cache_store, POSSIBLE_DATE_TIME_FORMATS
+from augur.common import cache_store, POSSIBLE_DATE_TIME_FORMATS, projects_to_jql
 from augur.fetchers.fetcher import AugurDataFetcher
-from augur.integrations.augurjira import projects_to_jql
 
 
 class AugurRelease(AugurDataFetcher):

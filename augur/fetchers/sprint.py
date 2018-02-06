@@ -2,11 +2,10 @@ import datetime
 from collections import defaultdict
 
 import augur
-from augur import common
-from augur.common import const, cache_store
+from augur import common, project_key_from_issue_key
+from augur.common import const, cache_store, projects_to_jql
 from augur.common.timer import Timer
 from augur.fetchers.fetcher import AugurDataFetcher
-from augur.integrations.augurjira import projects_to_jql, project_key_from_issue_key
 
 SPRINT_SORTBY_ENDDATE = 'enddate'
 
@@ -118,120 +117,6 @@ class AugurSprintDataFetcher(AugurDataFetcher):
 
         self.recent_data = results
         return results
-
-    def get_detailed_sprint_info_for_team(self, team_id, sprint_id):
-        """
-        This will get sprint data for the the given team and sprint.  You can specify you want the current or the
-        most recently closed sprint for the team by using one of the SPRINT_XXX consts.  You can also specify an ID
-        of a sprint if you know what you want.  Or you can pass in a sprint object to confirm that it's a valid
-        sprint object.  If it is, it will be returned, otherwise a SprintNotFoundException will be thrown.
-        :param team_id: The ID of the team
-        :param sprint_id: The ID, const, or sprint object.
-        :return: Returns a sprint object
-        """
-
-        with Timer("Detailed Sprint Data") as t:
-
-            # We either don't have anything cached or we decided not to use it.  So start from scratch by retrieving
-            # the detailed sprint data from Jira
-            sprint_abridged = augur.api.get_abridged_team_sprint(team_id, sprint_id)
-            t.split("Retrieve abridged sprint data")
-
-            if not sprint_abridged:
-                return None
-
-            # see if it's in the cache.  If it is, then check if it's cached in the active state.  If it is,
-            #   then throw away the cached version and reload from JIRA
-            team_stats = self.cache.load_sprint(sprint_abridged['id'])
-
-            if team_stats and team_stats['team_sprint_data']['sprint']['state'] == 'CLOSED':
-                return team_stats
-
-            team_object = augur.api.get_team_by_id(team_id)
-            sprint_ob = self.augurjira.sprint_info(team_object.get_agile_board_jira_id(), sprint_abridged['id'])
-            t.split("Retrieve full sprint data")
-
-            if not sprint_ob:
-                return None
-
-            # convert date strings to actual dates.
-            self._clean_detailed_sprint_info(sprint_ob)
-            t.split("Cleaned sprint data")
-
-            now = datetime.datetime.now().replace(tzinfo=None)
-
-            if sprint_ob['sprint']['state'] == 'ACTIVE':
-                sprint_ob['actual_length'] = now - sprint_ob['sprint']['startDate']
-                sprint_ob['overdue'] = sprint_ob['actual_length'] > datetime.timedelta(days=16)
-            else:
-                sprint_ob['actual_length'] = sprint_ob['sprint']['completeDate'] - sprint_ob['sprint']['startDate']
-
-                # not applicable if the sprint is complete or happens in the future.
-                sprint_ob['overdue'] = False
-
-            # Get point completion standard deviation
-            standard_dev_map = defaultdict(int)
-            total_completed_points = 0
-            projects = self.context.workflow.get_projects(key_only=True)
-            for issue in sprint_ob['contents']['completedIssues']:
-
-                # ignore any issues that are not part of the context.
-                if project_key_from_issue_key(issue['key']).upper() not in projects:
-                    continue
-
-                points = issue.get('currentEstimateStatistic', {}).get('statFieldValue', {'value': 0}).get('value', 0)
-                total_completed_points += points
-                if 'assignee' in issue:
-                    standard_dev_map[issue['assignee']] += points
-                else:
-                    print "Found a completed issue without an assignee - %s" % issue['key']
-
-            std_dev = common.standard_deviation(standard_dev_map.values())
-            t.split("Calculated standard deviation and point sums")
-
-            # Replace "null" with 0
-            for val in ('completedIssuesEstimateSum', 'issuesNotCompletedEstimateSum', 'puntedIssuesEstimateSum'):
-                if val in sprint_ob['contents'] and isinstance(sprint_ob['contents'][val], dict) and \
-                                sprint_ob['contents'][val]['text'] == 'null':
-                    sprint_ob['contents'][val]['text'] = "0"
-
-            if sprint_ob['contents']['issueKeysAddedDuringSprint']:
-
-                # get issues that were added during the sprint that are part of this context.
-                results = self.augurjira.execute_jql("(%s) and key in ('%s')" %
-                             (projects_to_jql(self.context.workflow),
-                              "','".join(sprint_ob['contents']['issueKeysAddedDuringSprint'].keys())))
-
-                sprint_ob['contents']['issueKeysAddedDuringSprint'] = results
-                t.split("Got issue data for issues added during sprint")
-
-            if sprint_ob['contents']['issuesNotCompletedInCurrentSprint']:
-                incomplete_keys = [x['key'] for x in sprint_ob['contents']['issuesNotCompletedInCurrentSprint']]
-
-                # get all the incomplete tickets that are part of this context
-                jql = "(%s) and key in ('%s')" % \
-                      (projects_to_jql(self.context.workflow), "','".join(incomplete_keys))
-                results = self.augurjira.execute_jql_with_analysis(jql, total_only=False, context=self.context)
-
-                sprint_ob['contents']['issuesNotCompletedInCurrentSprint'] = results['issues'].values()
-                sprint_ob['contents']['incompleteIssuesFullDetail'] = results['issues'].values()
-
-                t.split("Got issue data for issues not completed during sprint")
-
-            team_stats = {
-                "team_name": team_object.name,
-                "team_id": team_id,
-                "sprint_id": sprint_id,
-                "board_id": team_object.agile_board.jira_id,
-                "std_dev": std_dev,
-                "contributing_devs": standard_dev_map.keys(),
-                "team_sprint_data": sprint_ob,
-                "total_completed_points": total_completed_points
-            }
-
-            self.cache.update(team_stats)
-
-        return team_stats
 
     @staticmethod
     def _aggregate_sprint_history_data(sprint_data):

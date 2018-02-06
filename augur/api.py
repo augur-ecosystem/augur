@@ -26,6 +26,7 @@ import arrow
 
 import copy
 
+from collections import defaultdict
 from jira import JIRAError
 from pony import orm
 from pony.orm import select, delete
@@ -34,7 +35,7 @@ from pony.orm import serialization
 from augur import common
 from augur.common.cache_store import AugurCachedResultSets
 
-from augur.common import const, cache_store
+from augur.common import const, cache_store, project_key_from_issue_key
 from augur import db
 from augur.common.const import SPRINT_SORTBY_ENDDATE
 from augur.db import EventLog
@@ -196,10 +197,10 @@ def get_abridged_sprint_list_for_team(team_id, limit=None):
     team_ob = get_team_by_id(team_id)
     if team_ob.agile_board:
         try:
-            team_sprints_abridged = get_jira().get_sprints_from_board(team_ob.agile_board.jira_id)
+            team_sprints_abridged = get_jira().jira.sprints(board_id=team_ob.agile_board.jira_id, maxResults=0)
         except JIRAError, e:
             if e.status_code == 404:
-                api_logger.error("Could not find the Agile Board with ID %d"%team_ob.agile_board.jira_id)
+                api_logger.error("Could not find the Agile Board with ID %d" % team_ob.agile_board.jira_id)
                 team_sprints_abridged = []
             else:
                 raise e
@@ -210,7 +211,9 @@ def get_abridged_sprint_list_for_team(team_id, limit=None):
     # the initial list can contain sprints from other boards in cases where tickets spent time on
     # both boards.  So we filter out any that do not belong to the team.
     if team_sprints_abridged:
-        filtered_sprints = [sprint for sprint in team_sprints_abridged if common.sprint_belongs_to_team(sprint, team_id)]
+        filtered_sprints = [sprint for sprint in team_sprints_abridged
+                            if common.find_team_name_in_string(team_ob.name, sprint['name'])]
+
         filtered_sorted_list = sorted(filtered_sprints, key=lambda k: k['sequence'])
     else:
         filtered_sorted_list = []
@@ -224,13 +227,12 @@ def get_abridged_sprint_list_for_team(team_id, limit=None):
 def get_epics_from_sprint(sprint, context):
     """
     Gets a list of all epics associated with the given sprint.
+    :param context: The context used to filter results
     :param sprint: The object returned from get_sprint_info_for_team
     :return: Returns a dictionary containing all the epics
     """
     assert context
     assert sprint
-
-    from augur.integrations.augurjira import project_key_from_issue_key
 
     epics = {}
     points_field_name = get_issue_field_from_custom_name('Story Points')
@@ -252,7 +254,7 @@ def get_epics_from_sprint(sprint, context):
             points = issue_inner['fields'][points_field_name] if points_field_name in issue_inner['fields'] else 0.0
             status = issue_inner['fields']['status']['name']
             issue_type = issue_inner['fields']['issuetype']
-            done = context.workflow.is_resolved(status.lower(),issue_inner['resolution'])
+            done = context.workflow.is_resolved(status.lower(), issue_inner['resolution'])
             epic_key = common.deep_get(issue_inner, 'fields', epic_link_field_name) or "NONE"
 
         else:
@@ -272,14 +274,14 @@ def get_epics_from_sprint(sprint, context):
 
             epic_info = None
             if epic_key != "NONE":
-                epic_info = get_epic_analysis(epic_key,context=context,brief=True,force_update=False)
+                epic_info = get_epic_analysis(epic_key, context=context, brief=True, force_update=False)
 
             epics_inner[epic_key] = {
                 "key": epic_key,
                 "text": epic_info['milestone']['fields']['summary'] if epic_key != "NONE" else "No epic assigned",
                 "analysis": epic_info or {},
                 "sprint_completed_points": 0.0,
-                "sprint_total_points":0.0,
+                "sprint_total_points": 0.0,
                 "sprint_incomplete_points": 0.0,
                 "issues": [],
                 "devs": [],
@@ -313,7 +315,7 @@ def get_epics_from_sprint(sprint, context):
         # return the epic that was created/updated.
         return epics_inner[epic_key]
 
-    cache_key = 'sprint_epics_%s'%str(sprint['team_sprint_data']['sprint']['id'])
+    cache_key = 'sprint_epics_%s' % str(sprint['team_sprint_data']['sprint']['id'])
     cached_data = get_cached_data(cache_key)
     if not cached_data:
         for issue in sprint['team_sprint_data']['contents']['completedIssues']:
@@ -328,42 +330,48 @@ def get_epics_from_sprint(sprint, context):
     return epics
 
 
-def get_sprint_history_by_team(team, sort_by=SPRINT_SORTBY_ENDDATE, descending=True, limit=None):
+def get_sprint_history_by_team(team, context, sort_by=SPRINT_SORTBY_ENDDATE, descending=True, limit=None):
     """
     Gets a list of sprints for the given team.  This will load from cache in some cases and get the most recent
      when it makes to do so.
+    :param context:
+    :param limit:
+    :param descending:
+    :param sort_by:
     :param team: The ID of the team to retrieve sprints for.
     :return: Returns an array of sprint objects.
     """
-    ua_sprints = augur.api.get_abridged_sprint_list_for_team(team, limit)
+    ua_sprints = get_abridged_sprint_list_for_team(team, limit)
     sprintdict_list = []
 
     for s in ua_sprints:
         # get_detailed... will handle caching
-        sprint_ob = self.get_detailed_sprint_info_for_team(team, s['id'])
+        sprint_ob = get_detailed_sprint_info_for_team(team, s['id'], context=context)
 
-        if sprint_ob: sprintdict_list.append(sprint_ob)
+        if sprint_ob:
+            sprintdict_list.append(sprint_ob)
 
     def sort_by_end_date(cmp1, cmp2):
         return -1 if cmp1['team_sprint_data']['sprint']['endDate'] < cmp2['team_sprint_data']['sprint'][
             'endDate'] else 1
 
-    SORTKEYS = {
+    SORT_KEYS = {
         SPRINT_SORTBY_ENDDATE: sort_by_end_date
     }
 
-    if sort_by in SORTKEYS:
-        return sorted(sprintdict_list, SORTKEYS[sort_by], reverse=descending)
+    if sort_by in SORT_KEYS:
+        return sorted(sprintdict_list, cmp=SORT_KEYS[sort_by], reverse=descending)
     else:
         return sprintdict_list
 
 
-def get_sprint_by_id(self, sprint_id):
+def get_detailed_sprint_info_for_team(team_id, sprint_id, context):
     """
-    This will get sprint data for the the given sprint.  You can specify you want the current or the
+    This will get sprint data for the the given team and sprint.  You can specify you want the current or the
     most recently closed sprint for the team by using one of the SPRINT_XXX consts.  You can also specify an ID
     of a sprint if you know what you want.  Or you can pass in a sprint object to confirm that it's a valid
     sprint object.  If it is, it will be returned, otherwise a SprintNotFoundException will be thrown.
+    :param context:
     :param team_id: The ID of the team
     :param sprint_id: The ID, const, or sprint object.
     :return: Returns a sprint object
@@ -371,29 +379,19 @@ def get_sprint_by_id(self, sprint_id):
 
     # We either don't have anything cached or we decided not to use it.  So start from scratch by retrieving
     # the detailed sprint data from Jira
-    sprint_abridged = augur.api.get_abridged_team_sprint(team_id, sprint_id)
-    t.split("Retrieve abridged sprint data")
+    sprint_abridged = get_abridged_team_sprint(team_id, sprint_id)
 
     if not sprint_abridged:
         return None
 
-    # see if it's in the cache.  If it is, then check if it's cached in the active state.  If it is,
-    #   then throw away the cached version and reload from JIRA
-    team_stats = self.cache.load_sprint(sprint_abridged['id'])
-
-    if team_stats and team_stats['team_sprint_data']['sprint']['state'] == 'CLOSED':
-        return team_stats
-
-    team_object = augur.api.get_team_by_id(team_id)
-    sprint_ob = self.augurjira.sprint_info(team_object.get_agile_board_jira_id(), sprint_abridged['id'])
-    t.split("Retrieve full sprint data")
+    team_object = get_team_by_id(team_id)
+    sprint_ob = get_jira().jira.sprint_report(team_object.get_agile_board_jira_id(), sprint_abridged['id'])
 
     if not sprint_ob:
         return None
 
     # convert date strings to actual dates.
-    self._clean_detailed_sprint_info(sprint_ob)
-    t.split("Cleaned sprint data")
+    common.clean_detailed_sprint_info(sprint_ob)
 
     now = datetime.datetime.now().replace(tzinfo=None)
 
@@ -409,7 +407,7 @@ def get_sprint_by_id(self, sprint_id):
     # Get point completion standard deviation
     standard_dev_map = defaultdict(int)
     total_completed_points = 0
-    projects = self.context.workflow.get_projects(key_only=True)
+    projects = context.workflow.get_projects(key_only=True)
     for issue in sprint_ob['contents']['completedIssues']:
 
         # ignore any issues that are not part of the context.
@@ -424,7 +422,6 @@ def get_sprint_by_id(self, sprint_id):
             print "Found a completed issue without an assignee - %s" % issue['key']
 
     std_dev = common.standard_deviation(standard_dev_map.values())
-    t.split("Calculated standard deviation and point sums")
 
     # Replace "null" with 0
     for val in ('completedIssuesEstimateSum', 'issuesNotCompletedEstimateSum', 'puntedIssuesEstimateSum'):
@@ -433,27 +430,24 @@ def get_sprint_by_id(self, sprint_id):
             sprint_ob['contents'][val]['text'] = "0"
 
     if sprint_ob['contents']['issueKeysAddedDuringSprint']:
-
         # get issues that were added during the sprint that are part of this context.
-        results = self.augurjira.execute_jql("(%s) and key in ('%s')" %
-                                             (projects_to_jql(self.context.workflow),
-                                              "','".join(sprint_ob['contents']['issueKeysAddedDuringSprint'].keys())))
+        results = get_jira().execute_jql("(%s) and key in ('%s')" %
+                                         (common.projects_to_jql(context.workflow),
+                                          "','".join(sprint_ob['contents']['issueKeysAddedDuringSprint'].keys())))
 
         sprint_ob['contents']['issueKeysAddedDuringSprint'] = results
-        t.split("Got issue data for issues added during sprint")
 
     if sprint_ob['contents']['issuesNotCompletedInCurrentSprint']:
         incomplete_keys = [x['key'] for x in sprint_ob['contents']['issuesNotCompletedInCurrentSprint']]
 
         # get all the incomplete tickets that are part of this context
-        jql = "(%s) and key in ('%s')" % \
-              (projects_to_jql(self.context.workflow), "','".join(incomplete_keys))
-        results = self.augurjira.execute_jql_with_analysis(jql, total_only=False, context=self.context)
+        incomplete_in_sprint_jql = "(%s) and key in ('%s')" % (common.projects_to_jql(context.workflow),
+                                                               "','".join(incomplete_keys))
+
+        results = get_jira().execute_jql_with_analysis(incomplete_in_sprint_jql, total_only=False, context=context)
 
         sprint_ob['contents']['issuesNotCompletedInCurrentSprint'] = results['issues'].values()
         sprint_ob['contents']['incompleteIssuesFullDetail'] = results['issues'].values()
-
-        t.split("Got issue data for issues not completed during sprint")
 
     team_stats = {
         "team_name": team_object.name,
@@ -468,11 +462,109 @@ def get_sprint_by_id(self, sprint_id):
 
     return team_stats
 
+
+def get_sprint_by_id(team_id, sprint_id, context):
+    """
+    This will get sprint data for the the given sprint.  You can specify you want the current or the
+    most recently closed sprint for the team by using one of the SPRINT_XXX consts.  You can also specify an ID
+    of a sprint if you know what you want.  Or you can pass in a sprint object to confirm that it's a valid
+    sprint object.  If it is, it will be returned, otherwise a SprintNotFoundException will be thrown.
+    :param context:
+    :param team_id: The ID of the team
+    :param sprint_id: The ID, const, or sprint object.
+    :return: Returns a sprint object
+    """
+
+    # We either don't have anything cached or we decided not to use it.  So start from scratch by retrieving
+    # the detailed sprint data from Jira
+    sprint_abridged = get_abridged_team_sprint(team_id, sprint_id)
+
+    if not sprint_abridged:
+        return None
+
+    team_object = get_team_by_id(team_id)
+    sprint_ob = get_jira().jira.sprint_report(team_object.get_agile_board_jira_id(), sprint_abridged['id'])
+
+    if not sprint_ob:
+        return None
+
+    # convert date strings to actual dates.
+    common.clean_detailed_sprint_info(sprint_ob)
+
+    now = datetime.datetime.now().replace(tzinfo=None)
+
+    if sprint_ob['sprint']['state'] == 'ACTIVE':
+        sprint_ob['actual_length'] = now - sprint_ob['sprint']['startDate']
+        sprint_ob['overdue'] = sprint_ob['actual_length'] > datetime.timedelta(days=16)
+    else:
+        sprint_ob['actual_length'] = sprint_ob['sprint']['completeDate'] - sprint_ob['sprint']['startDate']
+
+        # not applicable if the sprint is complete or happens in the future.
+        sprint_ob['overdue'] = False
+
+    # Get point completion standard deviation
+    standard_dev_map = defaultdict(int)
+    total_completed_points = 0
+    projects = context.workflow.get_projects(key_only=True)
+    for issue in sprint_ob['contents']['completedIssues']:
+
+        # ignore any issues that are not part of the context.
+        if common.project_key_from_issue_key(issue['key']).upper() not in projects:
+            continue
+
+        points = issue.get('currentEstimateStatistic', {}).get('statFieldValue', {'value': 0}).get('value', 0)
+        total_completed_points += points
+        if 'assignee' in issue:
+            standard_dev_map[issue['assignee']] += points
+        else:
+            print "Found a completed issue without an assignee - %s" % issue['key']
+
+    std_dev = common.standard_deviation(standard_dev_map.values())
+
+    # Replace "null" with 0
+    for val in ('completedIssuesEstimateSum', 'issuesNotCompletedEstimateSum', 'puntedIssuesEstimateSum'):
+        if val in sprint_ob['contents'] and isinstance(sprint_ob['contents'][val], dict) and \
+                sprint_ob['contents'][val]['text'] == 'null':
+            sprint_ob['contents'][val]['text'] = "0"
+
+    if sprint_ob['contents']['issueKeysAddedDuringSprint']:
+        # get issues that were added during the sprint that are part of this context.
+        results = get_jira().execute_jql("(%s) and key in ('%s')" %
+                                         (common.projects_to_jql(context.workflow),
+                                          "','".join(sprint_ob['contents']['issueKeysAddedDuringSprint'].keys())))
+
+        sprint_ob['contents']['issueKeysAddedDuringSprint'] = results
+
+    if sprint_ob['contents']['issuesNotCompletedInCurrentSprint']:
+        incomplete_keys = [x['key'] for x in sprint_ob['contents']['issuesNotCompletedInCurrentSprint']]
+
+        # get all the incomplete tickets that are part of this context
+        issues_not_completed_jql = "(%s) and key in ('%s')" % \
+                                   (common.projects_to_jql(context.workflow), "','".join(incomplete_keys))
+        results = get_jira().execute_jql_with_analysis(issues_not_completed_jql, total_only=False, context=context)
+
+        sprint_ob['contents']['issuesNotCompletedInCurrentSprint'] = results['issues'].values()
+        sprint_ob['contents']['incompleteIssuesFullDetail'] = results['issues'].values()
+
+    team_stats = {
+        "team_name": team_object.name,
+        "team_id": team_id,
+        "sprint_id": sprint_id,
+        "board_id": team_object.agile_board.jira_id,
+        "std_dev": std_dev,
+        "contributing_devs": standard_dev_map.keys(),
+        "team_sprint_data": sprint_ob,
+        "total_completed_points": total_completed_points
+    }
+
+    return team_stats
+
+
 def get_abridged_team_sprint(team_id, sprint_id=const.SPRINT_CURRENT):
     """
     Retrieves the sprint object identified by the given ID.  If the given object
     is a sprint object already it will be returned.  Otherwise, the sprint ID will be looked up in JIRA
-    :param team_id: 
+    :param team_id:
     :param sprint_id: Either one of the SPRINT_XXX consts, an ID, or a sprint object.
     :return: Returns a sprint object or throws a TeamSprintNotFoundException
     """
@@ -490,7 +582,7 @@ def get_abridged_team_sprint(team_id, sprint_id=const.SPRINT_CURRENT):
         for s in sprints:
             if s['state'] == 'FUTURE':
                 continue
-            if s['state'] == 'ACTIVE' and not 'overdue' in s:
+            if s['state'] == 'ACTIVE' and 'overdue' not in s:
                 # this is an active sprint that is not completed yet.
                 continue
             elif s['state'] == 'ACTIVE' and 'overdue' in s:
@@ -667,7 +759,8 @@ def get_releases_since(start, end, context=None, force_update=False):
             issues: <list>
         })
         
-    :param force_update: 
+    :param context:
+    :param force_update:
     :param start: An arrow object containing the start date/time
     :param end: An arrow object containing the end date/time
     :return: A dictionary of of data describing the release pipeline
@@ -691,7 +784,9 @@ def get_releases_since(start, end, context=None, force_update=False):
 def get_filter_analysis(filter_id, brief=False, context=None, force_update=False):
     """
     Gets the filter's details requested in the arguments
-    :param:filter The filter ID
+    :param force_update:
+    :param filter_id The filter ID
+    :param brief A shortened version of the analysis that takes less time to retrieve
     :param context: The context object to use during requests (defaults to using the default context if not given)
     :return: A dictionary of filter data
     """
@@ -701,19 +796,19 @@ def get_filter_analysis(filter_id, brief=False, context=None, force_update=False
     return fetcher.fetch(filter_id=filter_id, brief=brief)
 
 
-def get_jql_analysis(jql, brief=False, context=None, force_update=False):
+def get_jql_analysis(jql_str, brief=False, context=None, force_update=False):
     """
     Gets the jql results details requested in the arguments
     :param force_update:
     :param brief:
-    :param:jql The JQL to use to get results.
+    :param jql_str The JQL to use to get results.
     :param context: The context object to use during requests (defaults to using the default context if not given)
     :return: A dictionary of filter data
     """
     context = context or get_default_context()
     from augur.fetchers import AugurMilestoneDataFetcher
     fetcher = AugurMilestoneDataFetcher(force_update=force_update, augurjira=get_jira(), context=context)
-    return fetcher.fetch(jql=jql, brief=brief)
+    return fetcher.fetch(jql=jql_str, brief=brief)
 
 
 def get_epic_analysis(epic_key, context, brief=False, force_update=False):
@@ -851,7 +946,7 @@ def get_staff_member_by_github_username(username):
     assert username
     try:
         return orm.get(s for s in db.Staff if s.github_username == username)
-    except (orm.MultipleObjectsFoundError,orm.ObjectNotFound):
+    except (orm.MultipleObjectsFoundError, orm.ObjectNotFound):
         return None
 
 
@@ -865,12 +960,13 @@ def get_staff_member_by_field(first_name=None, last_name=None, email=None, usern
     :param email: The email of the user to find.
     :return: Returns a db.Staff object if found, otherwise None.
     """
+
     def search_by_username():
         try:
             # try searching by first, last name
             return orm.get(s for s in db.Staff if s.github_username == username or
                            s.jira_username == username)
-        except (orm.MultipleObjectsFoundError,orm.ObjectNotFound):
+        except (orm.MultipleObjectsFoundError, orm.ObjectNotFound):
             return False
 
     def search_by_name():
@@ -884,14 +980,14 @@ def get_staff_member_by_field(first_name=None, last_name=None, email=None, usern
             elif last_name:
                 return orm.get(s for s in db.Staff if s.last_name.lower() == last_name.lower())
 
-        except (orm.MultipleObjectsFoundError,orm.ObjectNotFound):
+        except (orm.MultipleObjectsFoundError, orm.ObjectNotFound):
             return False
 
     def search_by_email():
         try:
             # try searching by first, last name
             return orm.get(s for s in db.Staff if s.email.lower() == email.lower())
-        except (orm.ObjectNotFound,orm.MultipleObjectsFoundError):
+        except (orm.ObjectNotFound, orm.MultipleObjectsFoundError):
             return False
 
     result = None
@@ -979,6 +1075,7 @@ def get_products():
 def get_active_epics(context=None, force_update=False):
     """
     Retrieves epics that have been actively worked on in the past X days
+    :param force_update:
     :param context: The context object to use during requests (defaults to using the default context if not given)
     :return: A dictionary of epics
     """
@@ -1020,7 +1117,7 @@ def get_board_metrics(board_id, context):
     :param context: The context to help define how to interpret the data retrieved
     :return: Returns a dict with information about the backlog
     """
-    return get_jira().get_board_backlog_metrics(board_id)
+    return get_jira().get_board_metrics(board_id, context)
 
 
 def cache_data(document, key, storage_type=None):
@@ -1096,7 +1193,7 @@ def get_projects_by_category(category):
     cache_key = "projects_%s" % category
     projects = get_cached_data(cache_key)
     if not projects:
-        projects = get_jira().get_projects_with_category(category)
+        projects = get_jira().jira.get_projects_with_category(category)
         cache_data({'data': projects}, cache_key)
     else:
         projects = projects[0]['data']
@@ -1187,10 +1284,11 @@ def clear_event_data(days_to_keep=30):
     :param days_to_keep: The number of days to keep and remove all other log entries.
     :return: Returns the number of rows deleted
     """
-    return delete(e for e in EventLog if e.event_time < (datetime.datetime.now()-datetime.timedelta(days=days_to_keep)))
+    return delete(
+        e for e in EventLog if e.event_time < (datetime.datetime.now() - datetime.timedelta(days=days_to_keep)))
 
 
-def log_event_data(event_type,event_data):
+def log_event_data(event_type, event_data):
     """
     Stores a log entry in the database
     :param event_type:

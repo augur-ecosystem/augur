@@ -1,5 +1,6 @@
 import urllib
 
+import augur.common
 from augur import settings
 from augur import api
 from augur.common import cache_store
@@ -37,7 +38,7 @@ class AugurDashboardFetcher(AugurDataFetcher):
         project in (PDC, TOP, POST, ENG, DEF) AND issuetype in (story, task, defect, subtask, bug) AND status not in (resolved, open) AND updated < startOfDay(-2w)
         :return:
         """
-        project_jql = augurjira.projects_to_jql(self.context.workflow)
+        project_jql = augur.common.projects_to_jql(self.context.workflow)
         in_progress_statues = map(lambda x: x.tool_issue_status_name, self.context.workflow.in_progress_statuses())
 
         if in_progress_statues:
@@ -50,7 +51,7 @@ class AugurDashboardFetcher(AugurDataFetcher):
         project in (PDC, TOP, POST, ENG, DEF) AND issuetype in (story, task, defect, subtask, bug) AND status not in (resolved, open) AND updated < startOfDay(-2w)
         :return:
         """
-        project_jql = augurjira.projects_to_jql(self.context.workflow)
+        project_jql = augur.common.projects_to_jql(self.context.workflow)
         done_statuses = map(lambda x: x.tool_issue_status_name, self.context.workflow.done_statuses())
         dev_issuetypes = map(lambda x: x.tool_issue_type_name, self.context.workflow.dev_issue_types())
 

@@ -241,11 +241,15 @@ class JiraSprintCollection(JiraObject):
         - include_reports (optional, default=False) - If True, this will set make extra calls per
                             sprint to retrieve detailed sprint reports.
         - team_name - If given, this will restrict the sprints to those which have the given team name in the title.
+        - states (optional, default="['closed','active']) - Which sprints to include based on state.  By default we
+                            exclude future sprints.
     """
 
     def __init__(self, source, **kwargs):
         super(JiraSprintCollection, self).__init__(source, **kwargs)
         self._sprints = None
+        if not self.option('states'):
+            self._options.states = ['closed','active']
 
     def __iter__(self):
         return iter(self._sprints)
@@ -279,7 +283,7 @@ class JiraSprintCollection(JiraObject):
 
                 # we do it this way because this returns a paginated object that automatically
                 #   makes additional calls when there are more than fit on a single page.
-                sprints = self.source.jira.sprints(board_id, maxResults=0)
+                sprints = self.source.jira.sprints(board_id, maxResults=0, state=','.join(self.option('state')))
 
             elif self.option('sprints'):
                 sprints = self.option('sprints')
@@ -315,6 +319,9 @@ class JiraSprintCollection(JiraObject):
                 if self.option('team_name'):
                     continue_adding = common.find_team_name_in_string(self.option('team_name'),
                                                                       jira_sprint_json['name'])
+
+                if jira_sprint_json['state'].lower() not in self.option('states'):
+                    continue_adding = False
 
                 if continue_adding:
                     sprint_ob.prepopulate(jira_sprint_json)
@@ -382,7 +389,8 @@ class JiraBoard(JiraObject):
 
     def get_sprints(self):
         """
-        Gets the sprints on the agile board in order from newest to oldest>
+        Gets the sprints on the agile board in order from newest to oldest.  Note that this will not include
+        future sprints.
         :return: Returns a JiraSprintCollection
         """
         if not self._sprints:
@@ -395,7 +403,8 @@ class JiraBoard(JiraObject):
             self._sprints = JiraSprintCollection(self.source, board=self,
                                                  include_reports=self.option('include_sprint_reports'),
                                                  max_sprints=self.option('max_sprints'),
-                                                 team_name=team_name)
+                                                 team_name=team_name,
+                                                 include_future=False)
             self._sprints.load()
 
         return self._sprints
@@ -413,7 +422,7 @@ class JiraBoard(JiraObject):
         for s in sprints:
             # the first inactive one it finds it returns since we assume that they are orded from newest to oldest
             #   (see get_sprints)
-            if not s.active:
+            if s.state.lower() == 'closed':
                 return s
 
         return None

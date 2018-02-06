@@ -3,16 +3,13 @@ import hashlib
 
 import logging
 
-from collections import defaultdict
-from dateutil.parser import parse
 from jira import JIRA, Issue
-from jira.exceptions import JIRAError
-from munch import Munch, munchify
+from munch import munchify
 
-from augur import api, db, const
+from augur import api
 from augur import common
 from augur import settings
-from augur.common import cache_store, calc_weekends, clean_detailed_sprint_info
+from augur.common import cache_store
 from augur.common.timer import Timer
 from augur.integrations.augurtempo import AugurTempo
 from augur.integrations.objects.board import JiraBoard
@@ -25,71 +22,6 @@ class TeamSprintNotFoundException(Exception):
 
 class DeveloperNotFoundException(Exception):
     pass
-
-
-def positive_resolution_jql(workflow):
-    """
-    Returns a JQL segment that filters based on done statuses and positive resolutions for the given workflow.
-     > e.g. ((status in (resolve,closed) and resolution in ("fixed","done", "complete")
-    :param workflow: The workflow object to use as a source for information about what constitutes positive resolution
-    :return: Returns the JQL
-    """
-    done_statuses = [d.tool_issue_status_name for d in workflow.done_statuses()]
-    done_resolutions = [d.tool_issue_resolution_name for d in workflow.positive_resolutions()]
-
-    return "(status in (\"%s\") and resolution in (\"%s\"))"%('","'.join(done_statuses), '","'.join(done_resolutions))
-
-
-def project_key_from_issue_key(issue_key):
-    """
-    Gets the project key from an issue key
-    :param issue_key: The issue key to parse
-    :return: Returns None if invalid issue key given.
-    """
-    try:
-        project_key, val = issue_key.split("-")
-        return project_key
-    except ValueError:
-        return None
-
-
-def defect_filter_to_jql(defect_filters, include_issue_types=True):
-    jql_list = []
-    for d in defect_filters:
-        if include_issue_types:
-            jql_list.append("(project = %s and issuetype in ('%s'))" %
-                            (d.project_key, "','".join(d.get_issue_types_as_string_list())))
-        else:
-            jql_list.append("(project = %s)" % d.project_key)
-
-    return "((%s))" % ") OR (".join(jql_list)
-
-
-def projects_to_jql(workflow):
-    """
-    Gets the projects information and returns a jql string that can be embedded directly into a larger jql
-    :return: Returns a string containing the jql
-    """
-    keys = []
-    for p in workflow.projects:
-        keys.append(p.tool_project_key)
-
-    categories = []
-    for c in workflow.categories:
-        categories.append(c.tool_category_name)
-
-    jql_projects = ""
-    jql_categories = ""
-    if len(keys) > 0:
-        jql_projects = "project in (%s)"%",".join(keys)
-
-    if len(categories) > 0:
-        jql_categories = "category in ('%s')" % "','".join(categories)
-
-    if jql_projects and jql_categories:
-        return "((%s) OR (%s))" % (jql_projects,jql_categories)
-    else:
-        return jql_projects if jql_projects else jql_categories
 
 
 class AugurJira(object):
@@ -107,7 +39,7 @@ class AugurJira(object):
             self.username,
             self.password),
             server=self.server,
-            options={"agile_rest_path":"agile"})
+            options={"agile_rest_path": "agile"})
 
         self.mongo = cache_store.AugurStatsDb()
         self.general_cache = cache_store.AugurCachedResultSets(self.mongo)
@@ -137,7 +69,7 @@ class AugurJira(object):
         self._initialize_field_map()
 
         default_fields = {}
-        for df,val in self._default_fields.iteritems():
+        for df, val in self._default_fields.iteritems():
             default_fields[df] = self.get_field_by_name(df)
 
         self._default_fields = munchify(default_fields)
@@ -168,12 +100,11 @@ class AugurJira(object):
         if not self.fields:
             # cache the fields for later
             fields = api.memory_cache_data(self.jira.fields(), 'custom_fields')
-            self.fields = {f['name'].lower(): munchify(f) for f in fields }
+            self.fields = {f['name'].lower(): munchify(f) for f in fields}
 
     def get_field_by_name(self, name):
         """
         Returns the true field name of a jira field based on its friendly name
-        :param jira: The JIRA object to use to retrieve field data if necessary
         :param name: The friendly name of the field
         :return: A string with the true name of a field.
         """
@@ -184,42 +115,8 @@ class AugurJira(object):
             _name = name.lower()
             if _name.lower() in self.fields:
                 return self.fields[_name]['id']
-        except (KeyError,ValueError):
+        except (KeyError, ValueError):
             return name
-
-    def get_projects(self):
-        """Get a list of project Resources from the server visible to the current authenticated user."""
-        return self.jira._get_json('project', {"expand": "category"})
-
-    def get_projects_with_category(self, category):
-        """
-        Finds all the projects that have the category given
-        :param category: A string containing the project category name or a list of category strings
-        :return: An array of project dictionaries.
-        """
-        if isinstance(category,(str,unicode)):
-            category = [category]
-
-        category = [c.lower() for c in category]
-        projects = self.get_projects()
-
-        return [p for p in
-                filter(lambda x: 'projectCategory' in x and x['projectCategory']['name'].lower() in category,
-                       projects)]
-
-    def get_projects_with_key(self, key):
-        """
-        Finds all the projects that have the key (or keys) given
-        :param category: A string containing the project key or a list of ketys
-        :return: An array of project dictionaries.
-        """
-        if isinstance(key,(str,unicode)):
-            key = [key]
-
-        key = [c.lower() for c in key]
-        projects = self.get_projects()
-
-        return [p for p in filter(lambda x: x['key'].lower() in key, projects)]
 
     def get_project_components(self, project):
         """
@@ -240,7 +137,7 @@ class AugurJira(object):
     #  Methods for basic querying using JQL with some additional helpers
     ######################################################################
 
-    def get_issue(self,key):
+    def get_issue(self, key):
         issue = self.jira.issue(key)
         if issue:
             return issue.raw
@@ -270,7 +167,7 @@ class AugurJira(object):
             result = api.get_cached_data(hashed_query, override_ttl=datetime.timedelta(hours=2))
             if not result:
 
-                if not isinstance(expand,(str,unicode)):
+                if not isinstance(expand, (str, unicode)):
                     expand = ""
 
                 if include_changelog and expand.find("changelog") == -1:
@@ -284,7 +181,8 @@ class AugurJira(object):
                 idx = 0
                 while cnt == maxi:
                     idx += maxi
-                    resource = self.jira.search_issues(jql, expand=expand, maxResults=maxi, json_result=True, startAt=idx)
+                    resource = self.jira.search_issues(jql, expand=expand, maxResults=maxi, json_result=True,
+                                                       startAt=idx)
                     results_json['issues'].extend(resource['issues'])
                     cnt = len(resource['issues'])
 
@@ -324,7 +222,7 @@ class AugurJira(object):
         }
 
         # Initialize the status counters
-        result.update({AugurJira._status_to_dict_key(x): 0 for x in context.workflow.statuses})
+        result.update({common.status_to_dict_key(x): 0 for x in context.workflow.statuses})
 
         # Initialize point totals
         result.update({
@@ -336,7 +234,7 @@ class AugurJira(object):
         })
 
         for issue in issues:
-            assignee_cleaned = AugurJira._clean_username(issue['assignee'])
+            assignee_cleaned = common.clean_username(issue['assignee'])
 
             if issue['assignee'] not in result['developer_stats']:
                 result['developer_stats'][assignee_cleaned] = {
@@ -349,7 +247,7 @@ class AugurJira(object):
                 }
 
             # Add this issue to the list of issues for the user
-            result['developer_stats'][AugurJira._clean_username(issue['assignee'])]['issues'].append(issue['key'])
+            result['developer_stats'][common.clean_username(issue['assignee'])]['issues'].append(issue['key'])
 
             ########
             # Point Counters
@@ -360,7 +258,7 @@ class AugurJira(object):
 
             if context.workflow.is_resolved(status, resolution):
                 result["complete"] += points
-                result['developer_stats'][assignee_cleaned ]['complete'] += points
+                result['developer_stats'][assignee_cleaned]['complete'] += points
 
             elif context.workflow.is_abandoned(status, resolution):
                 result["abandoned"] += points
@@ -368,7 +266,7 @@ class AugurJira(object):
 
             else:
                 result["incomplete"] += points
-                result['developer_stats'][assignee_cleaned ]['incomplete'] += points
+                result['developer_stats'][assignee_cleaned]['incomplete'] += points
 
             if not points and not context.workflow.is_abandoned(status, resolution):
                 result['unpointed'] += 1
@@ -381,10 +279,10 @@ class AugurJira(object):
                 # initialize all the keys for stats
                 total_time_to_complete = 0
                 for s in context.workflow.in_progress_statuses():
-                    total_status_str_prepped = "time_%s" % AugurJira._status_to_dict_key(s)
-                    start_status_str_prepped = "start_time_%s" % AugurJira._status_to_dict_key(s)
-                    end_status_str_prepped = "end_time_%s" % AugurJira._status_to_dict_key(s)
-                    timing = AugurJira.get_issue_status_timing_info(issue, s)
+                    total_status_str_prepped = "time_%s" % common.status_to_dict_key(s)
+                    start_status_str_prepped = "start_time_%s" % common.status_to_dict_key(s)
+                    end_status_str_prepped = "end_time_%s" % common.status_to_dict_key(s)
+                    timing = common.get_issue_status_timing_info(issue, s)
                     total_time_to_complete += timing['total_time'].total_seconds()
                     issue[total_status_str_prepped] = timing['total_time']
                     issue[start_status_str_prepped] = timing['start_time']
@@ -395,7 +293,7 @@ class AugurJira(object):
             ########
             # Status counts
             ########
-            status_as_key = AugurJira._status_to_dict_key(issue['status'])
+            status_as_key = common.status_to_dict_key(issue['status'])
             if status_as_key not in result:
                 result[status_as_key] = 0
             result[status_as_key] += 1
@@ -564,14 +462,14 @@ class AugurJira(object):
                         ticket.update(
                             update_fields
                         )
-                except Exception,e:
-                    self.logger.warning("Ticket was created but not updated due to exception: %s"%e.message)
+                except Exception, e:
+                    self.logger.warning("Ticket was created but not updated due to exception: %s" % e.message)
 
                 try:
                     if watchers and isinstance(watchers, (list, tuple)):
                         [self.jira.add_watcher(ticket, w) for w in watchers]
-                except Exception,e:
-                    self.logger.warning("Unable to add watcher(s) due to exception: %s"%e.message)
+                except Exception, e:
+                    self.logger.warning("Unable to add watcher(s) due to exception: %s" % e.message)
 
             return ticket
 
@@ -579,7 +477,7 @@ class AugurJira(object):
             self.logger.error("Failed to create ticket: %s", e.message)
             return None
 
-    def delete_ticket(self,key):
+    def delete_ticket(self, key):
         """
         Deletes a ticket with the given key
         :param key: The key of the ticket to delete
@@ -598,296 +496,14 @@ class AugurJira(object):
     #  I made a new one based on that implementation with only one change.
     ###########################
 
-    def get_sprints_from_board(self, boardid):
-        """
-        Replaces the jira module version of the by the same name to prevent historic and future sprints from being
-        returned (not an option in the current implementation)
-        :param boardid:
-        :return:
-        """
-        r_json = self.jira._get_json('sprintquery/%s?includeHistoricSprints=false&includeFutureSprints=false' % boardid,
-                                     base=self.jira.AGILE_BASE_URL)
-
-        return r_json['sprints']
-
-    def sprint_info(self, board_id, sprint_id):
-        """
-        Return the information about a sprint.
-
-        :param board_id: the board retrieving issues from
-        :param sprint_id: the sprint retieving issues from
-        """
-        return self.jira._get_json('rapid/charts/sprintreport?rapidViewId=%s&sprintId=%s' % (board_id, sprint_id),
-                                   base=self.jira.AGILE_BASE_URL)
-
-    def get_team_sprints_simple(self, team_id, limit=None):
-        """
-        Gets a list of sprints for the given team.  Will always load this from Jira.  It will also add some data. The
-        list is returned in sequence order which is usually the order in which the sprints occured in time.
-        :param team_id: The ID of the team to retrieve sprints for.
-        :param limit: The number of sprints back to go (limit=5 would mean only the last 5 sprints)
-        :return: Returns an array of sprint objects.
-        """
-
-        team_ob = api.get_team_by_id(team_id)
-        if team_ob.agile_board:
-            try:
-                team_sprints_abridged = self.get_sprints_from_board(team_ob.agile_board.jira_id)
-            except JIRAError, e:
-                if e.status_code == 404:
-                    self.logger.error("Could not find the Agile Board with ID %d"%team_ob.agile_board.jira_id)
-                    team_sprints_abridged = []
-                else:
-                    raise e
-        else:
-            team_sprints_abridged = []
-            self.logger.warning("No agile board has been defined for this team")
-
-        # the initial list can contain sprints from other boards in cases where tickets spent time on
-        # both boards.  So we filter out any that do not belong to the team.
-        if team_sprints_abridged:
-            filtered_sprints = [sprint for sprint in team_sprints_abridged if common.sprint_belongs_to_team(sprint, team_id)]
-            filtered_sorted_list = sorted(filtered_sprints, key=lambda k: k['sequence'])
-        else:
-            filtered_sorted_list = []
-
-        if limit:
-            return filtered_sorted_list[-limit:]
-        else:
-            return filtered_sorted_list
-
-    def get_sprints_by_team(self, team_id, sort_by=const.SPRINT_SORTBY_ENDDATE, descending=True, limit=None):
-        """
-        This returns detailed information about each sprint associated with a team.  The team must have an
-        agile board associated it.
-        :param team_id: The ID of the team to retrieve sprints for.
-        :return: Returns an array of sprint objects.
-        """
-        ua_sprints = augur.api.get_abridged_sprint_list_for_team(team_id, limit)
-        sprintdict_list = []
-
-        for s in ua_sprints:
-            # get_detailed... will handle caching
-            sprint_ob = self.get_detailed_sprint_info_for_team(team, s['id'])
-
-            if sprint_ob: sprintdict_list.append(sprint_ob)
-
-        def sort_by_end_date(cmp1, cmp2):
-            return -1 if cmp1['team_sprint_data']['sprint']['endDate'] < cmp2['team_sprint_data']['sprint'][
-                'endDate'] else 1
-
-        SORTKEYS = {
-            SPRINT_SORTBY_ENDDATE: sort_by_end_date
-        }
-
-        if sort_by in SORTKEYS:
-            return sorted(sprintdict_list, SORTKEYS[sort_by], reverse=descending)
-        else:
-            return sprintdict_list
-
-    def get_sprints_by_board(self, board_id, sort_by=const.SPRINT_SORTBY_ENDDATE, descending=True, limit=None):
-
-        ua_sprints = augur.api.get_abridged_sprint_list_for_team(team_id, limit)
-        sprintdict_list = []
-
-        for s in ua_sprints:
-            # get_detailed... will handle caching
-            sprint_ob = self.get_detailed_sprint_info_for_team(team, s['id'])
-
-            if sprint_ob: sprintdict_list.append(sprint_ob)
-
-        def sort_by_end_date(cmp1, cmp2):
-            return -1 if cmp1['team_sprint_data']['sprint']['endDate'] < cmp2['team_sprint_data']['sprint'][
-                'endDate'] else 1
-
-        SORTKEYS = {
-            SPRINT_SORTBY_ENDDATE: sort_by_end_date
-        }
-
-        if sort_by in SORTKEYS:
-            return sorted(sprintdict_list, SORTKEYS[sort_by], reverse=descending)
-        else:
-            return sprintdict_list
-
-    def get_sprint_simple_by_id(self, sprint_id, team_id):
-        """
-        Retrieves the sprint object identified by the given ID.  If the given object
-        is a sprint object already it will be returned.  Otherwise, the sprint ID will be looked up in JIRA
-        :param sprint_id: Either one of the SPRINT_XXX consts, an ID, or a sprint object.
-        :param team_id: (optional) The ID of the team only required if the sprint ID given is one of the SPRINT_
-                                    constants
-        :return: Returns a sprint object or throws a TeamSprintNotFoundException
-        """
-
-        def get_key(item):
-            return item['sequence']
-
-        sprints = self.get_team_sprints_simple(team_id)
-        sprints = sorted(sprints, key=get_key, reverse=True)
-
-        sprint = None
-
-        if sprint_id == const.SPRINT_LAST_COMPLETED:
-            # Note: get_issue_sprints returns results that are sorted in descending order by end date
-            for s in sprints:
-                if s['state'] == 'FUTURE':
-                    continue
-                if s['state'] == 'ACTIVE' and not 'overdue' in s:
-                    # this is an active sprint that is not completed yet.
-                    continue
-                elif s['state'] == 'ACTIVE' and 'overdue' in s:
-                    # this is a sprint that should have been marked complete but hasn't been yet
-                    sprint = s
-                elif s['state'] == 'CLOSED':
-                    # this is the first sprint that is not marked as active so we can assume that it's the last
-                    # completed sprint.
-                    sprint = s
-                    break
-
-        elif sprint_id == const.SPRINT_BEFORE_LAST_COMPLETED:
-            # Note: get_issue_sprints returns results that are sorted in descending order by end date
-            sprint_last = None
-            sprint_before_last = None
-            for s in sprints:
-                if s['state'] == 'CLOSED':
-                    # this is the first sprint that is not marked as active so we can assume that it's the last
-                    # completed sprint.
-                    if not sprint_last:
-                        # so we've gotten to the most recently closed one but we're looking for the one before that.
-                        sprint_last = s
-                    else:
-                        # this is the one before the last one.
-                        sprint_before_last = s
-                        break
-
-            sprint = sprint_before_last
-
-        elif sprint_id == const.SPRINT_CURRENT:
-            # Note: get_issue_sprints returns results that are sorted in descending order by end date
-            for s in sprints:
-                if s['state'] == 'ACTIVE':
-                    # this is an active sprint that is not completed yet.
-                    sprint = s
-                    break
-                else:
-                    continue
-
-        elif isinstance(sprint_id, dict):
-            # a sprint object was given instead of just an id
-            sprint = sprint_id
-        else:
-            # Note: get_issue_sprints returns results that are sorted in descending order by end date
-            for s in sprints:
-                if s['id'] == sprint_id:
-                    sprint = s
-                    break
-                else:
-                    continue
-
-        return sprint
-
-    def get_sprint_by_id(self, sprint_id, context, team_id=None):
-        """
-        This will get sprint data for the the given sprint.  You can specify you want the current or the
-        most recently closed sprint for the team by using one of the SPRINT_XXX consts.  You can also specify an ID
-        of a sprint if you know what you want.  Or you can pass in a sprint object to confirm that it's a valid
-        sprint object.  If it is, it will be returned, otherwise a SprintNotFoundException will be thrown.
-        :param sprint_id: The ID, const, or sprint object.
-        :param team_id: The ID of the team (required if the sprint ID is one of the SPRINT_ constants.
-        :return: Returns a sprint object
-        """
-
-        # We either don't have anything cached or we decided not to use it.  So start from scratch by retrieving
-        # the detailed sprint data from Jira
-        sprint_abridged = self.get_sprint_simple_by_id(sprint_id, team_id)
-
-        if not sprint_abridged:
-            return None
-
-        team_object = api.get_team_by_id(team_id)
-        sprint_ob = self.sprint_info(team_object.get_agile_board_jira_id(), sprint_abridged['id'])
-
-        if not sprint_ob:
-            return None
-
-        # convert date strings to actual dates.
-        clean_detailed_sprint_info(sprint_ob)
-
-        now = datetime.datetime.now().replace(tzinfo=None)
-
-        if sprint_ob['sprint']['state'] == 'ACTIVE':
-            sprint_ob['actual_length'] = now - sprint_ob['sprint']['startDate']
-            sprint_ob['overdue'] = sprint_ob['actual_length'] > datetime.timedelta(days=16)
-        else:
-            sprint_ob['actual_length'] = sprint_ob['sprint']['completeDate'] - sprint_ob['sprint']['startDate']
-
-            # not applicable if the sprint is complete or happens in the future.
-            sprint_ob['overdue'] = False
-
-        # Get point completion standard deviation
-        standard_dev_map = defaultdict(int)
-        total_completed_points = 0
-        projects = context.workflow.get_projects(key_only=True)
-        for issue in sprint_ob['contents']['completedIssues']:
-
-            # ignore any issues that are not part of the context.
-            if project_key_from_issue_key(issue['key']).upper() not in projects:
-                continue
-
-            points = issue.get('currentEstimateStatistic', {}).get('statFieldValue', {'value': 0}).get('value', 0)
-            total_completed_points += points
-            if 'assignee' in issue:
-                standard_dev_map[issue['assignee']] += points
-            else:
-                print "Found a completed issue without an assignee - %s" % issue['key']
-
-        std_dev = common.standard_deviation(standard_dev_map.values())
-
-        # Replace "null" with 0
-        for val in ('completedIssuesEstimateSum', 'issuesNotCompletedEstimateSum', 'puntedIssuesEstimateSum'):
-            if val in sprint_ob['contents'] and isinstance(sprint_ob['contents'][val], dict) and \
-                    sprint_ob['contents'][val]['text'] == 'null':
-                sprint_ob['contents'][val]['text'] = "0"
-
-        if sprint_ob['contents']['issueKeysAddedDuringSprint']:
-
-            # get issues that were added during the sprint that are part of this context.
-            results = self.augurjira.execute_jql("(%s) and key in ('%s')" %
-                                                 (projects_to_jql(self.context.workflow),
-                                                  "','".join(sprint_ob['contents']['issueKeysAddedDuringSprint'].keys())))
-
-            sprint_ob['contents']['issueKeysAddedDuringSprint'] = results
-
-        if sprint_ob['contents']['issuesNotCompletedInCurrentSprint']:
-            incomplete_keys = [x['key'] for x in sprint_ob['contents']['issuesNotCompletedInCurrentSprint']]
-
-            # get all the incomplete tickets that are part of this context
-            jql = "(%s) and key in ('%s')" % \
-                  (projects_to_jql(self.context.workflow), "','".join(incomplete_keys))
-            results = self.augurjira.execute_jql_with_analysis(jql, total_only=False, context=self.context)
-
-            sprint_ob['contents']['issuesNotCompletedInCurrentSprint'] = results['issues'].values()
-            sprint_ob['contents']['incompleteIssuesFullDetail'] = results['issues'].values()
-
-        team_stats = {
-            "team_name": team_object.name,
-            "team_id": team_id,
-            "sprint_id": sprint_id,
-            "board_id": team_object.agile_board.jira_id,
-            "std_dev": std_dev,
-            "contributing_devs": standard_dev_map.keys(),
-            "team_sprint_data": sprint_ob,
-            "total_completed_points": total_completed_points
-        }
-
-        return team_stats
-
-    def get_board_backlog_metrics(self, board_id, context):
+    def get_board_metrics(self, board_id, context):
 
         board = JiraBoard(self, board_id=board_id)
         if board.load():
-            metrics = BoardMetrics(context,board)
-            return metrics.backlog_analysis()
+            metrics = BoardMetrics(context, board)
+            return munchify({
+                'sprints': metrics.historic_sprint_analysis(),
+                'backlog': metrics.backlog_analysis()
+            })
         else:
             return None
-

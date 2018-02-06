@@ -1,4 +1,5 @@
 import augur.api
+import augur.common
 from augur.common import cache_store
 from augur.integrations import augurjira
 from augur.integrations.augurjira import DeveloperNotFoundException
@@ -57,7 +58,7 @@ class AugurDevStatsDataFetcher(AugurDataFetcher):
 
         workflow = self.context.workflow
 
-        project_jql = augurjira.projects_to_jql(workflow)
+        project_jql = augur.common.projects_to_jql(workflow)
         resolved_status_jql = "('%s')"%"','".join([s.tool_issue_status_name for s in workflow.done_statuses()])
         results2 = self.augurjira.execute_jql_with_analysis(
             "%s and assignee='%s' and status not in %s" %
