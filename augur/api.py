@@ -39,6 +39,7 @@ from augur.common import const, cache_store, project_key_from_issue_key
 from augur import db
 from augur.common.const import SPRINT_SORTBY_ENDDATE
 from augur.db import EventLog
+from augur.integrations.objects.board import JiraBoard
 
 CACHE = dict()
 
@@ -171,6 +172,7 @@ def get_sprint_info(team_id, sprint=None, context=None, force_update=False):
     :param force_update: If True, then this will skip the cache and pull from JIRA
     :return: Returns timedelta object with the remaining time in sprint
     """
+
     context = context or get_default_context()
     from augur.fetchers import AugurSprintDataFetcher
     fetcher = AugurSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
@@ -191,8 +193,12 @@ def get_abridged_sprint_list_for_team(team_id, limit=None):
     list is returned in sequence order which is usually the order in which the sprints occured in time.
     :param team_id: The ID of the team to retrieve sprints for.
     :param limit: The number of sprints back to go (limit=5 would mean only the last 5 sprints.
-    :return: Returns an array of sprint objects.
+    :return: JiraSprintCollection
     """
+
+    board = JiraBoard(get_jira(), team_id=team_id, restrict_sprints_with_team_name=True)
+    if board.load():
+        return board.get_sprints()
 
     team_ob = get_team_by_id(team_id)
     if team_ob.agile_board:

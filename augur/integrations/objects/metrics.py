@@ -39,27 +39,40 @@ class IssueCollectionMetrics(Metrics):
         for each issue with the value being a dictionary containing the start, end and total times for each
         status along with the full in progress time.
         :param options: ----no options----
-        :return: dict
+        :return: As follows:
+            {
+                'statuses': {
+                    'status1': {
+                        total: <timedelta>,
+                        start: <datetime>,
+                        end: <datetime>,
+                    },
+                    ...
+                },
+                'total_in_seconds': <float>,
+                'total_as_time_delta': <timedelta>
+            }
         """
 
         issues_with_timing = {}
         for issue in self.collection:
             # initialize all the keys for stats
-            total_time_to_complete = 0
-            timing = {}
+            timing = {
+                'statuses': {},
+                'total_in_seconds': 0.0,
+                'total_as_time_delta': None
+            }
             for s in self.context.workflow.in_progress_statuses():
-                total_status_str_prepped = "time_%s" % common.status_to_dict_key(s)
-                start_status_str_prepped = "start_time_%s" % common.status_to_dict_key(s)
-                end_status_str_prepped = "end_time_%s" % common.status_to_dict_key(s)
-
+                s_as_key = common.status_to_dict_key(s)
                 t = common.get_issue_status_timing_info(issue.issue, s)
+                timing[s_as_key] = {
+                    'total':t['total_time'],
+                    'start':t['start_time'],
+                    'end':t['end_time']
+                }
+                timing['total_in_seconds'] += t['total_time'].total_seconds()
 
-                total_time_to_complete += t['total_time'].total_seconds()
-                timing[total_status_str_prepped] = t['total_time']
-                timing[start_status_str_prepped] = t['start_time']
-                timing[end_status_str_prepped] = t['end_time']
-
-            timing['total_time_to_complete'] = datetime.timedelta(seconds=total_time_to_complete)
+            timing['total_as_time_delta'] = datetime.timedelta(seconds=timing['total_in_seconds'])
             issues_with_timing[issue.key] = (munchify(timing))
 
         return munchify(issues_with_timing)
@@ -70,7 +83,32 @@ class IssueCollectionMetrics(Metrics):
         :param options:
                 - total_only (Boolean): If True, then issue details will not be included in many of the results -
                         just the totals
-        :return:
+        :return: As follows:
+        {
+            'tickets': {
+                'total_ticket_count': <integer>,
+                'incomplete_ticket_count': <integer>,
+                'unpointed_ticket_count': <integer>,
+            }
+            'points': {
+                "total_points": 0.0,
+                "completed_points": 0.0,
+                "incomplete_points": 0.0,
+                "percent_complete_points": 0,
+                "abandoned_points": 0.0,
+            },
+            'developers': {
+                'username': {
+                    "info": <username>,
+                    "complete_points": 0,
+                    "incomplete_points": 0,
+                    "abandoned_points": 0,
+                    "percent_complete_points": 0,
+                    'issues': []
+                },
+                ...
+            }
+        }
         """
 
         options = munchify(options)
@@ -139,6 +177,48 @@ class IssueCollectionMetrics(Metrics):
 
         return munchify(result)
 
+    def get_data_frame(self, data_to_include=()):
+        """
+
+        :param data_to_include: This is a list or tuple containing zero or more of the following keys:
+            timing, points, statuses
+
+        :return: Returns a pandas DataFrame
+        """
+        data = []
+
+        timing_analysis = None
+        point_analysis = None
+        if 'timing' in data_to_include:
+            timing_analysis = self.timing_analysis()
+
+        if 'points' in data_to_include:
+            point_analysis = self.point_analysis()
+
+        if 'points' in data_to_include:
+            statuses = self.status_analysis()
+
+        for issue in self.collection:
+            row = {
+                "issuetype": issue.issuetype,
+                "assignee": issue.assignee,
+                "points": issue.points,
+                "dev_team": issue.team_name,
+                "description_length": len(issue.description),
+                "reporter": issue.reporter
+            }
+
+            # now add columns for each time_<status> with the value being the number of seconds that the ticket
+            #   was in that status.
+            for status,timing_info in timing_analysis.statuses:
+                in_seconds = timing_info['total'].total_seconds() if \
+                    isinstance(timing_info['total'], datetime.timedelta) else 0.0
+
+                row["time_%s" % status] = in_seconds
+
+            data.append(row)
+
+        return pandas.DataFrame(data=data)
 
 class BoardMetrics(Metrics):
     def __init__(self, context, board):

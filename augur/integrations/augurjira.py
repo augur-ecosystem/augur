@@ -48,11 +48,12 @@ class AugurJira(object):
 
         self._default_fields = munchify({
             "summary": None,
+            "description": None,
             "status": None,
             "priority": None,
             "parent": None,
             "resolution": None,
-            "Dev Team": None,
+            "dev team": None,
             "labels": None,
             "issuelinks": None,
             "development": None,

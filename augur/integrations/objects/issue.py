@@ -1,6 +1,6 @@
-from munch import munchify
+from munch import munchify, DefaultMunch
 
-from augur.integrations.objects.base import JiraObject, InvalidData, InvalidId
+from augur.integrations.objects.base import JiraObject, InvalidId
 
 
 class JiraIssue(JiraObject):
@@ -17,7 +17,7 @@ class JiraIssue(JiraObject):
 
         issue = self.source.jira.issue(self.option('key'))
         if issue:
-            self._issue = munchify(issue)
+            self._issue = munchify(issue,factory=DefaultMunch)
         else:
             self._issue = None
             self.logger.error("JiraIssue: Unable to load issue from Jira")
@@ -30,6 +30,18 @@ class JiraIssue(JiraObject):
                                                  and self._issue.fields.status else ""
 
     @property
+    def issuetype(self):
+        return self._issue.fields.issuetype.name
+
+    @property
+    def description(self):
+        return self._issue.fields.description or ""
+
+    @property
+    def reporter(self):
+        return self._issue.fields.reporter.name or None
+
+    @property
     def assignee(self):
         return self._issue.fields.assignee.name if self._issue \
                                                    and 'assignee' in self._issue.fields \
@@ -38,9 +50,7 @@ class JiraIssue(JiraObject):
     @property
     def points(self):
         sp_field_name = self.default_fields["story points"]
-        return self._issue.fields[sp_field_name] if self._issue and \
-                                                    sp_field_name in self._issue.fields and \
-                                                    self._issue.fields[sp_field_name] else 0
+        return self._issue.fields[sp_field_name] or 0.0
 
     @property
     def resolution(self):
@@ -51,6 +61,15 @@ class JiraIssue(JiraObject):
     @property
     def key(self):
         return self._issue.key if self._issue else ""
+
+    @property
+    def team_name(self):
+        """
+        If a dev team is not specified then None is returned.
+        :return:
+        """
+        sp_field_name = self.default_fields["dev team"]
+        return self._issue.fields[sp_field_name].value
 
     @property
     def issue(self):
@@ -69,7 +88,7 @@ class JiraIssue(JiraObject):
         """
 
         if 'fields' in data:
-            self._issue = munchify(data)
+            self._issue = munchify(data, factory=DefaultMunch)
         else:
             self._issue = None
 
