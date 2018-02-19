@@ -127,7 +127,10 @@ class TestObject(unittest.TestCase):
             self.assertIn('developer_stats',point_analysis, "Invalid point analysis result")
 
             timing_analysis = metrics.timing_analysis()
-            self.assertIn(collection.issues[0].key, timing_analysis, "Missing key in timing analysis")
+            self.assertIn(collection.issues[0].key, timing_analysis.issues, "Missing key in timing analysis")
+
+            df = metrics.get_data_frame(('points','timing','status'))
+            print df.describe()
 
 
 def suite():

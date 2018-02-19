@@ -1,6 +1,8 @@
 import logging
 
 from dateutil.parser import parse
+from munch import munchify
+
 
 class InvalidId(Exception):
     pass
@@ -15,7 +17,7 @@ class JiraObject(object):
     def __init__(self, source, **kwargs):
         self.source = source
         self.logger = logging.getLogger("augurjira")
-        self._options = kwargs
+        self._options = munchify(kwargs)
 
     def option(self, key, default=None):
         return self._options[key] if key in self._options else default
@@ -37,3 +39,6 @@ class JiraObject(object):
 
     def prepopulate(self,data):
         raise NotImplemented()
+
+    def log_access(self, api, *parameters):
+        self.logger.error("jira:{api}:{parameters}".format(api=api, parameters=",".join([str(p) for p in parameters])))

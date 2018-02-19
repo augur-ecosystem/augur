@@ -64,7 +64,8 @@ class AugurJira(object):
             "creator": None,
             "attachment": None,
             "worklog": None,
-            "story points": None
+            "story points": None,
+            "changelog": None
         })
 
         self._initialize_field_map()
@@ -116,6 +117,10 @@ class AugurJira(object):
             _name = name.lower()
             if _name.lower() in self.fields:
                 return self.fields[_name]['id']
+
+            else:
+                return name
+
         except (KeyError, ValueError):
             return name
 

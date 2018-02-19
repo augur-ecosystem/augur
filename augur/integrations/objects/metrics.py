@@ -5,8 +5,33 @@ from augur import common
 import pandas
 
 
+def df_get_timing_status_keys(context, status_types):
+    """
+    Convert in progress statuses to keys that looks like this: "time_in_progress" (for example)
+    :param status_types:
+    :param context: The AugurContext object
+    :return: An array of keys that look like this "time_in_progress" and always ends with "total_time_to_complete"
+    """
+    if isinstance(status_types,(str,unicode)):
+        status_types = [status_types]
+
+    statuses = []
+    for tp in status_types:
+        if tp == 'in progress':
+            statuses.extend(context.workflow.in_progress_statuses())
+        elif tp == 'done':
+            statuses.extend(context.workflow.done_statuses())
+        elif tp == 'open':
+            statuses.extend(context.workflow.open_statuses())
+
+    time_in_status_keys = map(lambda x: "_time_%s" % common.status_to_dict_key(x.tool_issue_status_name), statuses)
+    time_in_status_keys.append('_time_total_time_seconds')
+    return time_in_status_keys
+
+
+
 class Metrics(object):
-    def __init__ (self, context):
+    def __init__(self, context):
         self.context = context
         self.logger = logging.getLogger("augurjira")
 
@@ -55,6 +80,7 @@ class IssueCollectionMetrics(Metrics):
         """
 
         issues_with_timing = {}
+        all_issue_status_timing = {}
         for issue in self.collection:
             # initialize all the keys for stats
             timing = {
@@ -65,17 +91,25 @@ class IssueCollectionMetrics(Metrics):
             for s in self.context.workflow.in_progress_statuses():
                 s_as_key = common.status_to_dict_key(s)
                 t = common.get_issue_status_timing_info(issue.issue, s)
-                timing[s_as_key] = {
-                    'total':t['total_time'],
-                    'start':t['start_time'],
-                    'end':t['end_time']
+                timing['statuses'][s_as_key] = {
+                    'total': t['total_time'],
+                    'start': t['start_time'],
+                    'end': t['end_time']
                 }
                 timing['total_in_seconds'] += t['total_time'].total_seconds()
+
+                if s_as_key not in all_issue_status_timing:
+                    all_issue_status_timing[s_as_key] = 0
+
+                all_issue_status_timing[s_as_key] += t['total_time'].total_seconds()
 
             timing['total_as_time_delta'] = datetime.timedelta(seconds=timing['total_in_seconds'])
             issues_with_timing[issue.key] = (munchify(timing))
 
-        return munchify(issues_with_timing)
+        return munchify({
+            'issues': issues_with_timing,
+            'statuses': all_issue_status_timing
+        })
 
     def point_analysis(self, options=None):
         """
@@ -160,7 +194,7 @@ class IssueCollectionMetrics(Metrics):
 
             else:
                 result["incomplete"] += issue.points
-                result['developer_stats'][assignee_cleaned ]['incomplete'] += issue.points
+                result['developer_stats'][assignee_cleaned]['incomplete'] += issue.points
 
             if not issue.points and not self.context.workflow.is_abandoned(issue.status, issue.resolution):
                 result['unpointed'] += 1
@@ -179,27 +213,32 @@ class IssueCollectionMetrics(Metrics):
 
     def get_data_frame(self, data_to_include=()):
         """
+        Creates a data frame out of the issues in the collection.  You can choose what information to include in
+        the frame.  By default, it will contain the following:
+            * issuetype (string)
+            * assignee  (string)
+            * points (float)
+            * dev_team (string)
+            * description_length (int)
+            * reporter (string)
+
+        If you include 'timing' you also get a series of values that are prefixed with _timing_
 
         :param data_to_include: This is a list or tuple containing zero or more of the following keys:
-            timing, points, statuses
+            timing, [more to come]
 
         :return: Returns a pandas DataFrame
         """
         data = []
 
         timing_analysis = None
-        point_analysis = None
+
         if 'timing' in data_to_include:
             timing_analysis = self.timing_analysis()
 
-        if 'points' in data_to_include:
-            point_analysis = self.point_analysis()
-
-        if 'points' in data_to_include:
-            statuses = self.status_analysis()
-
         for issue in self.collection:
             row = {
+                "key":issue.key,
                 "issuetype": issue.issuetype,
                 "assignee": issue.assignee,
                 "points": issue.points,
@@ -208,17 +247,17 @@ class IssueCollectionMetrics(Metrics):
                 "reporter": issue.reporter
             }
 
-            # now add columns for each time_<status> with the value being the number of seconds that the ticket
-            #   was in that status.
-            for status,timing_info in timing_analysis.statuses:
-                in_seconds = timing_info['total'].total_seconds() if \
-                    isinstance(timing_info['total'], datetime.timedelta) else 0.0
+            if timing_analysis:
 
-                row["time_%s" % status] = in_seconds
+                if issue.key in timing_analysis.issues:
+                    timing = {"_time_%s" % k: v['total'].total_seconds() for k, v in timing_analysis.issues[issue.key].statuses.iteritems()}
+                    row.update(timing)
+                    row["_time_total_time_seconds"] = timing_analysis.issues[issue.key].total_in_seconds
 
             data.append(row)
 
         return pandas.DataFrame(data=data)
+
 
 class BoardMetrics(Metrics):
     def __init__(self, context, board):
@@ -235,11 +274,11 @@ class BoardMetrics(Metrics):
         collection = self._board.get_backlog()
 
         metrics = {
-            "points":{
-                "unpointed":[],
+            "points": {
+                "unpointed": [],
                 # pointed stories will be grouped by number of points keyed on their point value converted to string
             },
-            "grade":""
+            "grade": ""
         }
 
         pointed = 0
@@ -258,9 +297,9 @@ class BoardMetrics(Metrics):
 
                 metrics['points'][key].append(issue.key)
 
-        total = pointed+unpointed
+        total = pointed + unpointed
         if total > 0:
-            percentage = (float(pointed)/float(total))*100.0
+            percentage = (float(pointed) / float(total)) * 100.0
         else:
             percentage = 0.0
 
@@ -300,7 +339,7 @@ class BoardMetrics(Metrics):
             overall_metrics_list.append(tp)
 
         df_sprints = pandas.DataFrame(overall_metrics_list, columns=[
-            "Name","Points Completed","Incomplete Points","Average Point Size"])
+            "Name", "Points Completed", "Incomplete Points", "Average Point Size"])
 
         avg_velocity = df_sprints["Points Completed"].mean()
         low_velocity = df_sprints["Points Completed"].min()
@@ -317,5 +356,3 @@ class BoardMetrics(Metrics):
             "highest_avg_point_size": highest_avg_point_size,
             "lowest_avg_point_size": lowest_avg_point_size
         })
-
-

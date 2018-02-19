@@ -1,3 +1,4 @@
+from jira import Issue
 from munch import munchify, DefaultMunch
 
 from augur.integrations.objects.base import JiraObject, InvalidId
@@ -15,9 +16,10 @@ class JiraIssue(JiraObject):
         if not self.option("key"):
             raise InvalidId("Issue key must be given")
 
+        self.log_access('issue',self.option('key'))
         issue = self.source.jira.issue(self.option('key'))
         if issue:
-            self._issue = munchify(issue,factory=DefaultMunch)
+            self._issue = munchify(issue)
         else:
             self._issue = None
             self.logger.error("JiraIssue: Unable to load issue from Jira")
@@ -25,51 +27,39 @@ class JiraIssue(JiraObject):
 
     @property
     def status(self):
-        return self._issue.fields.status.name if self._issue and \
-                                                 'status' in self._issue.fields \
-                                                 and self._issue.fields.status else ""
+        return self.get_field('status.name') or ""
 
     @property
     def issuetype(self):
-        return self._issue.fields.issuetype.name
+        return self.get_field('issuetype.name') or ""
 
     @property
     def description(self):
-        return self._issue.fields.description or ""
+        return self.get_field('description') or ""
 
     @property
     def reporter(self):
-        return self._issue.fields.reporter.name or None
+        return self.get_field('reporter.name') or ""
 
     @property
     def assignee(self):
-        return self._issue.fields.assignee.name if self._issue \
-                                                   and 'assignee' in self._issue.fields \
-                                                   and self._issue.fields.assignee else ""
+        return self.get_field('assignee.name') or ""
 
     @property
     def points(self):
-        sp_field_name = self.default_fields["story points"]
-        return self._issue.fields[sp_field_name] or 0.0
+        return self.get_field("story points", translate=True) or 0.0
 
     @property
     def resolution(self):
-        return self._issue.fields.resolution.name if self._issue and \
-                                                     'resolution' in self._issue.fields and \
-                                                     self._issue.fields.resolution else ""
+        return self.get_field('resolution.name') or ""
 
     @property
     def key(self):
-        return self._issue.key if self._issue else ""
+        return self.get_field('key') or ""
 
     @property
     def team_name(self):
-        """
-        If a dev team is not specified then None is returned.
-        :return:
-        """
-        sp_field_name = self.default_fields["dev team"]
-        return self._issue.fields[sp_field_name].value
+        return self.get_field('dev team.value', translate=True) or ""
 
     @property
     def issue(self):
@@ -80,6 +70,30 @@ class JiraIssue(JiraObject):
         """
         return self._issue
 
+    def get_field(self, field, translate=False):
+        if translate:
+            parts = field.split(".")
+            parts[0] = self.default_fields[parts[0].lower()]
+            field = '.'.join(parts)
+
+        if self._issue and self._issue.fields:
+
+            if field not in self._issue:
+                parts = field.split(".")
+                current = self._issue.fields
+                val = None
+                for p in parts:
+                    if p in current and not isinstance(current[p],dict):
+                        val = current[p]
+                        break
+                    else:
+                        current = current[p]
+                return val
+            else:
+                return self._issue[field]
+        else:
+            return None
+
     def prepopulate(self, data):
         """
         Takes a dictionary as returned from the JSON REST API (in JSON form)
@@ -87,8 +101,10 @@ class JiraIssue(JiraObject):
         :return: Returns the issue populated.
         """
 
-        if 'fields' in data:
-            self._issue = munchify(data, factory=DefaultMunch)
+        if isinstance(data, Issue):
+            self._issue = munchify(data.raw)
+        elif isinstance(data, dict) and 'fields' in data:
+            self._issue = munchify(data)
         else:
             self._issue = None
 
@@ -127,17 +143,18 @@ class JiraIssueCollection(JiraObject):
         fields = self.source.default_fields
 
         if self.option('input_jql'):
+            self.log_access('search',self.option('input_jql'))
             search_results = self.source.jira.search_issues(
                 self.option('input_jql'),
                 startAt=self.option('paging_start_at'),
-                maxResults=self.option('paging_max_results', 500),
+                maxResults=self.option('paging_max_results', 0),
                 validate_query=True,
                 fields=fields.values(),
-                expand=None,
-                json_result=True)
+                expand="changelog",
+                json_result=False)  ## Must set to False to let PyJira manage paging
 
-            if issues and 'issues' in search_results:
-                issues = search_results['issues']
+            if search_results:
+                issues = search_results
             else:
                 self.logger.error("You must specify one of the input options in order to properly load this object")
                 return False
@@ -151,11 +168,12 @@ class JiraIssueCollection(JiraObject):
                                   "of type JiraIssueCollection")
                 return False
 
-        assert(isinstance(issues,list))
+        assert (isinstance(issues, list))
         self._issues = []
         for i in issues:
             issue_ob = JiraIssue(self.source)
-            if issue_ob.prepopulate(i):
+            result = issue_ob.prepopulate(i)
+            if len(result):
                 self._issues.append(issue_ob)
 
         return True

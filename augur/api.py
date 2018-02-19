@@ -643,23 +643,35 @@ def get_abridged_team_sprint(team_id, sprint_id=const.SPRINT_CURRENT):
     return sprint
 
 
-def get_sprint_info_for_team(team_id, sprint_id=const.SPRINT_LAST_COMPLETED, context=None, force_update=False):
+def get_sprint(sprint_id=const.SPRINT_LAST_COMPLETED, team_id=None):
     """
     This will get sprint data for the the given team and sprint.  You can specify you want the current or the
     most recently closed sprint for the team by using one of the SPRINT_XXX consts.  You can also specify an ID
     of a sprint if you know what you want.  Or you can pass in a sprint object to confirm that it's a valid
     sprint object.  If it is, it will be returned, otherwise a SprintNotFoundException will be thrown.
-    :param team_id: The ID of the team
-    :param context: The context object to use during requests (defaults to using the default context if not given)
     :param sprint_id: The ID, const, or sprint object.
-    :param force_update: If True, then this will skip the cache and pull from JIRA
-    :return: Returns a sprint object
+    :param team_id: The ID of the team - only required if using a "special" sprint ID like SPRINT_LAST_COMPLETED
+    :return: Returns a tuple containing the board and the sprint object
     """
-    context = context or get_default_context()
-    from augur.fetchers import AugurSprintDataFetcher
-    fetcher = AugurSprintDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
-    return fetcher.fetch(team_id=team_id, sprint_id=sprint_id)
+    if isinstance(sprint_id,(str,unicode)) and team_id is None:
+        api_logger.error("You must specify a team if requesting by special sprint ID")
+        return None, None
 
+    board = JiraBoard(get_jira(), team_id=team_id, restrict_sprints_with_team_name=True, max_sprints=2,
+                      include_sprint_reports=True)
+    if board.load():
+        sprint = None
+
+        if sprint_id  == const.SPRINT_CURRENT:
+            sprint = board.get_most_recent_active_sprint()
+        elif sprint_id == const.SPRINT_LAST_COMPLETED:
+            sprint = board.get_most_recent_closed_sprint()
+        elif isinstance(sprint_id,int):
+            sprint = board.get_sprint(sprint_id)
+
+        return board,sprint
+    else:
+        return None,None
 
 def update_current_sprint_stats(context=None, force_update=False):
     """

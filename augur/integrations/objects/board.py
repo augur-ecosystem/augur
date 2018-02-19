@@ -168,6 +168,7 @@ class JiraSprint(JiraObject):
         sprint_id = self.option("sprint_id")
         board_id = self.option("board_id")
 
+        self.log_access('sprint-full',board_id,sprint_id)
         sprint_report = munchify(self.source.jira.sprint_report(board_id, sprint_id))
 
         if sprint_report:
@@ -188,6 +189,7 @@ class JiraSprint(JiraObject):
     def _load_sprint(self):
 
         sprint_id = self.option("sprint_id")
+        self.log_access('sprint-brief', sprint_id)
         s = self.source.jira.sprint(sprint_id)
         if s:
             self._sprint = munchify(s)
@@ -225,8 +227,12 @@ class JiraSprint(JiraObject):
         self._sprint_id = val
 
     @property
-    def sprint(self):
+    def details(self):
         return self._sprint
+
+    @property
+    def report(self):
+        return self._sprint_report
 
 
 class JiraSprintCollection(JiraObject):
@@ -283,7 +289,8 @@ class JiraSprintCollection(JiraObject):
 
                 # we do it this way because this returns a paginated object that automatically
                 #   makes additional calls when there are more than fit on a single page.
-                sprints = self.source.jira.sprints(board_id, maxResults=0, state=','.join(self.option('state')))
+                self.log_access('sprints',board_id)
+                sprints = self.source.jira.sprints(board_id, maxResults=0, state=','.join(self.option('states')))
 
             elif self.option('sprints'):
                 sprints = self.option('sprints')
@@ -374,6 +381,7 @@ class JiraBoard(JiraObject):
             return None
 
         if not self._backlog_issues:
+            self.log_access('sprint-backlog',self._db_board.jira_id)
             result = self.source.jira.get_backlog_issues(self._db_board.jira_id, json_result=True)
             if result:
                 try:
@@ -386,6 +394,20 @@ class JiraBoard(JiraObject):
                 self._backlog_issues = None
 
         return self._backlog_issues
+
+    def get_sprint(self, sprint_id, include_reports=False):
+        """
+        Gets the sprint with the given id
+        :param sprint_id: The ID of the sprint to load
+        :param include_reports: True to load the detailed sprint report in addition to the normal sprint data.
+        :return:
+        """
+        # if we haven't pulled all the sprints then just make a request.
+        sprint = JiraSprint(self.source, sprint_id=sprint_id, include_reports=include_reports)
+        if sprint.load():
+            return sprint
+        else:
+            return None
 
     def get_sprints(self):
         """
@@ -467,6 +489,7 @@ class JiraBoard(JiraObject):
             board_id = self._db_board.jira_id if self._db_board else None
 
         if board_id:
+            self.log_access('board',board_id)
             b = self.source.jira.board(board_id)
             self._jira_board = munchify(b.raw)
 
