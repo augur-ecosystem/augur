@@ -19,7 +19,7 @@ def unformat_timedelta(value):
     return datetime.timedelta(days=int(out['days']), minutes=int(out['hours']))
 
 
-def format_timedelta(value, time_format="{days} days, {hours2}:{minutes2}:{seconds2}"):
+def format_timedelta(value, time_format="{days} days, {hours2}:{minutes2}:{seconds2}", time_format_no_days="{hours}h"):
     """
     Formats timedelta and uses the following options for the formatting string:
         seconds:        Seconds, no padding
@@ -67,18 +67,35 @@ def format_timedelta(value, time_format="{days} days, {hours2}:{minutes2}:{secon
     years_total = years
     days -= years * 365
 
-    return time_format.format(**{
-        'seconds': seconds,
-        'seconds2': str(seconds).zfill(2),
-        'minutes': minutes,
-        'minutes2': str(minutes).zfill(2),
-        'hours': hours,
-        'hours2': str(hours).zfill(2),
-        'days': days,
-        'years': years,
-        'seconds_total': seconds_total,
-        'minutes_total': minutes_total,
-        'hours_total': hours_total,
-        'days_total': days_total,
-        'years_total': years_total,
-    })
+    if days_total > 0:
+        return time_format.format(**{
+            'seconds': seconds,
+            'seconds2': str(seconds).zfill(2),
+            'minutes': minutes,
+            'minutes2': str(minutes).zfill(2),
+            'hours': hours,
+            'hours2': str(hours).zfill(2),
+            'days': days,
+            'years': years,
+            'seconds_total': seconds_total,
+            'minutes_total': minutes_total,
+            'hours_total': hours_total,
+            'days_total': days_total,
+            'years_total': years_total,
+        })
+    else:
+        return time_format_no_days.format(**{
+            'seconds': seconds,
+            'seconds2': str(seconds).zfill(2),
+            'minutes': minutes,
+            'minutes2': str(minutes).zfill(2),
+            'hours': hours,
+            'hours2': str(hours).zfill(2),
+            'days': days,
+            'years': years,
+            'seconds_total': seconds_total,
+            'minutes_total': minutes_total,
+            'hours_total': hours_total,
+            'days_total': days_total,
+            'years_total': years_total
+        })
