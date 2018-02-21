@@ -429,3 +429,9 @@ def projects_to_jql(workflow):
         return "((%s) OR (%s))" % (jql_projects, jql_categories)
     else:
         return jql_projects if jql_projects else jql_categories
+
+
+def get_date_from_week_number(week_number):
+    year = datetime.datetime.now().year
+    conversion_str = "%d-W%d" % (year, int(week_number))
+    return datetime.datetime.strptime(conversion_str + '-1', "%Y-W%W-%w")

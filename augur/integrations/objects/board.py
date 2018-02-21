@@ -51,16 +51,41 @@ class JiraSprint(JiraObject):
         return self._sprint.startDate
 
     @property
-    def completed_points(self):
+    def added_tickets(self):
         if not self._sprint_report:
             self.logger.error("You must provide the completed sprints")
+            return 0
+
+        return self._sprint_report.issueKeysAddedDuringSprint.keys() if \
+            self._sprint_report.issueKeysAddedDuringSprint else []
+
+    @property
+    def punted_tickets(self):
+        if not self._sprint_report:
+            self._load_sprint_report()
+
+        return self._sprint_report.puntedIssues.keys() if \
+            self._sprint_report.puntedIssues else []
+
+    @property
+    def punted_points(self):
+        if not self._sprint_report:
+            self._load_sprint_report()
+
+        return self._sprint_report.puntedIssuesEstimateSum.text if \
+            self._sprint_report.puntedIssuesEstimateSum else 0
+
+    @property
+    def completed_points(self):
+        if not self._sprint_report:
+            self._load_sprint_report()
 
         return self._sprint_report.completedIssuesEstimateSum.value if 'value' in self._sprint_report.completedIssuesEstimateSum else 0
 
     @property
     def incomplete_points(self):
         if not self._sprint_report:
-            self.logger.error("You must provide the completed sprints")
+            self._load_sprint_report()
 
         return self._sprint_report.issuesNotCompletedEstimateSum.value if 'value' in self._sprint_report.issuesNotCompletedEstimateSum else 0
 
@@ -83,8 +108,7 @@ class JiraSprint(JiraObject):
     @property
     def average_point_size(self):
         if not self._sprint_report:
-            self.logger.error("JiraSprint: No sprint report has been loaded yet.")
-            return None
+            self._load_sprint_report()
 
         points = 0.0
         for issue in self._sprint_report.completedIssues:
@@ -168,7 +192,7 @@ class JiraSprint(JiraObject):
         sprint_id = self.option("sprint_id")
         board_id = self.option("board_id")
 
-        self.log_access('sprint-full',board_id,sprint_id)
+        self.log_access('sprint-full', board_id, sprint_id)
         sprint_report = munchify(self.source.jira.sprint_report(board_id, sprint_id))
 
         if sprint_report:
@@ -232,6 +256,9 @@ class JiraSprint(JiraObject):
 
     @property
     def report(self):
+        if not self._sprint_report:
+            self._load_sprint_report()
+
         return self._sprint_report
 
 
@@ -255,7 +282,7 @@ class JiraSprintCollection(JiraObject):
         super(JiraSprintCollection, self).__init__(source, **kwargs)
         self._sprints = None
         if not self.option('states'):
-            self._options.states = ['closed','active']
+            self._options.states = ['closed', 'active']
 
     def __iter__(self):
         return iter(self._sprints)
@@ -289,7 +316,7 @@ class JiraSprintCollection(JiraObject):
 
                 # we do it this way because this returns a paginated object that automatically
                 #   makes additional calls when there are more than fit on a single page.
-                self.log_access('sprints',board_id)
+                self.log_access('sprints', board_id)
                 sprints = self.source.jira.sprints(board_id, maxResults=0, state=','.join(self.option('states')))
 
             elif self.option('sprints'):
@@ -381,7 +408,7 @@ class JiraBoard(JiraObject):
             return None
 
         if not self._backlog_issues:
-            self.log_access('sprint-backlog',self._db_board.jira_id)
+            self.log_access('sprint-backlog', self._db_board.jira_id)
             result = self.source.jira.get_backlog_issues(self._db_board.jira_id, json_result=True)
             if result:
                 try:
@@ -440,12 +467,19 @@ class JiraBoard(JiraObject):
         return None
 
     def get_most_recent_closed_sprint(self):
+        return self.get_past_sprint(number_of_sprints_in_the_past=1)
+
+    def get_past_sprint(self, number_of_sprints_in_the_past):
         sprints = self.get_sprints()
+        i = 1
         for s in sprints:
             # the first inactive one it finds it returns since we assume that they are orded from newest to oldest
             #   (see get_sprints)
             if s.state.lower() == 'closed':
-                return s
+                if i == number_of_sprints_in_the_past:
+                    return s
+                else:
+                    i += 1
 
         return None
 
@@ -489,7 +523,7 @@ class JiraBoard(JiraObject):
             board_id = self._db_board.jira_id if self._db_board else None
 
         if board_id:
-            self.log_access('board',board_id)
+            self.log_access('board', board_id)
             b = self.source.jira.board(board_id)
             self._jira_board = munchify(b.raw)
 

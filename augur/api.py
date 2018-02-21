@@ -32,7 +32,7 @@ from pony import orm
 from pony.orm import select, delete
 from pony.orm import serialization
 
-from augur import common
+from augur import common, settings
 from augur.common.cache_store import AugurCachedResultSets
 
 from augur.common import const, cache_store, project_key_from_issue_key
@@ -881,14 +881,33 @@ def get_dashboard_data(context=None, force_update=False):
     return data[0] if isinstance(data, list) else data
 
 
-def get_all_developer_info(context=None, force_update=False):
+def get_team_overview(context=None):
     """
-    Retrieves all the developers organized by team along with some basic user info.
-    Looks something like this:
+    Retrieves all information currently stored in the database regarding the teams and team members that are part of
+    the organization.  Groups by team and includes a flat list of developers.  Provides counts for consultant vs.
+    fulltime as well.
+
+    Return example:
 
     {
+        'consultant_count': <int>,
+        'fulltime_count': <int>,
+        'engineer_count': <int>,
+        'team_count': <int>,
+        "teams": {
+            "20": { <team_json>
+                'members': [<member_json>],
+                'board_id': board_id,
+                'board_link': board_link or "",
+                'id': team_ob.id,
+                'full': team_ob.name,
+                'total_fulltime': <int>,
+                'total_consultants': <int>
+            },
+            ...
+        }
         "devs" : {
-            "hnuss" : {
+            "hnuss" : { <member_json>
                 "active" : true ,
                 "team_id" : "hb" ,
                 "fullname" : "Harley Nuss" ,
@@ -899,14 +918,79 @@ def get_all_developer_info(context=None, force_update=False):
 
     }
     :param context: The context object to use during requests (defaults to using the default context if not given)
-    :param force_update: If True, then this will skip the cache and pull fresh data
     :return:
     """
     context = context or get_default_context()
-    from augur.fetchers import AugurTeamMetaDataFetcher
-    fetcher = AugurTeamMetaDataFetcher(context=context, force_update=force_update, augurjira=get_jira())
-    f = fetcher.fetch()
-    return f
+
+    team_json = {
+        'teams': {},
+        'consultant_count': 0,
+        'fulltime_count': 0,
+        'engineer_count': 0,
+        'team_count': 0
+    }
+
+    team_objects = get_teams(context=context)
+
+    flat = {}
+    for team_ob in team_objects:
+        members_json = {}
+        team_consultant_count = 0
+        team_fulltime_count = 0
+        team_total_count = 0
+        for staff_ob in team_ob.members:
+
+            member = {'funnel': team_ob.product.name if team_ob.product else "None",
+                      'email': staff_ob.email,
+                      'is_consultant': staff_ob.type.lower() == "consultant",
+                      'vendor': staff_ob.get_company(),
+                      'start_date': staff_ob.start_date,
+                      'fullname': staff_ob.first_name + " " + staff_ob.last_name
+                      }
+
+            if staff_ob.jira_username not in flat:
+                member['team_id'] = team_ob.id
+                member['team_name'] = team_ob.name
+                flat[staff_ob.jira_username] = member
+
+            if staff_ob.vendor:
+                member['company'] = staff_ob.vendor.name
+
+            member['fullname'] = staff_ob.get_fullname()
+
+            if member['is_consultant']:
+                team_json['consultant_count'] += 1
+                team_consultant_count += 1
+            else:
+                team_json['fulltime_count'] += 1
+                team_fulltime_count += 1
+
+            team_total_count += 1
+
+            team_json['engineer_count'] += 1
+
+            members_json[staff_ob.jira_username] = member
+
+        team_json['team_count'] += 1
+
+        board_id = team_ob.agile_board.jira_id if team_ob.agile_board else 0
+        board_link = "%s/secure/RapidBoard.jspa?rapidView=%d" % \
+                     (settings.main.integrations.jira.instance, board_id) if board_id else ""
+
+        team_json['teams'][str(team_ob.id)] = {
+            'members': members_json,
+            'board_id': board_id,
+            'board_link': board_link or "",
+            'id': team_ob.id,
+            'full': team_ob.name,
+            'consultant_count': team_consultant_count,
+            'fulltime_count': team_fulltime_count,
+            'total_count': team_total_count
+        }
+
+    team_json['devs'] = flat
+
+    return team_json
 
 
 def get_dev_stats(username, look_back_days=30, context=None, force_update=False):
