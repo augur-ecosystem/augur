@@ -5,7 +5,8 @@ import datetime
 from pony import orm
 from pony.orm import db_session
 
-from augur import db, AugurContext, const
+from augur import db, const
+from augur.context import AugurContext
 from augur import api
 
 from augur import settings

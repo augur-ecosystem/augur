@@ -8,7 +8,8 @@ import sys
 from munch import munchify
 from pony import orm
 
-from augur import db, AugurContext
+from augur import db
+from augur.context import AugurContext
 from augur.integrations.objects.board import JiraBoard, JiraSprint
 from augur import settings
 from augur.integrations.augurjira import AugurJira

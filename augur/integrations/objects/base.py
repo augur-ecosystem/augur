@@ -22,11 +22,18 @@ class JiraObject(object):
     def option(self, key, default=None):
         return self._options[key] if key in self._options else default
 
+    def _set_option(self, key, value):
+        self._options[key] = value
+        return value
+
     def load(self, **kwargs):
         self._options.update(kwargs)
         return self._load()
 
     def _load(self):
+        raise NotImplemented()
+
+    def prepopulate(self,data):
         raise NotImplemented()
 
     def _convert_date_string_to_date_time(self, date_str):
@@ -36,9 +43,6 @@ class JiraObject(object):
         except ValueError,e:
             self.logger.warning("JiraObject: Unable to parse string %s"%date_str)
             return None
-
-    def prepopulate(self,data):
-        raise NotImplemented()
 
     def log_access(self, api, *parameters):
         self.logger.error("jira:{api}:{parameters}".format(api=api, parameters=",".join([str(p) for p in parameters])))

@@ -9,7 +9,7 @@ from jira.resources import Component, Issue
 
 class AugurJsonEncoder(json.JSONEncoder):
     def default(self, obj):
-        from augur import AugurContext
+        from augur.context import AugurContext
 
         if isinstance(obj, datetime.timedelta):
             return obj.total_seconds()

@@ -29,7 +29,6 @@ def df_get_timing_status_keys(context, status_types):
     return time_in_status_keys
 
 
-
 class Metrics(object):
     def __init__(self, context):
         self.context = context
