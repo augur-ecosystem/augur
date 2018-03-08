@@ -53,6 +53,7 @@ class AugurJira(object):
             "priority": None,
             "parent": None,
             "resolution": None,
+            "epic link": None,
             "dev team": None,
             "labels": None,
             "issuelinks": None,

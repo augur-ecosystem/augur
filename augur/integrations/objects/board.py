@@ -5,6 +5,7 @@ from pony import orm
 
 from jira import Sprint
 
+from augur.context import AugurContext
 from augur.integrations.objects.base import JiraObject, InvalidId, InvalidData
 from augur.integrations.objects.issue import JiraIssueCollection
 
@@ -25,6 +26,9 @@ class JiraSprint(JiraObject):
         super(JiraSprint, self).__init__(source, **kwargs)
         self._sprint_report = None
         self._sprint = None
+        self._epics = None
+        self._completed_issues = None
+        self._incomplete_issues = None
 
     def __str__(self):
         if not self._sprint:
@@ -49,6 +53,74 @@ class JiraSprint(JiraObject):
                 return None
 
         return self._sprint.startDate
+
+    @property
+    def completed_issues(self):
+
+        if not self._sprint_report:
+            self._load_sprint_report()
+
+        if self._completed_issues:
+            return self._completed_issues
+
+        ids = [issue.key for issue in self._sprint_report.completedIssues]
+        completed_issues = JiraIssueCollection(source=self.source,issue_keys=ids)
+        if completed_issues.load():
+            self._completed_issues = completed_issues
+            return completed_issues
+        else:
+            return None
+
+    @property
+    def incomplete_issues(self):
+
+        if not self._sprint_report:
+            self._load_sprint_report()
+
+        if self._incomplete_issues:
+            return self._incomplete_issues
+
+        ids = [issue.key for issue in self._sprint_report.issuesNotCompletedInCurrentSprint]
+        incomplete_issues = JiraIssueCollection(source=self.source,issue_keys=ids)
+        if incomplete_issues.load():
+            self._incomplete_issues = incomplete_issues
+            return incomplete_issues
+        else:
+            return None
+
+    @property
+    def all_issues(self):
+        completed_issues = self.completed_issues
+        incomplete_issues = self.incomplete_issues
+
+        return completed_issues.merge(incomplete_issues)
+
+    @property
+    def epics(self):
+        """
+        This gets all the epics that are associated with this collection of issues
+        :return:
+        """
+        if not self._epics:
+
+            if not self._sprint_report:
+                self._load_sprint_report()
+
+            all_issues = self.all_issues
+            epic_cache = {}
+
+            for issue in all_issues:
+                epic_key = issue.get_epic(only_key=True)
+                if epic_key not in epic_cache:
+                    epic = issue.get_epic(only_key=False)
+                    if epic:
+                        epic_cache[epic.key] = epic
+
+            self._epics = JiraIssueCollection(source=self.source)
+            if not self._epics.prepopulate(epic_cache.values()):
+                return None
+
+        return self._epics
 
     @property
     def added_tickets(self):

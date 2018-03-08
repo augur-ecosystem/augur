@@ -300,17 +300,11 @@ def get_epics_from_sprint(sprint, context):
         # return the epic that was created/updated.
         return epics_inner[epic_key]
 
-    cache_key = 'sprint_epics_%s' % str(sprint['team_sprint_data']['sprint']['id'])
-    cached_data = get_cached_data(cache_key)
-    if not cached_data:
-        for issue in sprint['team_sprint_data']['contents']['completedIssues']:
-            update_epic_data(epics, issue)
+    for issue in sprint['team_sprint_data']['contents']['completedIssues']:
+        update_epic_data(epics, issue)
 
-        for issue in sprint['team_sprint_data']['contents']['issuesNotCompletedInCurrentSprint']:
-            update_epic_data(epics, issue)
-        cache_data({'data': epics}, cache_key, storage_type="sprint_epics")
-    else:
-        epics = cached_data[0]['data']
+    for issue in sprint['team_sprint_data']['contents']['issuesNotCompletedInCurrentSprint']:
+        update_epic_data(epics, issue)
 
     return epics
 

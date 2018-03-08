@@ -13,7 +13,13 @@ class InvalidData(Exception):
 
 
 class JiraObject(object):
+    """
+    The base for all Jira objects.
 
+    Options:
+        group_id - (Optional) The ID of the group to use to understand context.  Some Jira operations will
+                require some understanding of the workflow and this is provided as part of the group.
+    """
     def __init__(self, source, **kwargs):
         self.source = source
         self.logger = logging.getLogger("augurjira")

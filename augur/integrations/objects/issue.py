@@ -1,3 +1,5 @@
+from copy import copy
+
 import arrow
 import datetime
 from arrow import Arrow
@@ -10,6 +12,12 @@ from augur.integrations.objects.base import JiraObject, InvalidId
 
 
 class JiraIssue(JiraObject):
+    """
+    Represents a collection of issues
+
+    Options:
+        - key (Optional) - The key of the issue to load
+    """
 
     def __init__(self, source, **kwargs):
         super(JiraIssue, self).__init__(source, **kwargs)
@@ -26,11 +34,31 @@ class JiraIssue(JiraObject):
         self.log_access('issue',self.option('key'))
         issue = self.source.jira.issue(self.option('key'))
         if issue:
-            self._issue = munchify(issue)
+            self._issue = munchify(issue.raw)
+            return True
         else:
             self._issue = None
             self.logger.error("JiraIssue: Unable to load issue from Jira")
             return False
+
+    def __eq__(self, issue):
+        """
+        Override equality to use the issue key (when available) as the compared value as opposed to the object ID
+        :param cmp: The JiraIssue object to cmpare against.
+        :return:
+        """
+        if not self.key and not issue.key:
+            # when both are empty we compare the object IDs instead
+            return id(self) == id(issue)
+        else:
+            return self.key == issue.key
+
+    def __ne__(self, issue):
+        return not self.__eq__(issue)
+
+    def __hash__(self):
+        # use the issue key as the hash if the issue exists, otherwise fallback to using the python object id.
+        return hash(self.key) if self.key else hash(id(self))
 
     @property
     def is_subtask(self):
@@ -117,14 +145,14 @@ class JiraIssue(JiraObject):
         :return: Return either an epic issue key, the epic JiraIssue object or None if not found.
         """
 
-        field_name = self.source.default_fields()['epic link']
+        field_name = self.default_fields['epic link']
         epic_key = self.get_field('fields.%s'%field_name)
 
         if epic_key and not only_key:
             if self._epic:
                 return self._epic
 
-            self._epic = self._epic = JiraIssue(source=self.source,key=epic_key)
+            self._epic = JiraEpic(source=self.source,key=epic_key)
             if self._epic.load():
                 return self._epic
             else:
@@ -174,14 +202,39 @@ class JiraIssue(JiraObject):
         return self._issue
 
 
+class JiraEpic(JiraIssue):
+
+    def __init__(self, source, **kwargs):
+        super(JiraEpic, self).__init__(source, **kwargs)
+        self._epic_issues = None
+
+    @property
+    def issues(self):
+        """
+        Gets all the issues contained within the epic as a JiraIssueCollection
+        :return:
+        """
+        if self._epic_issues:
+            return self._epic_issues
+
+        self._epic_issues = JiraIssueCollection(source=self.source, input_jql="\"Epic Link\" = %s" % self.key)
+        if self._epic_issues.load():
+            return self._epic_issues
+        else:
+            return None
+
+
 class JiraIssueCollection(JiraObject):
     """
     Represents a collection of issues
 
     Options:
         - input_jql (Optional) - The JQL used to load the issue set.  Required if jira_issue_list not given.
+        - group_id (Optional) - The ID of the group to use for context.  If not provided, then certain features are not
+                    available such as "completed_points"
         - input_jira_issue_list (Optional) - A list of json objects as dicts returned from the JIRA REST API. Required
-                if jql not given.
+                if jql not given
+        - issue_keys (Optional) - A list or comma separated string of issue keys to load
         - paging_start_at (Optional, Default=0) - The issue index to start with
         - paging_max_results (Optional, Default=500) - The maximum number of issues to return
     """
@@ -193,6 +246,29 @@ class JiraIssueCollection(JiraObject):
     def count(self):
         return len(self._issues)
 
+    def merge(self, collection):
+        """
+        Creates a new issue collection which contains the set of issues from this and given collection.  Duplicates
+        are removed.
+        :param collection: JiraIssueCollection to merge
+        :return:
+        """
+
+        # this will remove duplicates
+        issue_set = set(self._issues + collection._issues)
+
+        # convert back to a list.
+        merged_list = list(issue_set)
+
+        jic = JiraIssueCollection(source=self.source)
+        jic.prepopulate(merged_list)
+        return jic
+
+    def dedupe(self):
+        issue_set = set(self._issues)
+        self._issues = issue_set
+        return self
+
     def __iter__(self):
         return iter(self._issues)
 
@@ -200,15 +276,69 @@ class JiraIssueCollection(JiraObject):
     def issues(self):
         return self._issues
 
+    @property
+    def total_points(self):
+        return reduce(lambda x,y: x+y.points, self._issues, 0)
+
+    @property
+    def completed_points(self):
+        assert(self.option('group_id'))
+
+        points = 0
+        context = AugurContext(self.option('group_id'))
+        for i in self._issues:
+            if context.workflow.is_resolved(status=i.status,resolution=i.resolution):
+                points += i.points
+
+        return points
+
+    @property
+    def incomplete_points(self):
+        assert(self.option('group_id'))
+
+        points = 0
+        context = AugurContext(self.option('group_id'))
+        for i in self._issues:
+            if not context.workflow.is_resolved(status=i.status,resolution=i.resolution):
+                points += i.points
+
+        return points
+
+    def prepopulate(self, data):
+        """
+        Creates a copy of the given JiraIssue objects and populates this with them.  Note that it can take a
+        list of JiraIssue objects or another JiraIssueCollection.  In both cases, it makes a copy of the JiraIssues
+        within.
+        :param data: A list of JiraIssue objects or a JiraIssueCollection
+        :return: Returns the given list if successful
+        """
+        if isinstance(data,list):
+            self._issues = copy(data)
+            return self._issues
+        elif isinstance(data, JiraIssueCollection):
+            self._issues = copy(data._issues)
+
+        return self._issues
+
     def _load(self):
 
-        issues = None
         fields = self.source.default_fields
 
+        jql = None
         if self.option('input_jql'):
-            self.log_access('search',self.option('input_jql'))
+            jql = self.option('input_jql')
+        elif self.option('issue_keys'):
+            if isinstance(self.option('issue_keys'), (str, unicode)):
+                keys = self.option('issue_keys').split(',')
+            else:
+                keys = self.option('issue_keys')
+
+            jql = "key in (%s)"%",".join(keys)
+
+        if jql:
+            self.log_access('search',jql)
             search_results = self.source.jira.search_issues(
-                self.option('input_jql'),
+                jql,
                 startAt=self.option('paging_start_at'),
                 maxResults=self.option('paging_max_results', 0),
                 validate_query=True,
@@ -219,7 +349,7 @@ class JiraIssueCollection(JiraObject):
             if search_results:
                 issues = search_results
             else:
-                self.logger.error("You must specify one of the input options in order to properly load this object")
+                self.logger.error("Unable to load issues from JQL: %s" % jql)
                 return False
 
         elif self.option('input_jira_issue_list'):
@@ -230,6 +360,9 @@ class JiraIssueCollection(JiraObject):
                 self.logger.error("JiraIssueCollection: Received 'input_jira_issue_list' that was not "
                                   "of type JiraIssueCollection")
                 return False
+        else:
+            self.logger.error("Unable to load issue collection because no source was specified (jql or list)")
+            return False
 
         assert (isinstance(issues, list))
         self._issues = []
