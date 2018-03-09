@@ -327,13 +327,18 @@ class JiraIssueCollection(JiraObject):
         jql = None
         if self.option('input_jql'):
             jql = self.option('input_jql')
-        elif self.option('issue_keys'):
+        elif self.option('issue_keys') is not None:
             if isinstance(self.option('issue_keys'), (str, unicode)):
                 keys = self.option('issue_keys').split(',')
             else:
                 keys = self.option('issue_keys')
 
-            jql = "key in (%s)"%",".join(keys)
+            if len(keys) > 0:
+                jql = "key in (%s)"%",".join(keys)
+            else:
+                # an empty set of keys was given.  This is valid but we can bypass the remaining logic
+                self._issues = []
+                return True
 
         if jql:
             self.log_access('search',jql)
