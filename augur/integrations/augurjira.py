@@ -16,6 +16,7 @@ from augur.integrations.objects.board import JiraBoard
 from augur.integrations.objects.metrics import BoardMetrics
 
 
+
 class TeamSprintNotFoundException(Exception):
     pass
 
