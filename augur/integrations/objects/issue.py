@@ -428,7 +428,7 @@ class JiraReleaseNotes(JiraIssueCollection):
             parent = None
             if issue.is_subtask:
                 # get the parent ticket instead
-                parent = issue.get_parent()
+                parent = issue.get_parent(only_key=False)
                 if parent:
                     epic = parent.get_epic(only_key=False)
                     if not points:

@@ -102,6 +102,23 @@ There is no explicit requirements for Github setup other than this: Augur was de
 
 ## Jira 
 
+### Development ###
+A customized version of a python client is being used to retrieve Jira data via the REST API.  You'll notice that the 
+requirements.txt file is pulling from our private pypi.  The code for this customized version is found here:
+ https://github.ua.com/kshehadeh/jira
+
+For development locally, you can either get a clone of that repo then install it into your python environment:
+    
+    > cd /my/dev/folder
+    > git clone git@github.ua.com:kshehadeh/jira.git
+    > pip install -e /my/dev/folder/jira
+    
+or you can download directly from the private pypi like so:
+
+    > pip install jira -i https://pypi-reader:ThOgrAVultiA@artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi/simple
+    
+That user has read only access to the pypi repo only.
+
 ### Groups, Workflows and Teams
 Augur now supports creation of custom workflows.  To do this, a taxonomy of 
 was created to organize them.  
