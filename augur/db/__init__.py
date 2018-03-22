@@ -1,11 +1,6 @@
 from pony import orm
 from pony.orm import sql_debug, Json
-
-import augur
-
 import datetime
-
-import augur.common
 
 NOTIFY_TYPES = ["none", "email", "slack"]
 TOOL_ISSUE_STATUS_TYPES = ["open", "in progress", "done"]
@@ -448,7 +443,26 @@ class Workflow(db.Entity):
         Generates the JQL for the portion of the expression that limits the projects to this workspace only.
         :return: Returns a string with the projects JQL
         """
-        return augur.common.projects_to_jql(self)
+        keys = []
+        for p in self.projects:
+            keys.append(p.tool_project_key)
+
+        categories = []
+        for c in self.categories:
+            categories.append(c.tool_category_name)
+
+        jql_projects = ""
+        jql_categories = ""
+        if len(keys) > 0:
+            jql_projects = "project in (%s)" % ",".join(keys)
+
+        if len(categories) > 0:
+            jql_categories = "category in ('%s')" % "','".join(categories)
+
+        if jql_projects and jql_categories:
+            return "((%s) OR (%s))" % (jql_projects, jql_categories)
+        else:
+            return jql_projects if jql_projects else jql_categories
 
     def get_positive_resolution_jql(self):
         """
@@ -456,7 +470,11 @@ class Workflow(db.Entity):
         resolutions (which is defined by the statuses and resolutions defined in this workflow)
         :return: Returns a JQL string
         """
-        return augur.common.positive_resolution_jql(self)
+        done_statuses = [d.tool_issue_status_name for d in self.done_statuses()]
+        done_resolutions = [d.tool_issue_resolution_name for d in self.positive_resolutions()]
+
+        return "(status in (\"%s\") and resolution in (\"%s\"))" % \
+               ('","'.join(done_statuses), '","'.join(done_resolutions))
 
     def as_json(self):
         return {
@@ -486,17 +504,19 @@ def init_db():
 
     if not __is_bound:
 
-        if augur.settings.main.project.debug:
+        from augur import settings
+
+        if settings.main.project.debug:
             sql_debug(True)
 
-        if augur.settings.main.datastores.main.type == "sqlite":
-            dbtype = augur.settings.main.datastores.main.type
-            dbtarget = augur.settings.main.datastores.main.sqlite.path
+        if settings.main.datastores.main.type == "sqlite":
+            dbtype = settings.main.datastores.main.type
+            dbtarget = settings.main.datastores.main.sqlite.path
             db.bind('sqlite', filename=dbtarget, create_db=True)
             __is_bound = True
-        elif augur.settings.main.datastores.main.type == "postgres":
-            pg_settings = augur.settings.main.datastores.main.postgres
-            dbtype = augur.settings.main.datastores.main.type
+        elif settings.main.datastores.main.type == "postgres":
+            pg_settings = settings.main.datastores.main.postgres
+            dbtype = settings.main.datastores.main.type
             dbtarget = pg_settings.host + "/" + pg_settings.dbname + ":" + pg_settings.port
             db.bind('postgres', user=pg_settings.username, password=pg_settings.password,
                     host=pg_settings.host, database=pg_settings.dbname, port=pg_settings.port)

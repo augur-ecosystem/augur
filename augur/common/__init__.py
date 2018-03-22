@@ -351,20 +351,6 @@ def get_issue_status_timing_info(issue, status):
         "total_time":total_time
     })
 
-def get_time_in_status(issue, status):
-    """
-    Gets a single tickets time in a given status.  Calculates by looking at the history for the issue
-    and adding up all the time that the ticket was in the given status.
-    :param issue: The ticket in dictionary form
-    :param status: The ToolIssueStatus to look for.
-    :return: Returns the datetime.timedelta time in status.
-    """
-    timing_info = get_issue_status_timing_info(issue,status)
-    if timing_info:
-        return timing_info['total_time']
-    else:
-        return None
-
 
 def project_key_from_issue_key(issue_key):
     """
@@ -379,19 +365,6 @@ def project_key_from_issue_key(issue_key):
         return None
 
 
-def positive_resolution_jql(workflow):
-    """
-    Returns a JQL segment that filters based on done statuses and positive resolutions for the given workflow.
-     > e.g. ((status in (resolve,closed) and resolution in ("fixed","done", "complete")
-    :param workflow: The workflow object to use as a source for information about what constitutes positive resolution
-    :return: Returns the JQL
-    """
-    done_statuses = [d.tool_issue_status_name for d in workflow.done_statuses()]
-    done_resolutions = [d.tool_issue_resolution_name for d in workflow.positive_resolutions()]
-
-    return "(status in (\"%s\") and resolution in (\"%s\"))" % ('","'.join(done_statuses), '","'.join(done_resolutions))
-
-
 def defect_filter_to_jql(defect_filters, include_issue_types=True):
     jql_list = []
     for d in defect_filters:
@@ -402,33 +375,6 @@ def defect_filter_to_jql(defect_filters, include_issue_types=True):
             jql_list.append("(project = %s)" % d.project_key)
 
     return "((%s))" % ") OR (".join(jql_list)
-
-
-def projects_to_jql(workflow):
-    """
-    Gets the projects information and returns a jql string that can be embedded directly into a larger jql
-    :return: Returns a string containing the jql
-    """
-    keys = []
-    for p in workflow.projects:
-        keys.append(p.tool_project_key)
-
-    categories = []
-    for c in workflow.categories:
-        categories.append(c.tool_category_name)
-
-    jql_projects = ""
-    jql_categories = ""
-    if len(keys) > 0:
-        jql_projects = "project in (%s)" % ",".join(keys)
-
-    if len(categories) > 0:
-        jql_categories = "category in ('%s')" % "','".join(categories)
-
-    if jql_projects and jql_categories:
-        return "((%s) OR (%s))" % (jql_projects, jql_categories)
-    else:
-        return jql_projects if jql_projects else jql_categories
 
 
 def get_date_from_week_number(week_number):

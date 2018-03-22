@@ -110,10 +110,10 @@ class AugurGithub(object):
 
             local_repo_obs = []
             for o in orgs:
-                cached_repos = augur.api.get_cached_data("repos_for_%s" % o)
+                cached_repos = augur.api.get_memory_cached_data("repos_for_%s" % o)
                 if not cached_repos:
                     repos = [r.raw_data for r in self.get_repos_in_org(o)]
-                    augur.api.cache_data({'data':repos}, "repos_for_%s" % o)
+                    augur.api.memory_cache_data({'data':repos}, "repos_for_%s" % o)
                 else:
                     repos = cached_repos[0]['data']
 

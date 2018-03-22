@@ -401,7 +401,7 @@ class JiraReleaseNotes(JiraIssueCollection):
 
         context = AugurContext(self.option('group_id'))
         input_jql = "%s AND (status in (\"Resolved\") AND status changed to \"Production\" " \
-                    "during ('%s','%s')) order by updated asc" % (projects_to_jql(context.workflow),
+                    "during ('%s','%s')) order by updated asc" % (context.workflow.get_projects_jql(),
                                                                   start_str, end_str)
         self._set_option('input_jql',input_jql)
 

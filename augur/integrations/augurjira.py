@@ -9,12 +9,10 @@ from munch import munchify
 from augur import api
 from augur import common
 from augur import settings
-from augur.common import cache_store
 from augur.common.timer import Timer
 from augur.integrations.augurtempo import AugurTempo
 from augur.integrations.objects.board import JiraBoard
 from augur.integrations.objects.metrics import BoardMetrics
-
 
 
 class TeamSprintNotFoundException(Exception):
@@ -41,9 +39,6 @@ class AugurJira(object):
             self.password),
             server=self.server,
             options={"agile_rest_path": "agile"})
-
-        self.mongo = cache_store.AugurStatsDb()
-        self.general_cache = cache_store.AugurCachedResultSets(self.mongo)
 
         self._field_map = {}
 
@@ -172,7 +167,7 @@ class AugurJira(object):
 
         hashed_query = hashlib.md5(jql).hexdigest()
         with Timer("Executing jql: %s" % jql):
-            result = api.get_cached_data(hashed_query, override_ttl=datetime.timedelta(hours=2))
+            result = api.get_memory_cached_data(hashed_query, override_ttl=datetime.timedelta(hours=2))
             if not result:
 
                 if not isinstance(expand, (str, unicode)):
@@ -197,7 +192,7 @@ class AugurJira(object):
                 issues_json = [common.clean_issue(r) for r in results_json['issues']]
 
                 if len(issues_json) < 100:
-                    api.cache_data({
+                    api.memory_cache_data({
                         "data": issues_json
                     }, hashed_query)
                 return issues_json
