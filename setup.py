@@ -78,21 +78,23 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
+        'pony==0.7.3',
         'arrow==0.7.0',
         'boto3==1.2.6',
         'botocore==1.4.49',
-        'Django==1.9.2',
-        'jira==1.0.3',
+        'jira==1.0.9.dev67',
         'Mako==1.0.3',
         'oauthlib==1.0.3',
         'pathspec==0.3.4',
         'pyfluence==0.1.1',
         'PyGithub==1.27.1',
-        'pymongo==3.2.1',
         'python-dateutil==2.5.3',
         'pytz==2015.7',
         'urllib3==1.21.1',
         'psycopg2==2.6.1',
+        'PyYAML==3.12',
+        'munch==2.2.0',
+        'pandas==0.22.0'
     ],
 
     dependency_links=[

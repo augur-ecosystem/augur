@@ -12,11 +12,8 @@ That will bump the patch segment of the VERSIONS file by 1.
 
 import os
 import collections
-import json
 import shutil
 from fabric.api import local
-from yoyo import read_migrations, get_backend
-from augur import settings
 
 def make_project_path(proj_rel_path):
     """
@@ -97,40 +94,3 @@ def publish(bump_version_type=None, upload=False, update_in_vcs=False):
     if upload:
         print "Uploading to artifact repository..."
         local("cd %s; python setup.py sdist upload -r local "%(root_path))
-
-def run_migrations():
-    load_local_settings()    
-    db = settings.main.datastores.main.postgres
-    migration_dir = make_project_path("augur/db/migrations")
-
-    print "Augur Migration"
-    print "---------------"
-    print "Host: %s"%db.host
-    print "DB Name: %s"%db.dbname
-    print "Migration Dir: %s"%migration_dir
-
-    cont = raw_input("Type 'continue' to proceed with the migration: ")
-    if cont == "continue":
-        print "\nBeginning migration..."
-        backend = get_backend('postgres://%s:%s@%s/%s'%(db.username,db.password,db.host,db.dbname))
-        migrations = read_migrations(migration_dir)
-        backend.apply_migrations(backend.to_apply(migrations))
-        print "\nMigrations completed."
-    else:
-        print "\nMigration cancelled."
-
-def load_local_settings():
-    local_settings_filepath = make_project_path('config/local.json')
-
-    with open(local_settings_filepath,'r+') as local_settings_file:
-        local_settings = json.load(local_settings_file)
-        for key,val in local_settings.iteritems():
-            os.environ[key] = val
-    
-    settings.load_settings()
-
-if __name__ == "__main__":
-    load_local_settings()
-
-    for key,val in os.environ.iteritems():
-        print "%s=%s"%(key,val)
