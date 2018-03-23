@@ -415,6 +415,7 @@ class Workflow(db.Entity):
     def get_project_keys(self):
         return self.get_projects(key_only=True)
 
+
     def get_projects_by_category(self, category):
         """
         Gets all projects with the given category
@@ -448,7 +449,7 @@ class Workflow(db.Entity):
         elif self.categories:
             # Call into jira to get the list of projects with the given categories.
             for c in self.categories:
-                projects.extend(augur.api.get_projects_by_category(c.tool_category_name))
+                projects.extend(self.get_projects_by_category(c.tool_category_name))
 
         if key_only:
             return [p['key'].upper() for p in projects]
