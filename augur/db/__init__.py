@@ -415,6 +415,23 @@ class Workflow(db.Entity):
     def get_project_keys(self):
         return self.get_projects(key_only=True)
 
+    def get_projects_by_category(self, category):
+        """
+        Gets all projects with the given category
+        :param category:
+        :return:
+        """
+        from augur import api
+        cache_key = "projects_%s" % category
+        projects = api.get_memory_cached_data(cache_key)
+        if not projects:
+            projects = api.get_jira().jira.get_projects_with_category(category)
+            api.memory_cache_data({'data': projects}, cache_key)
+        else:
+            projects = projects[0]['data']
+
+        return projects
+
     def get_projects(self, key_only=False):
         from augur.api import get_jira
         project_keys = [p.tool_project_key for p in self.projects]

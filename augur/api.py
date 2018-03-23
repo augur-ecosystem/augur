@@ -283,23 +283,6 @@ def get_issue_field_from_custom_name(name):
     return get_jira().get_field_by_name(name)
 
 
-def get_projects_by_category(category):
-    """
-    Gets all projects with the given category
-    :param category:
-    :return:
-    """
-    cache_key = "projects_%s" % category
-    projects = get_memory_cached_data(cache_key)
-    if not projects:
-        projects = get_jira().jira.get_projects_with_category(category)
-        memory_cache_data({'data': projects}, cache_key)
-    else:
-        projects = projects[0]['data']
-
-    return projects
-
-
 def add_staff(staff_properties):
     """
     Staff properties must include the following:

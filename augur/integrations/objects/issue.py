@@ -7,7 +7,7 @@ from jira import Issue
 from munch import munchify
 
 from augur.context import AugurContext
-from augur.common import POSSIBLE_DATE_TIME_FORMATS, projects_to_jql
+from augur.common import POSSIBLE_DATE_TIME_FORMATS
 from augur.integrations.objects.base import JiraObject, InvalidId
 
 
