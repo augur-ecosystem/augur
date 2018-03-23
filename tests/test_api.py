@@ -10,7 +10,6 @@ from augur.context import AugurContext
 from augur import api
 
 from augur import settings
-from augur.integrations.augurgithub import AugurGithub
 from augur.integrations.augurjira import AugurJira
 
 
@@ -151,21 +150,10 @@ class TestApi(unittest.TestCase):
     @db_session
     def runTest(self):
         self.context()
-        self.get_github()
         self.get_jira()
         self.get_workflow()
         self.get_group()
         self.get_groups()
-        self.get_abridged_team_sprint()
-        self.get_sprint_info_for_team()
-        self.get_issue_details()
-        self.get_defect_data()
-        self.get_historical_defect_data()
-        self.get_releases_since()
-        self.get_epic_analysis()
-        self.get_filter_analysis()
-        self.get_user_worklog()
-        self.get_dashboard_data()
 
     def context(self):
         context = AugurContext(self.group_id)
@@ -175,10 +163,6 @@ class TestApi(unittest.TestCase):
         self.assertIsNotNone(context.group)
         self.assertIsNotNone(context.workflow)
         self.assertEqual(context.group.id, self.group_id)
-
-    def get_github(self):
-        gh = api.get_github()
-        self.assertIsInstance(gh, AugurGithub)
 
     def get_jira(self):
         gh = api.get_jira()
@@ -195,49 +179,3 @@ class TestApi(unittest.TestCase):
     def get_groups(self):
         groups = api.get_groups()
         self.assertEqual(len(groups), 1, "Expected exactly one group created so far")
-
-    def get_abridged_team_sprint(self):
-        sprints = api.get_abridged_sprint_list_for_team(1)
-        self.assertIsNotNone(sprints)
-        self.assertIsInstance(sprints, list, "Expected a list returned")
-        self.assertEqual(len(sprints), 1, "Expected exactly one sprint returned")
-
-    def get_sprint_info_for_team(self):
-        sprint = api.get_sprint_info_for_team(1, sprint_id=const.SPRINT_CURRENT)
-        self.assertIsInstance(sprint, dict)
-
-    def get_issue_details(self):
-        issue = api.get_issue_details(self.jira_data['issue_key'])
-        self.assertIsInstance(issue, dict)
-
-    def get_defect_data(self):
-        data = api.get_defect_data(context=api.get_default_context())
-        self.assertIsInstance(data, dict)
-        self.assertIn('lookback_days', data)
-        self.assertIn('current_period', data)
-
-    def get_historical_defect_data(self):
-        data = api.get_historical_defect_data(context=api.get_default_context())
-        self.assertIsInstance(data, dict)
-        self.assertIn('num_weeks', data)
-        self.assertIn('weeks', data)
-
-    def get_releases_since(self):
-        # TODO: Currently releases are not context sensitive.
-        pass
-
-    def get_filter_analysis(self):
-        data = api.get_filter_analysis(self.jira_data['filter_id'], context=api.get_default_context())
-        self.assertIsInstance(data, dict)
-
-    def get_epic_analysis(self):
-        data = api.get_epic_analysis(self.jira_data['epic_key'], context=api.get_default_context())
-        self.assertIsInstance(data, dict)
-
-    def get_user_worklog(self):
-        data = api.get_user_worklog(start="2017-08-07", end="2017-08-07", team_id=1)
-        self.assertIsInstance(data, dict)
-
-    def get_dashboard_data(self):
-        data = api.get_dashboard_data(context=api.get_default_context())
-        self.assertIsInstance(data, dict)

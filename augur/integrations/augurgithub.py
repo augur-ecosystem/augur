@@ -10,7 +10,6 @@ from github import Github
 from github.GithubObject import GithubObject
 
 from augur import settings
-from augur.common import cache_store
 from augur.api import get_jira
 import augur.api
 
@@ -26,6 +25,71 @@ class GitFileNotFoundError(exceptions.Exception):
     pass
 
 
+class AugurGithubDevStats(object):
+    def __init__(self, username):
+        self.user = username
+        self.prs = []
+        self.avg_changed_files_per_pr = 0
+        self.avg_comments_per_pr = 0
+        self.highest_changes_in_pr = 0
+        self.highest_comments_in_pr = 0
+        self.avg_length_of_time_pr_was_open = datetime.timedelta()
+        self.dirty = False
+
+    def reset(self):
+        self.__init__(self.user)
+
+    def add_pr(self, pr):
+
+        if pr['user']['login'] == self.user:
+            self.dirty = True
+
+            # we need a version of this attribute that doesn't have the underscore so that we can
+            #   display its values in a django template.
+            pr['links'] = pr['pull_request']
+            self.prs.append(pr)
+
+            comment_count = pr['comments']
+            self.avg_comments_per_pr += comment_count
+            if comment_count > self.highest_comments_in_pr:
+                self.highest_comments_in_pr = comment_count
+
+            closed_at = pr['closed_at']
+            created_at = pr['created_at']
+
+            if not isinstance(pr['closed_at'], datetime.datetime):
+                closed_at = dateutil.parser.parse(pr['closed_at'])
+            closed_at = closed_at.replace(tzinfo=None)
+
+            if not isinstance(pr['created_at'], datetime.datetime):
+                created_at = dateutil.parser.parse(
+                    pr['created_at']).replace(tzinfo=pytz.UTC)
+            created_at = created_at.replace(tzinfo=None)
+
+            if pr['state'] in ['merged', 'closed']:
+                self.avg_length_of_time_pr_was_open += (closed_at - created_at)
+
+    def as_dict(self):
+
+        if self.dirty:
+            self.avg_changed_files_per_pr /= len(self.prs)
+            self.avg_comments_per_pr /= len(self.prs)
+
+            avg_secs = self.avg_length_of_time_pr_was_open.total_seconds() / len(self.prs)
+            self.avg_length_of_time_pr_was_open = datetime.timedelta(
+                seconds=avg_secs)
+            self.dirty = False
+
+        return {
+            'prs': self.prs,
+            'avg_changed_files_per_pr': self.avg_changed_files_per_pr,
+            'avg_comments_per_pr': self.avg_comments_per_pr,
+            'highest_changes_in_pr': self.highest_changes_in_pr,
+            'highest_comments_in_pr': self.highest_comments_in_pr,
+            'avg_length_of_time_pr_was_open': self.avg_length_of_time_pr_was_open,
+        }
+
+
 class AugurGithub(object):
     def __init__(self):
         self.github = Github(login_or_token=settings.main.integrations.github.login_token,
@@ -33,12 +97,6 @@ class AugurGithub(object):
                              base_url=settings.main.integrations.github.base_url,
                              per_page=200)
 
-        self.mongo = cache_store.AugurStatsDb()
-        self.prs_data_store = cache_store.AugurTeamPullRequestsData(self.mongo)
-        self.open_prs_data_store = cache_store.AugurTeamOpenPullRequestsData(
-            self.mongo)
-        self.permissions_data_store = cache_store.AugurPermissionsOrgData(
-            self.mongo)
         self.jira = get_jira()
         self.logger = logging.getLogger("augurgithub")
 
@@ -66,29 +124,33 @@ class AugurGithub(object):
         """
 
         if not org_repo:
-            commits = self.github.search_commits(query="hash:%s"%commit_hash)
+            commits = self.github.search_commits(query="hash:%s" % commit_hash)
             if commits.totalCount > 0:
                 return commits[0]
             else:
-                logging.warning("Unable to find the following commit: %s"%commit_hash)
+                logging.warning(
+                    "Unable to find the following commit: %s" % commit_hash)
                 return None
         else:
             try:
-                org,repo = org_repo.split("/")
+                org, repo = org_repo.split("/")
             except ValueError:
-                logging.error("Got an invalid org_repo parameter in get_commit_info")
+                logging.error(
+                    "Got an invalid org_repo parameter in get_commit_info")
                 return None
 
             org_ob, repo_ob = self.get_org_and_repo_from_params(repo, org)
             if repo_ob:
                 commit = repo_ob.get_commit(commit_hash)
                 if not commit:
-                    logging.warning("Unable to find the following commit (with repo): %s"%commit_hash)
+                    logging.warning(
+                        "Unable to find the following commit (with repo): %s" % commit_hash)
                     return None
                 else:
                     return commit
             else:
-                logging.error("Unable to find the given repo (%s) or org (%s)"%(repo,org))
+                logging.error(
+                    "Unable to find the given repo (%s) or org (%s)" % (repo, org))
                 return None
 
     def _prepare_pr_search(self, orgs, state, since, sort, order):
@@ -110,17 +172,21 @@ class AugurGithub(object):
 
             local_repo_obs = []
             for o in orgs:
-                cached_repos = augur.api.get_memory_cached_data("repos_for_%s" % o)
+                cached_repos = augur.api.get_memory_cached_data(
+                    "repos_for_%s" % o)
                 if not cached_repos:
                     repos = [r.raw_data for r in self.get_repos_in_org(o)]
-                    augur.api.memory_cache_data({'data':repos}, "repos_for_%s" % o)
+                    augur.api.memory_cache_data(
+                        {'data': repos}, "repos_for_%s" % o)
                 else:
                     repos = cached_repos[0]['data']
 
                 local_repo_obs += repos
 
             # build a list of all the repos to search (no way to filter by org apparently)
-            query += " " + " ".join(["repo:%s/%s" % (r['organization']['login'], r['name']) for r in local_repo_obs])
+            query += " " + \
+                " ".join(["repo:%s/%s" % (r['organization']['login'], r['name'])
+                          for r in local_repo_obs])
 
         if state in ("open", "closed"):
             query += " is:%s" % state
@@ -141,9 +207,9 @@ class AugurGithub(object):
         :param lookback_days: The number of days to look back in time for PRs and other data
         :return: Returns a dict with github stats info in it
         """
-        dev_stats_ob = cache_store.AugurGithubDevStats(user)
+        dev_stats_ob = AugurGithubDevStats(user)
         since = datetime.datetime.now() - datetime.timedelta(days=int(lookback_days))
-        merged_prs = self.fetch_author_merged_prs(user,since)
+        merged_prs = self.fetch_author_merged_prs(user, since)
         for pr in merged_prs:
             dev_stats_ob.add_pr(pr)
 
@@ -158,9 +224,11 @@ class AugurGithub(object):
         :param order: Can be one of asc or desc
         :return: Returns a list of search results as a list of dictionaries
         """
-        query = self._prepare_pr_search(orgs=None, state="merged", since=since, sort=sort, order=order)
+        query = self._prepare_pr_search(
+            orgs=None, state="merged", since=since, sort=sort, order=order)
         query += " author:%s" % username
-        results = self.github.search_issues(query=query, sort=sort, order=order)
+        results = self.github.search_issues(
+            query=query, sort=sort, order=order)
         return [r.raw_data for r in results]
 
     def fetch_organization_members(self, organization):
@@ -181,7 +249,7 @@ class AugurGithub(object):
         :return: The PullRequest object.
         """
         try:
-            org_ob, repo_ob = self.get_org_and_repo_from_params(repo,org)
+            org_ob, repo_ob = self.get_org_and_repo_from_params(repo, org)
             return repo_ob.get_pull(number)
         except TypeError:
             logging.error("Could not get org and repo objects from given data")
@@ -256,7 +324,8 @@ class AugurGithub(object):
                         "Encountered error when reviewing commits for repo %s: %s" % (repo_ob.name, e.message))
                     continue
         except github.GithubException, e:
-            self.logger.error("Encountered an error while iterating over commits: %s" % e.message)
+            self.logger.error(
+                "Encountered an error while iterating over commits: %s" % e.message)
 
         total_commits = len(commit_objects)
 
@@ -295,7 +364,7 @@ class AugurGithub(object):
             raise TypeError(
                 "If org is given then repo should be a string otherwise there's no reason to pass the org")
 
-        if org and isinstance(org, (str,unicode)):
+        if org and isinstance(org, (str, unicode)):
             org_ob = self.github.get_organization(org)
 
         elif org and isinstance(org, GithubObject):
@@ -333,7 +402,8 @@ class AugurGithub(object):
             readme_summary_list = self.get_repo_readme_summary(repo)
 
             repo.raw_data["further_review"] = further_review or {}
-            repo.raw_data['readme_summary'] = readme_summary_list[0] if len(readme_summary_list) else ""
+            repo.raw_data['readme_summary'] = readme_summary_list[0] if len(
+                readme_summary_list) else ""
             repo.raw_data["ua_stats"] = self.get_repo_commit_stats(repo)
 
             data['repos'].append(repo.raw_data)
@@ -358,18 +428,22 @@ class AugurGithub(object):
                 readme_str = content_ob.decoded_content
                 if readme_str:
                     try:
-                        result = re.findall('#.*\n([^#]*)', readme_str, re.MULTILINE)
+                        result = re.findall(
+                            '#.*\n([^#]*)', readme_str, re.MULTILINE)
                         return result
                     except Exception as e:
-                        self.logger.info("Parse error during processing of README.md: %s" % e.message)
+                        self.logger.info(
+                            "Parse error during processing of README.md: %s" % e.message)
                 else:
                     self.logger.warning("Unable to retrieve README.md")
             else:
                 self.logger.warning("Unable to find README.md file")
         except github.UnknownObjectException, e:
-            self.logger.error("Error occurred during README analysis: %s (%s)" % (e.message, str(e.__class__)))
+            self.logger.error("Error occurred during README analysis: %s (%s)" % (
+                e.message, str(e.__class__)))
         except github.GithubException, e:
-            self.logger.error("Error occurred during further review analysis: %s (%s)" % (e.message, str(e.__class__)))
+            self.logger.error("Error occurred during further review analysis: %s (%s)" % (
+                e.message, str(e.__class__)))
         return result
 
     def get_repo_further_review(self, repo, org=None):
@@ -380,7 +454,8 @@ class AugurGithub(object):
         :return: Returns a dictionary containing information about the maintainers and owners
         """
         fr = augur.api.get_memory_cached_data('FR_OPR_' + repo.full_name)
-        if fr: return fr
+        if fr:
+            return fr
 
         def parse_user(user_str):
             name_match = re.match(r"^([^\(<]+)", user_str)
@@ -408,7 +483,8 @@ class AugurGithub(object):
                     try:
                         further_review = yaml.load(yaml_str)
                         if 'reviews' not in further_review or not isinstance(further_review['reviews'], list):
-                            self.logger.warning("Unable to find reviews section in further-review file")
+                            self.logger.warning(
+                                "Unable to find reviews section in further-review file")
                         else:
                             for index, review in enumerate(further_review['reviews']):
                                 if review['name'].lower() == 'general maintainers':
@@ -422,9 +498,11 @@ class AugurGithub(object):
                                     further_review['owner'])
 
                     except yaml.YAMLError, e:
-                        self.logger.info("YAML error during processing of .further-review.yaml: %s" % e.message)
+                        self.logger.info(
+                            "YAML error during processing of .further-review.yaml: %s" % e.message)
                 else:
-                    self.logger.warning("Unable to retrieve .further-review.yaml")
+                    self.logger.warning(
+                        "Unable to retrieve .further-review.yaml")
             else:
                 self.logger.warning("Unable to find further-review.yaml file")
         except github.UnknownObjectException, e:
@@ -432,7 +510,8 @@ class AugurGithub(object):
                 "Got a github error indicating that we were unable to find a file in the repo: %s (%s)" % (
                     e.message, str(e.__class__)))
         except github.GithubException, e:
-            self.logger.error("Error occurred during further review analysis: %s (%s)" % (e.message, str(e.__class__)))
+            self.logger.error("Error occurred during further review analysis: %s (%s)" % (
+                e.message, str(e.__class__)))
 
         augur.api.memory_cache_data(result, 'FR_OPR_' + repo.full_name)
 
