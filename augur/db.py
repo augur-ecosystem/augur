@@ -415,7 +415,6 @@ class Workflow(db.Entity):
     def get_project_keys(self):
         return self.get_projects(key_only=True)
 
-
     def get_projects_by_category(self, category):
         """
         Gets all projects with the given category

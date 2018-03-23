@@ -4,7 +4,9 @@ import json
 import logging
 import re
 
+import dateutil
 import github
+import pytz
 import yaml
 from github import Github
 from github.GithubObject import GithubObject
@@ -13,11 +15,7 @@ from augur import settings
 from augur.api import get_jira
 import augur.api
 
-LOGIN_TOKEN = "1a764970a4a22d220bf416cbd5266d497f3d55a0"
 DEFAULT_LOOKBACK_DAYS = 90
-
-# These are the github orgs that we will monitor for prs/commits
-GITHUB_ORGS = ['ua', 'v6', 'harbour', 'b2b', 'ui', 'lib', 'apps']
 
 
 class GitFileNotFoundError(exceptions.Exception):
@@ -185,8 +183,8 @@ class AugurGithub(object):
 
             # build a list of all the repos to search (no way to filter by org apparently)
             query += " " + \
-                " ".join(["repo:%s/%s" % (r['organization']['login'], r['name'])
-                          for r in local_repo_obs])
+                     " ".join(["repo:%s/%s" % (r['organization']['login'], r['name'])
+                               for r in local_repo_obs])
 
         if state in ("open", "closed"):
             query += " is:%s" % state
@@ -567,8 +565,3 @@ class AugurGithub(object):
         except github.UnknownObjectException, e:
             raise GitFileNotFoundError(
                 "Cannot find package file in %s: %s" % (repo.name, e.message))
-
-
-if __name__ == "__main__":
-    gh = AugurGithub()
-    gh.refresh_open_pr_cache()

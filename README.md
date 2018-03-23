@@ -9,23 +9,15 @@ collect data using ADM.
 
 # Augur Installation
 
-Augur is hosted in the UA Artifactory PyPI index because it contains some UA-specific
- information (currently).  Access to only the pypi index on the artifactory host is given
- to the following artifactory user: `pypi-reader`
-
 To install, you can do one of the following:
 
 ## Install on command line
 
-    pip install augur -i https://pypi-reader:ThOgrAVultiA@artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi/simple
+    pip install augur 
 
 Without changing your global index, this will install augur using the custom index this once.
 
 ## Install in requirements.txt
-
-Modify you requirements.txt file by including this at the top of the file:
-
-    --extra-index-url https://pypi-reader:ThOgrAVultiA@artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi/simple
 
 Then include augur as you would any other package:
 
@@ -91,15 +83,6 @@ in other cases, the initialization will fail if not specified.
 There is no explicit requirements for Github setup other than this: Augur was developed from the enterprise edition 
  which means it's more acceptable for Github Organizations to be part of the hierarchy of the codebase.
  
-     Note:
-     Augur uses PyGithub for interacting with the github server.  Unfortunately, at the time of this writing,
-     the library did not support a search endpoint needed for hash searches.  So the code
-     to do that was added to the library and a PR created:
-     https://github.com/PyGithub/PyGithub/pull/648
-     
-     While waiting for that PR to be merged and a new release cut, a custom PyGithub build 1.36
-     was created and pushed to the UA artifact repo.  
-
 ## Jira 
 
 ### Development ###

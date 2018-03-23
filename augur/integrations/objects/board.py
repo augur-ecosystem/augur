@@ -5,8 +5,7 @@ from pony import orm
 
 from jira import Sprint
 
-from augur.context import AugurContext
-from augur.integrations.objects.base import JiraObject, InvalidId, InvalidData
+from augur.integrations.objects.base import JiraObject, InvalidData
 from augur.integrations.objects.issue import JiraIssueCollection
 
 

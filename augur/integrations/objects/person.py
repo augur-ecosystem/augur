@@ -1,5 +1,3 @@
-from pony import orm
-
 import augur
 from augur.integrations.objects import JiraObject
 

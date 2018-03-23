@@ -24,12 +24,14 @@ import logging
 
 import copy
 
+from munch import munchify
 from pony import orm
 from pony.orm import select, delete
 
 from augur import settings
 from augur import db
 from augur.db import EventLog
+from augur.integrations.objects import JiraBoard, BoardMetrics, JiraIssue
 
 CACHE = dict()
 
@@ -137,7 +139,12 @@ def get_issue_details(key):
     :param key: The key of the issue to retrieve
     :return: The issue dict
     """
-    return get_jira().get_issue(key)
+
+    issue = JiraIssue(source=get_jira(), key=key)
+    if issue.load():
+        return issue.issue
+    else:
+        return None
 
 
 def get_all_staff(context):
@@ -271,7 +278,15 @@ def get_board_metrics(board_id, context):
     :param context: The context to help define how to interpret the data retrieved
     :return: Returns a dict with information about the backlog
     """
-    return get_jira().get_board_metrics(board_id, context)
+    board = JiraBoard(get_jira(), board_id=board_id)
+    if board.load():
+        metrics = BoardMetrics(context, board)
+        return munchify({
+            'sprints': metrics.historic_sprint_analysis(),
+            'backlog': metrics.backlog_analysis()
+        })
+    else:
+        return None
 
 
 def get_issue_field_from_custom_name(name):

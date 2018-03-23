@@ -1,6 +1,6 @@
+import json
 import os
 import re
-import string
 
 import arrow
 import datetime
@@ -12,22 +12,10 @@ from augur import db
 
 __author__ = 'karim'
 
-
-import comm
-import const
-import serializers
-import formatting
-
-from math import sqrt
+from math import sqrt, floor
 from dateutil.parser import parse
 
-import const
-
 JIRA_KEY_REGEX = r"([A-Za-z]+\-\d{1,6})"
-
-COMPLETE_STATUSES = ["complete","resolved"]
-POSITIVE_RESOLUTIONS = ["fixed", "done", "deployed"]
-_CACHE = {}
 
 # Note: The order matters in this list.  Time based matches are first to ensure that
 #   the time is not truncated in cases where date matches are found then the rest of the
@@ -42,15 +30,6 @@ POSSIBLE_DATE_TIME_FORMATS = [
     "M/D/YY HH:mm",
 ]
 
-POSSIBLE_DATE_FORMATS = [
-    "YYYY-MM-DD",
-    "MM-DD-YYYY",
-    "MM/DD/YYYY",
-    "YYYY/MM/DD",
-    "M/D/YYYY",
-    "M/D/YY",
-]
-
 SITE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 
@@ -63,6 +42,27 @@ class Struct:
     """
     def __init__(self, **entries):
         self.__dict__.update(entries)
+
+
+class AugurJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        from augur.context import AugurContext
+
+        if isinstance(obj, datetime.timedelta):
+            return obj.total_seconds()
+        elif isinstance(obj, datetime.datetime):
+            return obj.isoformat()
+        elif isinstance(obj, datetime.date):
+            return obj.isoformat()
+        elif isinstance(obj, Resource):
+            return obj.raw
+        elif isinstance(obj, AugurContext):
+            return {
+                "group_id": obj.group.id
+            }
+
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)
 
 
 def remove_null_fields(d):
@@ -128,10 +128,6 @@ def extract_jira_tickets(text):
     return match.groups() or []
 
 
-def transform_status_string(status):
-    return status.lower().replace(' ','_')
-
-
 def get_week_range(date):
     """
     This will return the start and end of the week in which the given date resides.
@@ -173,12 +169,6 @@ def standard_deviation(lst,population=True):
     return sd
 
 
-def get_date_range_from_query_params(request,default_start=None,default_end=None):
-    start = request.GET.get('start', None)
-    end = request.GET.get('end', None)
-    return get_date_range_from_strings(start,end,default_start,default_end)
-
-
 def get_date_range_from_strings(start,end, default_start=None, default_end=None):
     if not start:
         # Don't go back further than 90 days for the sake of performance and storage.
@@ -207,40 +197,6 @@ def deep_get(dictionary, *keys):
     return reduce(lambda d, key: d.get(key) if d else default, keys, dictionary)
 
 
-def calc_weekends(start_day, end_day):
-    """
-    Calculate the number of weekends in a given date range.
-    :param start_day: Start of the range (datetime)
-    :param end_day: End of the range  (datetime)
-    :return: Returns the number of weekend
-    """
-    duration = end_day - start_day
-    days_until_weekend = [5, 4, 3, 2, 1, 1, 6]
-    adjusted_duration = duration - days_until_weekend[start_day]
-    if adjusted_duration < 0:
-        weekends = 0
-    else:
-        weekends = (adjusted_duration/7)+1
-    if start_day == 5 and duration % 7 == 0:
-        weekends += 1
-    return weekends
-
-
-def clean_detailed_sprint_info(sprint_data):
-    """
-    Takes the given sprint object and cleans it up to replace the date time values to actual python datetime objects.
-    :param sprint_data:
-    :return:
-    """
-    # convert date strings to dates
-    for key, value in sprint_data['sprint'].iteritems():
-        if key in ['startDate', 'endDate', 'completeDate']:
-            try:
-                sprint_data['sprint'][key] = parse(value)
-            except ValueError:
-                sprint_data['sprint'][key] = None
-
-
 def status_to_dict_key(status):
     if isinstance(status, db.ToolIssueStatus):
         status_str = status.tool_issue_status_name
@@ -258,35 +214,6 @@ def clean_username(username):
     :return:
     """
     return username.replace(".", "_")
-
-
-@staticmethod
-def estimate_time_spent_in_hours(issue, statuses):
-    """
-    Calculates the number of hours spent on a ticket based only on the time spent in a given
-    status.  This is useful when the engineer has not been keeping track of work hours using the work log
-    feature in Jira.
-    :param issue: The issue dict (as retrieved through augurjira)
-    :param statuses: A list of statuses (strings).
-    :return: Returns a float that equals the number of hours calculated.
-    """
-    assert issue
-
-    total_hours = 0.0
-    for status in statuses:
-        timing = AugurJira.get_issue_status_timing_info(issue,status)
-        if timing:
-            timing = Munch(timing)
-            total_hours += timing.total_time.hours()
-            if timing.total_time.days() > 0:
-                # if more than a day then we have to adjust the total hours to take into account
-                #   that people don't work 24 hours a day. We also have to make sure that we exclude
-                #   weekend hours.
-                num_weekends = calc_weekends(timing.start_time, timing.end_time)
-                num_weekend_days = num_weekends*2
-                num_work_days = timing.total_time.days() - num_weekend_days
-                total_hours += num_work_days*8
-    return total_hours
 
 
 def get_issue_status_timing_info(issue, status):
@@ -316,7 +243,6 @@ def get_issue_status_timing_info(issue, status):
     history_list.sort(key=lambda x: x['id'], reverse=False)
 
     start_time = None
-    end_time = None
     for history in history_list:
         items = history['items']
 
@@ -352,32 +278,89 @@ def get_issue_status_timing_info(issue, status):
     })
 
 
-def project_key_from_issue_key(issue_key):
-    """
-    Gets the project key from an issue key
-    :param issue_key: The issue key to parse
-    :return: Returns None if invalid issue key given.
-    """
-    try:
-        project_key, val = issue_key.split("-")
-        return project_key
-    except ValueError:
-        return None
-
-
-def defect_filter_to_jql(defect_filters, include_issue_types=True):
-    jql_list = []
-    for d in defect_filters:
-        if include_issue_types:
-            jql_list.append("(project = %s and issuetype in ('%s'))" %
-                            (d.project_key, "','".join(d.get_issue_types_as_string_list())))
-        else:
-            jql_list.append("(project = %s)" % d.project_key)
-
-    return "((%s))" % ") OR (".join(jql_list)
-
-
 def get_date_from_week_number(week_number):
     year = datetime.datetime.now().year
     conversion_str = "%d-W%d" % (year, int(week_number))
     return datetime.datetime.strptime(conversion_str + '-1', "%Y-W%W-%w")
+
+
+def format_timedelta(value, time_format="{days} days, {hours2}:{minutes2}:{seconds2}", time_format_no_days="{hours}h"):
+    """
+    Formats timedelta and uses the following options for the formatting string:
+        seconds:        Seconds, no padding
+        seconds2:       Seconds with zero padding
+        minutes:        Minutes, no padding
+        minutes:        Minutes with zero padding
+        hours:          Hours, no padding
+        hours2:         Hours with zero padding
+        days:           Days (when used in conjuction with other units - not total)
+        years:          Years (when used in conjuction with other units - not total)
+        seconds_total:  The total number of seconds
+        minutes_total   The total number of minutes
+        hours_total:    The total number of hours
+        days_total:     The total number of days
+        years_total:    The total number of years
+
+        Example:
+            "{days} days, {hours2}:{minutes2}:{seconds2}"
+        will format into something like:
+            "3 days, 02:20:00"
+    Args:
+        value(datetime.timedelta): The value to format
+        time_format(str): The patter to format into (see description for options)
+    """
+    if hasattr(value, 'seconds'):
+        seconds = value.seconds + value.days * 24 * 3600
+    else:
+        seconds = int(value)
+
+    seconds_total = seconds
+
+    minutes = int(floor(seconds / 60))
+    minutes_total = minutes
+    seconds -= minutes * 60
+
+    hours = int(floor(minutes / 60))
+    hours_total = hours
+    minutes -= hours * 60
+
+    days = int(floor(hours / 24))
+    days_total = days
+    hours -= days * 24
+
+    years = int(floor(days / 365))
+    years_total = years
+    days -= years * 365
+
+    if days_total > 0:
+        return time_format.format(**{
+            'seconds': seconds,
+            'seconds2': str(seconds).zfill(2),
+            'minutes': minutes,
+            'minutes2': str(minutes).zfill(2),
+            'hours': hours,
+            'hours2': str(hours).zfill(2),
+            'days': days,
+            'years': years,
+            'seconds_total': seconds_total,
+            'minutes_total': minutes_total,
+            'hours_total': hours_total,
+            'days_total': days_total,
+            'years_total': years_total,
+        })
+    else:
+        return time_format_no_days.format(**{
+            'seconds': seconds,
+            'seconds2': str(seconds).zfill(2),
+            'minutes': minutes,
+            'minutes2': str(minutes).zfill(2),
+            'hours': hours,
+            'hours2': str(hours).zfill(2),
+            'days': days,
+            'years': years,
+            'seconds_total': seconds_total,
+            'minutes_total': minutes_total,
+            'hours_total': hours_total,
+            'days_total': days_total,
+            'years_total': years_total
+        })
