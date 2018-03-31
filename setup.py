@@ -21,7 +21,7 @@ with open(path.join(here, './augur/VERSION'), encoding='utf-8') as f:
     version = f.read()
 
 setup(
-    name='augur',
+    name='augur-lib',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
@@ -32,11 +32,11 @@ setup(
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://ua.github.com/deviant/augur',
+    url='https://github.com/augur-process/augur',
 
     # Author details
     author='Karim Shehadeh',
-    author_email='kshehadeh@underarmour.com',
+    author_email='karim@karim.cloud',
 
     # Choose your license
     license='MIT',
@@ -100,7 +100,6 @@ setup(
 
     dependency_links=[
        "https://pypi.python.org/simple/",
-       "http://example2.com/p/bar-1.0.tar.gz",
     ],
 
     # List additional groups of dependencies here (e.g. development
