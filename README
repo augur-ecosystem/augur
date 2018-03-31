@@ -35,12 +35,6 @@ To upload a new version of augur, you can modify your .pypirc file with the foll
 
     ...
 
-    [local]
-    repository: https://artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi
-    username: <username> # must have publish rights
-    password: <password>
-
-
 You can use fabric to build and publish.  
 
     >> pip install -g fabric
@@ -61,20 +55,27 @@ via environment variables.  In some cases, there are defaults that are applied,
 in other cases, the initialization will fail if not specified.
 
 
-| Environment Variable |  Purpose                                 |   Default   | Example                        |
-| -------------------- |:-----------------------------------------|:----------: |--------------------------------|
-| JIRA_INSTANCE        | The full url to the JIRA instance to use | Required    | http://voltron.atlassian.net/   |
-| JIRA_USERNAME        | The full url to the JIRA instance to use | Required    | A username   |
-| JIRA_PASSWORD        | The full url to the JIRA instance to use | Required    | It's a password   |
-| JIRA_API_PATH        | The relative path to the root of the rest endpoints | rest/api/2 | rest/api/2  |
-| CONFLUENCE_INSTANCE  | The full url to the Confluence instance  | JIRA_INSTANCE    | http://voltron.atlassian.net/wiki   |
-| CONFLUENCE_USERNAME  | The full url to the Confluence instance  | JIRA_USERNAME    | A username   |
-| CONFLUENCE_PASSWORD  | The full url to the Confluence instance  | JIRA_PASSWORD    | Another password   |
-| GITHUB_BASE_URL  | The full url to the Github instance  | Required    | http://github.com/ |
-| GITHUB_LOGIN_TOKEN  | The token of the user that should be used to access the API for the instance of github specificed in GITHUB_BASE_URL | Required    | cbab75c171843afef555d9dcbc212e0b54681b32 |
-| GITHUB_CLIENT_ID | The client ID that has been registered for the client that is using this instance of the Augur library | Required    | e3d808650b4f45f9ac03 |
-| GITHUB_CLIENT_SECRET | The client secret that has been registered for the client that is using this instance of the Augur library | Required    | f3d80e650b4d45f9ad15 |
-
+| Environment Variable |  Purpose                                 |   Default        | Example                              |
+| -------------------- |:-----------------------------------------|:-----------------|:-------------------------------------|
+| JIRA_INSTANCE        | The full url to the JIRA instance to use | Required         | http://voltron.atlassian.net/        |
+| JIRA_USERNAME        | The full url to the JIRA instance to use | Required         | A username                           |
+| JIRA_PASSWORD        | The full url to the JIRA instance to use | Required         | It's a password                      |
+| JIRA_API_PATH        | Relpath to root of rest endpoints        | rest/api/2       | rest/api/2                           |
+| DB_TYPE              | What type of database to use             | Required         | postgres                             |
+| CONFLUENCE_INSTANCE  | The full url to the Confluence instance  | JIRA_INSTANCE    | http://voltron.atlassian.net/wiki    |
+| CONFLUENCE_USERNAME  | The full url to the Confluence instance  | JIRA_USERNAME    | A username                           |
+| CONFLUENCE_PASSWORD  | The full url to the Confluence instance  | JIRA_PASSWORD    | Another password                     |
+| GITHUB_BASE_URL      | The full url to the Github instance      | Required         | http://github.com/                   |
+| GITHUB_LOGIN_TOKEN   | The token of the user that should be used| Required         | cbab75c1....                         |
+|                      | to access the API for the instance of    |                  |                                      |
+|                      | github specificed in GITHUB_BASE_URL     |                  |                                      |
+| GITHUB_CLIENT_ID     | The client ID that has been registered   | Required         | e3d808650b4f45f9ac03                 |
+|                      | for the client that is using this        |                  |                                      |
+|                      | instance of the Augur library            |                  |                                      |
+| GITHUB_CLIENT_SECRET | The client secret that has been          | Required         | f3d80e650b4d45f9ad15                 |
+|                      | registered for the client that is using  |                  |                                      |
+|                      | this instance of the Augur library       |                  |                                      |
+ 
 
 # Integration with External Tools
 
@@ -84,23 +85,6 @@ There is no explicit requirements for Github setup other than this: Augur was de
  which means it's more acceptable for Github Organizations to be part of the hierarchy of the codebase.
  
 ## Jira 
-
-### Development ###
-A customized version of a python client is being used to retrieve Jira data via the REST API.  You'll notice that the 
-requirements.txt file is pulling from our private pypi.  The code for this customized version is found here:
- https://github.ua.com/kshehadeh/jira
-
-For development locally, you can either get a clone of that repo then install it into your python environment:
-    
-    > cd /my/dev/folder
-    > git clone git@github.ua.com:kshehadeh/jira.git
-    > pip install -e /my/dev/folder/jira
-    
-or you can download directly from the private pypi like so:
-
-    > pip install jira -i https://pypi-reader:ThOgrAVultiA@artifacts.ua-ecm.com/artifactory/api/pypi/ua-pypi/simple
-    
-That user has read only access to the pypi repo only.
 
 ### Groups, Workflows and Teams
 Augur now supports creation of custom workflows.  To do this, a taxonomy of 
@@ -191,10 +175,11 @@ In the `notifications` table there are these fields:
 * build_types - Can be one or more of [all,upstream,myteam,otherteams] separated by commas
 
 *Build Types Explained*
-All - If all is in there, then everything else is ignored and all build types are sent
-upstream - This means that notifications for builds that occur in a non-team org and are the master branch will be sent
-myteam - This means that notification for builds that occur in the committers own team org will be sent
-otherteams - This means that notifications for builds that occur in team orgs other than the committers will be sent.
+
+* All - If all is in there, then everything else is ignored and all build types are sent
+* upstream - This means that notifications for builds that occur in a non-team org and are the master branch will be sent
+* myteam - This means that notification for builds that occur in the committers own team org will be sent
+* otherteams - This means that notifications for builds that occur in team orgs other than the committers will be sent.
 
  
  
