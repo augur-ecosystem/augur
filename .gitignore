@@ -1,0 +1,6 @@
+*.pyc
+config/local.json
+build/**
+dist/**
+augur.egg-info/**
+tests/fixtures/*.local.json
