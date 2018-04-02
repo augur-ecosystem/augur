@@ -7,6 +7,28 @@ from augur.integrations.objects.base import JiraObject, InvalidData
 from augur.integrations.objects.issue import JiraIssueCollection
 
 
+class SprintStates(object):
+    """
+    This is a hack to work around a bug in the Jira library where it converts a string of states to a list and then
+    translates that to multiple query paramaters with the same name (state=closed&state=active).  But the new Agile
+    API only accepts one state parameter with a comma delimited list of states.  By passing in a class that casts
+    to a string we can avoid the check for a string type.
+    """
+    _states = ""
+
+    def __init__(self,states):
+
+        if isinstance(states, (str,unicode)):
+            self._states = states
+        elif isinstance(states,(list,tuple)):
+            self.states = ",".join(states)
+        else:
+            raise ValueError("Invalid sprint state format")
+
+    def __str__(self):
+        return self._states
+
+
 class JiraSprint(JiraObject):
     """
     JiraSprint objects can be loaded using a sprint ID for basic information or for more of a report on a sprint,
@@ -262,7 +284,7 @@ class JiraSprint(JiraObject):
         board_id = self.option("board_id")
 
         self.log_access('sprint-full', board_id, sprint_id)
-        sprint_report = munchify(self.source.jira.sprint_report(board_id, sprint_id))
+        sprint_report = munchify(self.source.get_sprint_report(board_id, sprint_id))
 
         if sprint_report:
 
@@ -386,7 +408,9 @@ class JiraSprintCollection(JiraObject):
                 # we do it this way because this returns a paginated object that automatically
                 #   makes additional calls when there are more than fit on a single page.
                 self.log_access('sprints', board_id)
-                sprints = self.source.jira.sprints(board_id, maxResults=0, state=','.join(self.option('states')))
+
+                states = SprintStates(self.option('states'))
+                sprints = self.source.jira.sprints(board_id, maxResults=0, state=states)
 
             elif self.option('sprints'):
                 sprints = self.option('sprints')
@@ -593,8 +617,8 @@ class JiraBoard(JiraObject):
 
         if board_id:
             self.log_access('board', board_id)
-            b = self.source.jira.board(board_id)
-            self._jira_board = munchify(b.raw)
+            b = self.source.get_board(board_id)
+            self._jira_board = munchify(b)
 
             if not b:
                 self.logger.error("Could not load the board information from Jira")

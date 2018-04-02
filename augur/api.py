@@ -109,6 +109,33 @@ def get_workflows():
     return orm.select(w for w in db.Workflow)
 
 
+def add_group(group_props):
+    """
+    Creates a new group
+    :param group_props: A dictionary of, at least, the required group fields.
+    :return: Returns the created group
+    """
+
+    db.Group.load_relationships_from_dict(group_props)
+    group = db.Group(**group_props)
+    orm.commit()
+
+    return group
+
+
+def update_group(group_id, group_props):
+    """
+    Updates an existing group
+    :param group_props: The id of the group to update
+    :param group_properties: A dictionary of fields to update
+    :return: Returns the updated group
+    """
+    group = db.Group[group_id]
+    group.set(**group_props)
+    orm.commit()
+    return group
+
+
 def get_group(group_id):
     """
     Gets a group by id

@@ -1,6 +1,8 @@
 import logging
 
 from jira import JIRA, Issue
+from jira.resources import Resource, GreenHopperResource
+from jira.utils import json_loads
 from munch import munchify
 
 from augur import api
@@ -165,3 +167,50 @@ class AugurJira(object):
 
     def get_projects(self):
         return self.jira._get_json('project', {"expand": "category"})
+
+    def get_board(self, board_id):
+        import augur
+        found_board = None
+        boards_raw = augur.api.get_memory_cached_data('boards')
+        if not boards_raw:
+            boards = self.jira.boards(maxResults=0)
+            found_board = None
+            boards_raw = []
+            for b in boards:
+                boards_raw.append(b.raw)
+                if b.id == board_id:
+                    found_board = b.raw
+
+            augur.api.memory_cache_data(boards_raw, 'boards')
+
+        if not found_board:
+            for b in boards_raw:
+                if b['id'] == board_id:
+                    return b
+            return None
+        else:
+            return found_board
+
+    def get_sprint_report(self, board_id, sprint_id):
+        return self.custom_get_json(path='rapid/charts/sprintreport?rapidViewId=%s&sprintId=%s' % (board_id, sprint_id),
+                                    base=GreenHopperResource.AGILE_BASE_URL,
+                                    replacement_options={'agile_rest_path': GreenHopperResource.GREENHOPPER_REST_PATH})
+
+    def custom_get_url(self, path, base, replacement_options=None):
+        options = self.jira._options.copy()
+        options.update({'path': path})
+
+        if replacement_options:
+            options.update(replacement_options)
+
+        return base.format(**options)
+
+    def custom_get_json(self, path, params=None, base=Resource.JIRA_BASE_URL, replacement_options=None):
+        url = self.custom_get_url(path=path, base=base, replacement_options=replacement_options)
+        r = self.jira._session.get(url, params=params)
+        try:
+            r_json = json_loads(r)
+        except ValueError as e:
+            self.jira.logging.error("%s\n%s" % (e, r.text))
+            raise e
+        return r_json

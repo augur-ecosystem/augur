@@ -9,7 +9,7 @@ class AugurContext(object):
     """
 
     def __init__(self, group_id):
-        from augur import get_group
+        from augur.api import get_group
         self._group = get_group(group_id)
         self._workflow = self.group.workflow
 

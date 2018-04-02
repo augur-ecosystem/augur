@@ -448,7 +448,6 @@ class Workflow(db.Entity):
         projects = self.get_projects()
         return [p for p in filter(lambda x: x['key'].lower() in keys, projects)]
 
-
     def get_projects(self, key_only=False):
         from augur.api import get_jira
         project_keys = [p.tool_project_key for p in self.projects]
@@ -532,6 +531,18 @@ class Group(db.Entity):
     workflow = orm.Optional(Workflow, reverse="groups")
     products = orm.Set(Product, reverse="groups")
     teams = orm.Set(Team, reverse="groups")
+
+    @staticmethod
+    def load_relationships_from_dict(props):
+        if 'products' in props:
+            products = orm.select(p for p in db.Product if p.id in props['products'])
+            props['products'] = products
+        if 'teams' in props:
+            teams = orm.select(p for p in db.Team if p.id in props['teams'])
+            props['teams'] = teams
+        if 'workflow' in props:
+            workflow = db.Workflow[props['workflow']]
+            props['workflow'] = workflow
 
 
 def init_db():

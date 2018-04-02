@@ -174,9 +174,11 @@ class GroupSchema (Schema):
 
     id = fields.Integer()
     name = fields.String()
-    workflow = fields.Nested('WorkflowSchema', many=False)
-    products = fields.Nested(ProductSchema, many=True)
-    teams = fields.Nested(TeamSchema, many=True)
+    workflow = fields.Nested('WorkflowSchema', only=['id','name','statuses','resolutions','projects','categories',
+                                                     'issue_types','defect_projects'], many=False)
+    products = fields.Nested(ProductSchema, only=['id','name', 'key', 'teams.id','teams.name'], many=True)
+    teams = fields.Nested(TeamSchema, only=['id', 'name', 'members.id', 'members.first_name',
+                                            'members.last_name', 'members.email'], many=True)
 
 
 class WorkflowSchema (Schema):

@@ -68,13 +68,6 @@ def publish(bump_version_type=None, upload=False, update_in_vcs=False):
         update_in_vcs(bool): Changes made to the project will be committed
                                 if set to True.
     """
-    # Make sure the readmes are the same
-    print "Copying README.md to README"
-
-    source_readme = make_project_path('README.md')
-    dest_readme = make_project_path('README')
-    shutil.copyfile(source_readme, dest_readme)
-
     # Check for version bump
     if bump_version_type:
         bump_version(bump_version_type)
