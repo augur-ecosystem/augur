@@ -74,7 +74,7 @@ def publish(bump_version_type=None, upload=False, update_in_vcs=False):
 
     if update_in_vcs:
         # Update git
-        print "Updating in git"
+        print "Updating in git..."
         augur_root = make_project_path("")
         local("git -C %s add ." % augur_root)
         local('git -C %s commit -m "version bump and prep for publish"' % augur_root)
