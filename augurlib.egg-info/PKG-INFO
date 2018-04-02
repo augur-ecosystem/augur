@@ -1,11 +1,12 @@
-Metadata-Version: 2.1
+Metadata-Version: 1.1
 Name: augurlib
-Version: 1.1.54
+Version: 1.1.55
 Summary: A library for extracting actionable data from development tools 
 Home-page: https://github.com/augur-process/augur
 Author: Karim Shehadeh
 Author-email: karim@karim.cloud
 License: MIT
+Description-Content-Type: UNKNOWN
 Description: # Augur Developer Metrics
         
         Help team leads, managers and developers track progress, improvement, 
@@ -198,5 +199,3 @@ Classifier: Intended Audience :: Developers
 Classifier: Topic :: Office/Business
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Programming Language :: Python :: 2.7
-Provides-Extra: test
-Provides-Extra: dev
