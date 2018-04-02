@@ -351,7 +351,7 @@ class JiraIssueCollection(JiraObject):
                 expand="changelog",
                 json_result=False)  ## Must set to False to let PyJira manage paging
 
-            if search_results:
+            if search_results is not None:
                 issues = search_results
             else:
                 self.logger.error("Unable to load issues from JQL: %s" % jql)
@@ -392,7 +392,7 @@ class JiraReleaseNotes(JiraIssueCollection):
         try:
             start, end = self._get_date_range()
 
-        except (TypeError,LookupError), e:
+        except (TypeError,LookupError) as e:
             self.logger.error(e.message)
             return False
 
