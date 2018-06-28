@@ -3,8 +3,6 @@ from munch import munchify
 from augur import db, common
 from pony import orm
 
-from jira import Sprint
-
 from augur.integrations.objects.base import JiraObject, InvalidData
 from augur.integrations.objects.issue import JiraIssueCollection
 
@@ -406,9 +404,7 @@ class JiraSprintCollection(JiraObject):
                     #   hit the maximum requested.
                     break
 
-                if isinstance(s, Sprint):
-                    jira_sprint_json = s.raw
-                elif isinstance(s, dict):
+                if isinstance(s, dict):
                     jira_sprint_json = s
                 else:
                     self.logger.error("Unrecognized sprint object found. Skipping...")
