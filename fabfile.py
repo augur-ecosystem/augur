@@ -93,4 +93,4 @@ def publish(bump_version_type=None, upload=False, update_in_vcs=False):
     
     if upload:
         print "Uploading to artifact repository..."
-        local("cd %s; python setup.py sdist upload -r local "%(root_path))
+        local("cd %s; python setup.py sdist upload -r pypi "%(root_path))
