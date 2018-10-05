@@ -21,7 +21,7 @@ with open(path.join(here, './augur/VERSION'), encoding='utf-8') as f:
     version = f.read()
 
 setup(
-    name='augur',
+    name='augurlib',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
@@ -32,11 +32,11 @@ setup(
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://ua.github.com/deviant/augur',
+    url='https://github.com/augur-ecosystem/augur/tree/master',
 
     # Author details
     author='Karim Shehadeh',
-    author_email='kshehadeh@underarmour.com',
+    author_email='karim@karim.cloud',
 
     # Choose your license
     license='MIT',
@@ -85,7 +85,7 @@ setup(
         'Mako==1.0.3',
         'oauthlib==1.0.3',
         'pathspec==0.3.4',
-        'pyfluence',
+        'pyfluence==0.1.3',
         'PyGithub==1.27.1',
         'python-dateutil==2.5.3',
         'pytz==2015.7',
