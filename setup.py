@@ -86,7 +86,7 @@ setup(
         'Mako==1.0.3',
         'oauthlib==1.0.3',
         'pathspec==0.3.4',
-        'pyfluence==0.1.1',
+        'pyfluence',
         'PyGithub==1.27.1',
         'python-dateutil==2.5.3',
         'pytz==2015.7',

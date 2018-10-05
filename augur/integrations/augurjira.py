@@ -1,6 +1,7 @@
 import logging
 
 from jira import JIRA, Issue
+from jira.resources import Board
 from munch import munchify
 
 from augur import api

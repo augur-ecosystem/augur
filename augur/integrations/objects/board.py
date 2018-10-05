@@ -1,3 +1,4 @@
+from jira.resources import Board, Sprint, GreenHopperResource
 from munch import munchify
 
 from augur import db, common
@@ -61,7 +62,7 @@ class JiraSprint(JiraObject):
             return self._completed_issues
 
         ids = [issue.key for issue in self._sprint_report.completedIssues]
-        completed_issues = JiraIssueCollection(source=self.source,issue_keys=ids)
+        completed_issues = JiraIssueCollection(source=self.source, issue_keys=ids)
         if completed_issues.load():
             self._completed_issues = completed_issues
             return completed_issues
@@ -78,7 +79,7 @@ class JiraSprint(JiraObject):
             return self._incomplete_issues
 
         ids = [issue.key for issue in self._sprint_report.issuesNotCompletedInCurrentSprint]
-        incomplete_issues = JiraIssueCollection(source=self.source,issue_keys=ids)
+        incomplete_issues = JiraIssueCollection(source=self.source, issue_keys=ids)
         if incomplete_issues.load():
             self._incomplete_issues = incomplete_issues
             return incomplete_issues
@@ -257,12 +258,21 @@ class JiraSprint(JiraObject):
 
         return True
 
+    def _proxy_sprint_report(self, board_id, sprint_id):
+        """Returns the full sprint report details as is from the API"""
+        return
+
     def _load_sprint_report(self):
         sprint_id = self.option("sprint_id")
         board_id = self.option("board_id")
 
         self.log_access('sprint-full', board_id, sprint_id)
-        sprint_report = munchify(self.source.jira.sprint_report(board_id, sprint_id))
+        spr = self.source.jira._get_json(
+            'rapid/charts/sprintreport?rapidViewId=%s&sprintId=%s' % (board_id, sprint_id),
+            base=self.source.jira.AGILE_BASE_URL,
+            params={'agile_rest_path': GreenHopperResource.GREENHOPPER_REST_PATH})
+
+        sprint_report = munchify(spr)
 
         if sprint_report:
 
@@ -406,6 +416,8 @@ class JiraSprintCollection(JiraObject):
 
                 if isinstance(s, dict):
                     jira_sprint_json = s
+                elif isinstance(s, Sprint):
+                    jira_sprint_json = s.raw
                 else:
                     self.logger.error("Unrecognized sprint object found. Skipping...")
                     continue
@@ -590,8 +602,13 @@ class JiraBoard(JiraObject):
             board_id = self._db_board.jira_id if self._db_board else None
 
         if board_id:
+
             self.log_access('board', board_id)
-            b = self.source.jira.board(board_id)
+
+            b = Board(self.source.jira._options, self.source.jira._session)
+            b._resource = 'board/{0}'  # seems to be a bug with the find method
+            b.find(board_id)
+
             self._jira_board = munchify(b.raw)
 
             if not b:
