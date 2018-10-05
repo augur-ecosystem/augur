@@ -1,0 +1,32 @@
+{
+  "connections": {
+    "jira": {
+      "server": "@env:JIRA_INSTANCE",
+      "username": "@env:JIRA_USERNAME",
+      "password": "@env:JIRA_PASSWORD"
+    },
+    "db": {
+      "type": "@env:DB_TYPE",
+      "postgres": {
+        "host": "@env:POSTGRES_DB_HOST",
+        "dbname": "@env:POSTGRES_DB_NAME",
+        "username": "@env:POSTGRES_DB_USERNAME",
+        "password": "@env:POSTGRES_DB_PASSWORD",
+        "port": "@env:POSTGRES_DB_PORT"
+      },
+      "sqlite": {
+        "path": "@env:SQLITE_PATH"
+      }
+    }
+  },
+  "context": {
+    "group": 1
+  },
+  "jira_test_data": {
+    "board": 913,
+    "team": 1,
+    "jql": {
+      "created_last_three_days":"category = \"Ecommerce Workflows\" and created > startOfDay(-3d)"
+    }
+  }
+}
