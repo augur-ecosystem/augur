@@ -82,7 +82,7 @@ def publish(bump_version_type=None, upload=False, update_in_vcs=False):
         augur_root = make_project_path("")
         local("git -C %s add ."%augur_root)
         local('git -C %s commit -m "version bump and prep for publish"'%augur_root)
-        local('git -C %s push'%augur_root)
+        local('git -C %s push public master'%augur_root)
 
     # Build/Publish
     root_path = make_project_path("")
