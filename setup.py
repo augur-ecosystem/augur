@@ -80,7 +80,7 @@ setup(
         'arrow==0.7.0',
         'boto3==1.2.6',
         'botocore==1.4.49',
-        'jira==1.0.9.dev67',
+        'jira',
         'Mako==1.0.3',
         'oauthlib==1.0.3',
         'pathspec==0.3.4',
