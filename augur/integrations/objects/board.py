@@ -42,7 +42,7 @@ class JiraSprint(JiraObject):
             self.logger.error("JiraSprint: No sprint has been loaded yet.")
             return False
 
-        if isinstance(self._sprint.startDate, (str, unicode)):
+        if isinstance(self._sprint.startDate, str):
             # convert if necessary
             start_date = self._convert_date_string_to_date_time(self._sprint.startDate)
             if start_date:
@@ -115,7 +115,7 @@ class JiraSprint(JiraObject):
                         epic_cache[epic.key] = epic
 
             self._epics = JiraIssueCollection(source=self.source)
-            if not self._epics.prepopulate(epic_cache.values()):
+            if not self._epics.prepopulate(list(epic_cache.values())):
                 return None
 
         return self._epics
@@ -126,7 +126,7 @@ class JiraSprint(JiraObject):
             self.logger.error("You must provide the completed sprints")
             return 0
 
-        return self._sprint_report.issueKeysAddedDuringSprint.keys() if \
+        return list(self._sprint_report.issueKeysAddedDuringSprint.keys()) if \
             self._sprint_report.issueKeysAddedDuringSprint else []
 
     @property
@@ -134,7 +134,7 @@ class JiraSprint(JiraObject):
         if not self._sprint_report:
             self._load_sprint_report()
 
-        return self._sprint_report.puntedIssues.keys() if \
+        return list(self._sprint_report.puntedIssues.keys()) if \
             self._sprint_report.puntedIssues else []
 
     @property
@@ -165,7 +165,7 @@ class JiraSprint(JiraObject):
             self.logger.error("JiraSprint: No sprint has been loaded yet.")
             return False
 
-        if isinstance(self._sprint.endDate, (str, unicode)):
+        if isinstance(self._sprint.endDate, str):
             # convert if necessary
             end_date = self._convert_date_string_to_date_time(self._sprint.endDate)
             if end_date:
@@ -197,7 +197,7 @@ class JiraSprint(JiraObject):
             self.logger.error("JiraSprint: No sprint has been loaded yet.")
             return None
 
-        if isinstance(self._sprint.completedDate, (str, unicode)):
+        if isinstance(self._sprint.completedDate, str):
             # convert if necessary
             completed_date = self._convert_date_string_to_date_time(self._sprint.completedDate)
             if completed_date:
@@ -493,7 +493,7 @@ class JiraBoard(JiraObject):
                 try:
                     self._backlog_issues = JiraIssueCollection(self.source, input_jira_issue_list=result['issues'])
                     self._backlog_issues.load()
-                except InvalidData, e:
+                except InvalidData as e:
                     self.logger.warn("Unable to retrieve backlog.  %s" % e.message)
                     return None
             else:

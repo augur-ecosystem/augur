@@ -1,0 +1,28 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pony = "==0.7.3"
+arrow = "==0.7.0"
+boto3 = "==1.2.6"
+botocore = "==1.4.49"
+jira = "*"
+Mako = "==1.0.3"
+oauthlib = "==1.0.3"
+pathspec = "==0.3.4"
+pyfluence = "==0.1.3"
+PyGithub = "==1.27.1"
+python-dateutil = "==2.5.3"
+pytz = "==2015.7"
+urllib3 = "==1.21.1"
+psycopg2 = "==2.6.1"
+PyYAML = "==3.12"
+munch = "==2.2.0"
+pandas = "==0.22.0"
+
+[dev-packages]
+
+[requires]
+python_version = "3.6"

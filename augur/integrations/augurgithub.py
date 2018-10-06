@@ -317,11 +317,11 @@ class AugurGithub(object):
 
                     total_comments += len(comment_objects)
                     commit_objects.append(c.raw_data)
-                except Exception, e:
+                except Exception as e:
                     self.logger.error(
                         "Encountered error when reviewing commits for repo %s: %s" % (repo_ob.name, e.message))
                     continue
-        except github.GithubException, e:
+        except github.GithubException as e:
             self.logger.error(
                 "Encountered an error while iterating over commits: %s" % e.message)
 
@@ -362,7 +362,7 @@ class AugurGithub(object):
             raise TypeError(
                 "If org is given then repo should be a string otherwise there's no reason to pass the org")
 
-        if org and isinstance(org, (str, unicode)):
+        if org and isinstance(org, str):
             org_ob = self.github.get_organization(org)
 
         elif org and isinstance(org, GithubObject):
@@ -436,10 +436,10 @@ class AugurGithub(object):
                     self.logger.warning("Unable to retrieve README.md")
             else:
                 self.logger.warning("Unable to find README.md file")
-        except github.UnknownObjectException, e:
+        except github.UnknownObjectException as e:
             self.logger.error("Error occurred during README analysis: %s (%s)" % (
                 e.message, str(e.__class__)))
-        except github.GithubException, e:
+        except github.GithubException as e:
             self.logger.error("Error occurred during further review analysis: %s (%s)" % (
                 e.message, str(e.__class__)))
         return result
@@ -495,7 +495,7 @@ class AugurGithub(object):
                                 result['owner'] = parse_user(
                                     further_review['owner'])
 
-                    except yaml.YAMLError, e:
+                    except yaml.YAMLError as e:
                         self.logger.info(
                             "YAML error during processing of .further-review.yaml: %s" % e.message)
                 else:
@@ -503,11 +503,11 @@ class AugurGithub(object):
                         "Unable to retrieve .further-review.yaml")
             else:
                 self.logger.warning("Unable to find further-review.yaml file")
-        except github.UnknownObjectException, e:
+        except github.UnknownObjectException as e:
             self.logger.error(
                 "Got a github error indicating that we were unable to find a file in the repo: %s (%s)" % (
                     e.message, str(e.__class__)))
-        except github.GithubException, e:
+        except github.GithubException as e:
             self.logger.error("Error occurred during further review analysis: %s (%s)" % (
                 e.message, str(e.__class__)))
 
@@ -533,7 +533,7 @@ class AugurGithub(object):
                         package_ob = json.loads(json_str)
                         if 'maintainers' in package_ob and isinstance(package_ob['maintainers'], list):
                             for index, maintain in enumerate(package_ob['maintainers']):
-                                if isinstance(maintain, (str, unicode)):
+                                if isinstance(maintain, str):
                                     parts = re.match(
                                         r"(?:(.*))\s(?:<?(.+@[^>]+)>?)?", maintain)
                                     groups = parts.groups()
@@ -543,7 +543,7 @@ class AugurGithub(object):
                                     }
                         if 'owner' in package_ob:
                             owner = package_ob['owner']
-                            if isinstance(owner, (str, unicode)):
+                            if isinstance(owner, str):
                                 parts = re.match(
                                     r"(?:(.*))\s(?:<?(.+@[^>]+)>?)?", owner)
                                 groups = parts.groups()
@@ -553,7 +553,7 @@ class AugurGithub(object):
                                 }
                         return package_ob
 
-                    except ValueError, e:
+                    except ValueError as e:
                         raise GitFileNotFoundError(
                             "Package found but had invalid JSON in it %s: %s" % (repo.name, e.message))
                 else:
@@ -562,6 +562,6 @@ class AugurGithub(object):
             else:
                 raise GitFileNotFoundError(
                     "Cannot find package file in %s" % repo.name)
-        except github.UnknownObjectException, e:
+        except github.UnknownObjectException as e:
             raise GitFileNotFoundError(
                 "Cannot find package file in %s: %s" % (repo.name, e.message))

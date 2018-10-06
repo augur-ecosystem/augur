@@ -22,8 +22,8 @@ class ToolIssueResolution(db.Entity):
     Represents an issue type within a workflow tool.  For example, Jira.
     """
     id = orm.PrimaryKey(int, auto=True)
-    tool_issue_resolution_name = orm.Required(unicode)
-    tool_issue_resolution_type = orm.Required(unicode, py_check=lambda v: v in TOOL_ISSUE_RESOLUTION_TYPES)
+    tool_issue_resolution_name = orm.Required(str)
+    tool_issue_resolution_type = orm.Required(str, py_check=lambda v: v in TOOL_ISSUE_RESOLUTION_TYPES)
     workflows = orm.Set('Workflow', reverse="resolutions")
 
 
@@ -32,8 +32,8 @@ class ToolIssueStatus(db.Entity):
     Represents an issue type within a workflow tool.  For example, Jira.
     """
     id = orm.PrimaryKey(int, auto=True)
-    tool_issue_status_name = orm.Required(unicode)
-    tool_issue_status_type = orm.Required(unicode, py_check=lambda v: v in TOOL_ISSUE_STATUS_TYPES)
+    tool_issue_status_name = orm.Required(str)
+    tool_issue_status_type = orm.Required(str, py_check=lambda v: v in TOOL_ISSUE_STATUS_TYPES)
     workflows = orm.Set('Workflow', reverse="statuses")
 
 
@@ -42,8 +42,8 @@ class ToolIssueType(db.Entity):
     Represents an issue type within a workflow tool.  For example, Jira.
     """
     id = orm.PrimaryKey(int, auto=True)
-    tool_issue_type_name = orm.Required(unicode)
-    tool_issue_type_type = orm.Required(unicode, py_check=lambda v: v in TOOL_ISSUE_TYPE_TYPES)
+    tool_issue_type_name = orm.Required(str)
+    tool_issue_type_type = orm.Required(str, py_check=lambda v: v in TOOL_ISSUE_TYPE_TYPES)
     workflow_defect_project_filters = orm.Set('WorkflowDefectProjectFilter', reverse="issue_types")
     workflows = orm.Set('Workflow', reverse="issue_types")
 
@@ -54,7 +54,7 @@ class EventLog(db.Entity):
     """
     id = orm.PrimaryKey(int, auto=True)
     event_time = orm.Required(datetime.datetime)
-    event_type = orm.Required(unicode)
+    event_type = orm.Required(str)
     event_data = orm.Optional(Json)
 
 
@@ -63,13 +63,13 @@ class Vendor(db.Entity):
     Represents a third-party vendor who is either providing services or products to the group
     """
     id = orm.PrimaryKey(int, auto=True)
-    name = orm.Required(unicode)
-    engagement_contact_first_name = orm.Optional(unicode)
-    engagement_contact_last_name = orm.Optional(unicode)
-    engagement_contact_email = orm.Optional(unicode)
-    billing_contact_first_name = orm.Optional(unicode)
-    billing_contact_last_name = orm.Optional(unicode)
-    billing_contact_email = orm.Optional(unicode)
+    name = orm.Required(str)
+    engagement_contact_first_name = orm.Optional(str)
+    engagement_contact_last_name = orm.Optional(str)
+    engagement_contact_email = orm.Optional(str)
+    billing_contact_first_name = orm.Optional(str)
+    billing_contact_last_name = orm.Optional(str)
+    billing_contact_email = orm.Optional(str)
     tempo_id = orm.Optional(int)
     consultants = orm.Set('Staff', reverse='vendor')
 
@@ -101,15 +101,15 @@ class Product(db.Entity):
      in various integrations along with start date.
     """
     id = orm.PrimaryKey(int, auto=True)
-    name = orm.Required(unicode)
-    key = orm.Required(unicode, unique=True)
+    name = orm.Required(str)
+    key = orm.Required(str, unique=True)
     teams = orm.Set('Team', reverse='product')
     groups = orm.Set('Group', reverse='products')
 
 
 class ToolProject(db.Entity):
     id = orm.PrimaryKey(int, auto=True)
-    tool_project_key = orm.Required(unicode)
+    tool_project_key = orm.Required(str)
     workflows = orm.Set('Workflow', reverse="projects")
 
 
@@ -119,7 +119,7 @@ class ToolProjectCategory(db.Entity):
     into categories
     """
     id = orm.PrimaryKey(int, auto=True)
-    tool_category_name = orm.Required(unicode)
+    tool_category_name = orm.Required(str)
     workflows = orm.Set('Workflow', reverse="categories")
 
 
@@ -129,19 +129,19 @@ class Staff(db.Entity):
      team members.  The staff object is used to store information like hourly rate (when a consultant), usernames
      in various integrations along with start date.
     """
-    first_name = orm.Required(unicode)
-    last_name = orm.Required(unicode)
-    company = orm.Optional(unicode)
-    avatar_url = orm.Optional(unicode)
-    role = orm.Required(unicode, py_check=lambda v: v in ROLES)
-    email = orm.Required(unicode)
+    first_name = orm.Required(str)
+    last_name = orm.Required(str)
+    company = orm.Optional(str)
+    avatar_url = orm.Optional(str)
+    role = orm.Required(str, py_check=lambda v: v in ROLES)
+    email = orm.Required(str)
     rate = orm.Required(float)
     start_date = orm.Required(datetime.date)
     type = orm.Required(str, py_check=lambda v: v in STAFF_TYPES, default="FTE")
-    jira_username = orm.Required(unicode)
-    slack_id = orm.Optional(unicode)
-    github_username = orm.Optional(unicode)
-    status = orm.Required(unicode, py_check=lambda v: v in STATUS)
+    jira_username = orm.Required(str)
+    slack_id = orm.Optional(str)
+    github_username = orm.Optional(str)
+    status = orm.Required(str, py_check=lambda v: v in STATUS)
     teams = orm.Set('Team', reverse="members")
     base_daily_cost = orm.Optional(float)
     base_weekly_cost = orm.Optional(float)
@@ -198,7 +198,7 @@ class Team(db.Entity):
     and products most of the time.
     """
     id = orm.PrimaryKey(int, auto=True)
-    name = orm.Required(unicode)
+    name = orm.Required(str)
     members = orm.Set(Staff, reverse='teams')
     agile_board = orm.Optional(AgileBoard, reverse='team', sql_default=0)
     product = orm.Optional(Product, reverse='teams', sql_default=0)
@@ -220,11 +220,11 @@ class Notifications(db.Entity):
     Represents a set of notification preferences that can be associated with a staff member or team
     """
     id = orm.PrimaryKey(int, auto=True)
-    build = orm.Required(unicode, default="email,slack")
-    deploy = orm.Required(unicode, default="email,slack")
+    build = orm.Required(str, default="email,slack")
+    deploy = orm.Required(str, default="email,slack")
     staff = orm.Optional(Staff)
     team = orm.Optional(Team)
-    build_types = orm.Required(unicode, default="all")
+    build_types = orm.Required(str, default="all")
 
     def should_send_build_x(self, ntype):
         ntypes = str(self.build).split(",")
@@ -263,7 +263,7 @@ class WorkflowDefectProjectFilter(db.Entity):
 
 class Workflow(db.Entity):
     id = orm.PrimaryKey(int, auto=True)
-    name = orm.Required(unicode)
+    name = orm.Required(str)
     statuses = orm.Set(ToolIssueStatus, reverse="workflows")
     resolutions = orm.Set(ToolIssueResolution, reverse="workflows")
     projects = orm.Set(ToolProject, reverse="workflows")
@@ -307,15 +307,13 @@ class Workflow(db.Entity):
 
     def status_ob_from_string(self, status_name):
         try:
-            return filter(lambda x: x.tool_issue_status_name.lower() == status_name.lower(),
-                          self.statuses).pop()
+            return [x for x in self.statuses if x.tool_issue_status_name.lower() == status_name.lower()].pop()
         except IndexError:
             return None
 
     def resolution_ob_from_string(self, res_name):
         try:
-            return filter(lambda x: x.tool_issue_resolution_name.lower() == res_name.lower(),
-                          self.resolutions).pop()
+            return [x for x in self.resolutions if x.tool_issue_resolution_name.lower() == res_name.lower()].pop()
         except IndexError:
             return None
 
@@ -366,38 +364,38 @@ class Workflow(db.Entity):
         return False
 
     def positive_resolutions(self):
-        return filter(lambda x: x.tool_issue_resolution_type.lower() == "positive", self.resolutions)
+        return [x for x in self.resolutions if x.tool_issue_resolution_type.lower() == "positive"]
 
     def negative_resolutions(self):
-        return filter(lambda x: x.tool_issue_resolution_type.lower() == "negative", self.resolutions)
+        return [x for x in self.resolutions if x.tool_issue_resolution_type.lower() == "negative"]
 
     def open_statuses(self):
         """
         Returns a list of all the statuses that are considered to be "open".
         :return: A list of ToolIssueStatus objects.
         """
-        return filter(lambda x: x.tool_issue_status_type.lower() == "open", self.statuses)
+        return [x for x in self.statuses if x.tool_issue_status_type.lower() == "open"]
 
     def done_statuses(self):
         """
         Returns a list of all the statuses that are considered to be "done".
         :return: A list of ToolIssueStatus objects.
         """
-        return filter(lambda x: x.tool_issue_status_type.lower() == "done", self.statuses)
+        return [x for x in self.statuses if x.tool_issue_status_type.lower() == "done"]
 
     def in_progress_statuses(self):
         """
         Returns all statuses that are considered "in progress" according to this workflow
         :return: A list of ToolIssueStatus objects
         """
-        return filter(lambda x: x.tool_issue_status_type.lower() == "in progress", self.statuses)
+        return [x for x in self.statuses if x.tool_issue_status_type.lower() == "in progress"]
 
     def dev_issue_types(self):
         """
         Returns all issue types that are considered development tickets as opposed to bug related tickets.
         :return: A list of ToolIssueType objects
         """
-        return filter(lambda x: x.tool_issue_type_type.lower() in ["story", "task"], self.issue_types)
+        return [x for x in self.issue_types if x.tool_issue_type_type.lower() in ["story", "task"]]
 
     def is_in_progress(self, status):
         """
@@ -510,7 +508,7 @@ class Workflow(db.Entity):
 
 class Group(db.Entity):
     id = orm.PrimaryKey(int, auto=True)
-    name = orm.Required(unicode)
+    name = orm.Required(str)
     workflow = orm.Optional(Workflow, reverse="groups")
     products = orm.Set(Product, reverse="groups")
     teams = orm.Set(Team, reverse="groups")
@@ -542,10 +540,10 @@ def init_db():
             raise ValueError("Invalid database type configured: %s" % augur.settings.main.datastores.main.type)
 
         if __is_bound:
-            print "Database Configuration:"
-            print "Type: %s" % dbtype
-            print "Target: %s" % dbtarget
+            print("Database Configuration:")
+            print("Type: %s" % dbtype)
+            print("Target: %s" % dbtarget)
 
             db.generate_mapping(create_tables=True)
         else:
-            print "No valid database configuration found"
+            print("No valid database configuration found")

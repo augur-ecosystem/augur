@@ -46,7 +46,7 @@ class JiraObject(object):
         try:
             dt = parse(date_str)
             return dt
-        except ValueError,e:
+        except ValueError as e:
             self.logger.warning("JiraObject: Unable to parse string %s"%date_str)
             return None
 

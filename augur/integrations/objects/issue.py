@@ -9,6 +9,7 @@ from munch import munchify
 from augur.context import AugurContext
 from augur.common import POSSIBLE_DATE_TIME_FORMATS
 from augur.integrations.objects.base import JiraObject, InvalidId
+from functools import reduce
 
 
 class JiraIssue(JiraObject):
@@ -328,7 +329,7 @@ class JiraIssueCollection(JiraObject):
         if self.option('input_jql'):
             jql = self.option('input_jql')
         elif self.option('issue_keys') is not None:
-            if isinstance(self.option('issue_keys'), (str, unicode)):
+            if isinstance(self.option('issue_keys'), str):
                 keys = self.option('issue_keys').split(',')
             else:
                 keys = self.option('issue_keys')
@@ -347,7 +348,7 @@ class JiraIssueCollection(JiraObject):
                 startAt=self.option('paging_start_at'),
                 maxResults=self.option('paging_max_results', 0),
                 validate_query=True,
-                fields=fields.values(),
+                fields=list(fields.values()),
                 expand="changelog",
                 json_result=False)  ## Must set to False to let PyJira manage paging
 
@@ -392,7 +393,7 @@ class JiraReleaseNotes(JiraIssueCollection):
         try:
             start, end = self._get_date_range()
 
-        except (TypeError,LookupError), e:
+        except (TypeError,LookupError) as e:
             self.logger.error(e.message)
             return False
 
@@ -499,7 +500,7 @@ class JiraReleaseNotes(JiraIssueCollection):
         else:
             if isinstance(start, Arrow):
                 calc_start = start
-            elif isinstance(start, (str,unicode)):
+            elif isinstance(start, str):
                 calc_start = arrow.get(start, POSSIBLE_DATE_TIME_FORMATS).replace(tzinfo=None)
             elif isinstance(start, datetime.datetime):
                 calc_start = arrow.get(start)
@@ -508,7 +509,7 @@ class JiraReleaseNotes(JiraIssueCollection):
 
             if isinstance(end, Arrow):
                 calc_end = end
-            elif isinstance(start, (str,unicode)):
+            elif isinstance(start, str):
                 calc_end = arrow.get(end, POSSIBLE_DATE_TIME_FORMATS).replace(tzinfo=None)
             elif isinstance(end, datetime.datetime):
                 calc_end = arrow.get(end)

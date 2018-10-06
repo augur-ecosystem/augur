@@ -51,7 +51,7 @@ def bump_version(version_type="patch"):
                     zero_following_versions = True
 
     with open(version_file_path, 'w+') as version_file:
-        version_file.write(".".join(version_parts.values()))        
+        version_file.write(".".join(list(version_parts.values())))        
 
 def publish(bump_version_type=None, upload=False, update_in_vcs=False):
     """
@@ -66,7 +66,7 @@ def publish(bump_version_type=None, upload=False, update_in_vcs=False):
                                 if set to True.
     """
     # Make sure the readmes are the same
-    print "Copying README.md to README"
+    print("Copying README.md to README")
     
     source_readme = make_project_path('README.md')
     dest_readme = make_project_path('README')
@@ -78,7 +78,7 @@ def publish(bump_version_type=None, upload=False, update_in_vcs=False):
     
     if update_in_vcs:
         # Update git
-        print "Updating in git"
+        print("Updating in git")
         augur_root = make_project_path("")
         local("git -C %s add ."%augur_root)
         local('git -C %s commit -m "version bump and prep for publish"'%augur_root)
@@ -88,9 +88,9 @@ def publish(bump_version_type=None, upload=False, update_in_vcs=False):
     root_path = make_project_path("")
     path_to_setup = make_project_path("setup.py")
 
-    print "Building package in %s"%root_path
+    print("Building package in %s"%root_path)
     local("cd %s; python setup.py build"%(root_path))
     
     if upload:
-        print "Uploading to artifact repository..."
+        print("Uploading to artifact repository...")
         local("cd %s; python setup.py sdist upload -r pypi "%(root_path))

@@ -35,18 +35,25 @@ class TestObject(unittest.TestCase):
         self.log = logging.getLogger("TestObject")
         self.log.setLevel(logging.INFO)
 
-        with open(os.path.join(FIXTURE_DIR,"ua.json")) as f:
+        with open(os.path.join(FIXTURE_DIR,"fixtures.local.json")) as f:
             self.fixture = munchify(json.load(f))
 
         self.jira = None
         self.pp = pprint.PrettyPrinter(indent=4)
 
         os.environ['DB_TYPE'] = self.fixture.connections.db.type
-        os.environ["POSTGRES_DB_HOST"] = self.fixture.connections.db.postgres.host
-        os.environ["POSTGRES_DB_NAME"] = self.fixture.connections.db.postgres.dbname
-        os.environ["POSTGRES_DB_USERNAME"] = self.fixture.connections.db.postgres.username
-        os.environ["POSTGRES_DB_PASSWORD"] = self.fixture.connections.db.postgres.password
-        os.environ["POSTGRES_DB_PORT"] = str(self.fixture.connections.db.postgres.port)
+        os.environ['JIRA_USERNAME'] = self.fixture.connections.jira.username
+        os.environ['JIRA_PASSWORD'] = self.fixture.connections.jira.password
+        os.environ['JIRA_INSTANCE'] = self.fixture.connections.jira.server
+        if 'postgres' in self.fixture.connections.db:
+            os.environ["POSTGRES_DB_HOST"] = self.fixture.connections.db.postgres.host
+            os.environ["POSTGRES_DB_NAME"] = self.fixture.connections.db.postgres.dbname
+            os.environ["POSTGRES_DB_USERNAME"] = self.fixture.connections.db.postgres.username
+            os.environ["POSTGRES_DB_PASSWORD"] = self.fixture.connections.db.postgres.password
+            os.environ["POSTGRES_DB_PORT"] = str(self.fixture.connections.db.postgres.port)
+
+        if 'sqlite' in self.fixture.connections.db:
+            os.environ["SQLITE_PATH"] = str(self.fixture.connections.db.sqlite.path)
 
         settings.load_settings()
         db.init_db()
@@ -63,53 +70,6 @@ class TestObject(unittest.TestCase):
     def create_context(self):
         return AugurContext(group_id=self.fixture.context.group)
 
-    def test_board(self):
-
-        with orm.db_session:
-
-            context = self.create_context()
-
-            # board_from_id = JiraBoard(self.jira, board_id=self.fixture.jira_test_data.board)
-            #
-            board_from_team = JiraBoard(self.jira, team_id=self.fixture.jira_test_data.team,
-                                        max_sprints=2, restrict_sprints_with_team_name=True,
-                                        include_sprint_reports=True)
-
-            self.log.info("Retrieving board from Team %d"%self.fixture.jira_test_data.team)
-            self.assertTrue(board_from_team.load())
-            sprints = board_from_team.get_sprints()
-            print (str(sprints))
-
-            self.log.info("Getting most recent active sprints...")
-            sprint1 = board_from_team.get_most_recent_active_sprint()
-            self.assertIsInstance(sprint1, JiraSprint)
-
-            sprint2 = board_from_team.get_most_recent_active_sprint()
-            self.assertIsInstance(sprint2, JiraSprint)
-
-            self.log.info("Getting most recent closed sprints...")
-            sprint3 = board_from_team.get_most_recent_closed_sprint()
-            self.assertIsInstance(sprint3, JiraSprint)
-
-            sprint4 = board_from_team.get_most_recent_closed_sprint()
-            self.assertIsInstance(sprint4, JiraSprint)
-
-            self.log.info("Getting backlog...")
-            backlog = board_from_team.get_backlog()
-            self.assertIsInstance(backlog, JiraIssueCollection)
-
-            self.log.info("Getting backlog metrics...")
-            board_metrics = BoardMetrics(context,board_from_team)
-            backlog_metrics = board_metrics.backlog_analysis()
-            self.assertIn('points', backlog_metrics)
-            self.assertIn('grade', backlog_metrics)
-            self.pp.pprint(backlog_metrics)
-
-            self.log.info("Getting sprint metrics...")
-            sprint_metrics = board_metrics.historic_sprint_analysis()
-            self.assertIn('avg_velocity', sprint_metrics)
-            self.pp.pprint(sprint_metrics)
-
     def test_issues(self):
         with orm.db_session:
 
@@ -122,7 +82,9 @@ class TestObject(unittest.TestCase):
 
             metrics = IssueCollectionMetrics(context, collection)
             status_analysis = metrics.status_analysis()
-            self.assertIn('in_progress', status_analysis, "Missing key in status analysis")
+
+            key_set = set(status_analysis.keys()) & {'in_progress', 'to_do', 'complete'}
+            self.assertTrue(len(key_set) > 0, "Missing key in status analysis")
 
             point_analysis = metrics.point_analysis()
             self.assertIn('developer_stats',point_analysis, "Invalid point analysis result")
@@ -131,12 +93,12 @@ class TestObject(unittest.TestCase):
             self.assertIn(collection.issues[0].key, timing_analysis.issues, "Missing key in timing analysis")
 
             df = metrics.get_data_frame(('points','timing','status'))
-            print df.describe()
+            print(df.describe())
 
 
 def suite():
     tests = ['test_issues']
-    return unittest.TestSuite(map(TestObject, tests))
+    return unittest.TestSuite(list(map(TestObject, tests)))
 
 
 if __name__ == '__main__':

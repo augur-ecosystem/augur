@@ -60,7 +60,7 @@ class AugurJira(object):
             self.fields = {f['name'].lower(): munchify(f) for f in fields}
 
         default_fields = {}
-        for df, val in self._default_fields.iteritems():
+        for df, val in self._default_fields.items():
             default_fields[df] = self.get_field_by_name(df)
 
         self._default_fields = munchify(default_fields)
@@ -107,7 +107,7 @@ class AugurJira(object):
             inward_key = inward['key']
         elif isinstance(inward, Issue):
             inward_key = inward.key
-        elif isinstance(inward, (str, unicode)):
+        elif isinstance(inward, str):
             inward_key = inward
         else:
             raise TypeError("'inward' parameter is not of a valid type")
@@ -116,7 +116,7 @@ class AugurJira(object):
             outward_key = outward['key']
         elif isinstance(outward, Issue):
             outward_key = outward.key
-        elif isinstance(outward, (str, unicode)):
+        elif isinstance(outward, str):
             outward_key = outward
         else:
             raise TypeError("'outward' parameter is not of a valid type")
@@ -149,17 +149,17 @@ class AugurJira(object):
                         ticket.update(
                             update_fields
                         )
-                except Exception, e:
+                except Exception as e:
                     self.logger.warning("Ticket was created but not updated due to exception: %s" % e.message)
 
                 try:
                     if watchers and isinstance(watchers, (list, tuple)):
                         [self.jira.add_watcher(ticket, w) for w in watchers]
-                except Exception, e:
+                except Exception as e:
                     self.logger.warning("Unable to add watcher(s) due to exception: %s" % e.message)
 
             return ticket
 
-        except Exception, e:
+        except Exception as e:
             self.logger.error("Failed to create ticket: %s", e.message)
             return None

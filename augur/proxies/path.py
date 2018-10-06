@@ -1,5 +1,5 @@
 from augur import models
-from base import ProxyBase, models_to_proxies, model_required
+from .base import ProxyBase, models_to_proxies, model_required
 
 
 class StaffProxy(ProxyBase):

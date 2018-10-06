@@ -12,7 +12,7 @@ def df_get_timing_status_keys(context, status_types):
     :param context: The AugurContext object
     :return: An array of keys that look like this "time_in_progress" and always ends with "total_time_to_complete"
     """
-    if isinstance(status_types,(str,unicode)):
+    if isinstance(status_types,str):
         status_types = [status_types]
 
     statuses = []
@@ -24,7 +24,7 @@ def df_get_timing_status_keys(context, status_types):
         elif tp == 'open':
             statuses.extend(context.workflow.open_statuses())
 
-    time_in_status_keys = map(lambda x: "_time_%s" % common.status_to_dict_key(x.tool_issue_status_name), statuses)
+    time_in_status_keys = ["_time_%s" % common.status_to_dict_key(x.tool_issue_status_name) for x in statuses]
     time_in_status_keys.append('_time_total_time_seconds')
     return time_in_status_keys
 
@@ -203,7 +203,7 @@ class IssueCollectionMetrics(Metrics):
         result['total_points'] = total_points
 
         # get dev specific stats
-        for assignee, dev in result['developer_stats'].iteritems():
+        for assignee, dev in result['developer_stats'].items():
             total = dev['complete'] + dev['incomplete'] + dev['abandoned']
             dev['percent_complete'] = int((dev['complete'] / total if total > 0 else 0) * 100.0)
             dev['total_points'] = total
@@ -249,7 +249,7 @@ class IssueCollectionMetrics(Metrics):
             if timing_analysis:
 
                 if issue.key in timing_analysis.issues:
-                    timing = {"_time_%s" % k: v['total'].total_seconds() for k, v in timing_analysis.issues[issue.key].statuses.iteritems()}
+                    timing = {"_time_%s" % k: v['total'].total_seconds() for k, v in iter(timing_analysis.issues[issue.key].statuses.items())}
                     row.update(timing)
                     row["_time_total_time_seconds"] = timing_analysis.issues[issue.key].total_in_seconds
 

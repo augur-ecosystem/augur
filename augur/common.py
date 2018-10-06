@@ -9,6 +9,7 @@ from munch import munchify
 
 import augur
 from augur import db
+from functools import reduce
 
 __author__ = 'karim'
 
@@ -71,7 +72,7 @@ def remove_null_fields(d):
     :param d: A dictionary to remove null fields from
     :return:
     """
-    return dict((k, v) for k, v in d.iteritems() if v is not None)
+    return dict((k, v) for k, v in iter(d.items()) if v is not None)
 
 
 def clean_issue(issue):
@@ -163,8 +164,8 @@ def standard_deviation(lst,population=True):
 
         sd = sqrt(variance)
 
-    except Exception, e:
-        print "Problem during calculation of standard deviation: %s"%e.message
+    except Exception as e:
+        print("Problem during calculation of standard deviation: %s"%e.message)
 
     return sd
 

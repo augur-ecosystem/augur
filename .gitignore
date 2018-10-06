@@ -3,6 +3,7 @@
 *.pyc
 *.iml
 config/local.json
+tests/fixtures/fixtures.local.json
 build/**
 dist/**
 augur.egg-info/**

@@ -1,5 +1,5 @@
-from base import *
-from board import *
-from issue import *
-from metrics import *
+from .base import *
+from .board import *
+from .issue import *
+from .metrics import *
 
