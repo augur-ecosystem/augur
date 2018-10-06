@@ -52,6 +52,42 @@ a new package.  But you can also have it automatically bump the version (major,m
 publish the new build to whatever artifact repo you've configured in .pypirc and automically
 commit and push the changes to git.
 
+## Testing
+To run the very few tests that exist, create a file called fixtures.local.json in the 
+tests/fixtures directory that looks like this:
+
+```json
+{
+  "connections": {
+    "jira": {
+      "server": "https://<test_server>.atlassian.net/",
+      "username": "<atlassian_login_email>",
+      "password": "<atlassian_login_password>"
+    },
+    "db": {
+      "type": "sqlite",
+      "sqlite": {
+        "path": "<path_to_augur_src>/augur/tests/fixtures/db.sqlite"
+      }
+    }
+  },
+  "context": {
+    "group": 1
+  },
+  "jira_test_data": {
+    "jql": {
+      "created_last_three_days":"created > startOfDay(-3d)"
+    }
+  }
+}
+```
+
+From the augur root source directory, run 
+
+```bash
+python -m tests.test_objects
+```
+
 # Augur Integration
 
 ## Settings
