@@ -6,4 +6,4 @@ config/local.json
 tests/fixtures/fixtures.local.json
 build/**
 dist/**
-augur.egg-info/**
+augurlib.egg-info/**
