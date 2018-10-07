@@ -78,8 +78,8 @@ setup(
     install_requires=[
         'pony==0.7.3',
         'arrow==0.7.0',
-        'boto3==1.2.6',
-        'botocore==1.4.49',
+        'boto3',
+        'botocore',
         'jira',
         'Mako==1.0.3',
         'oauthlib==1.0.3',
