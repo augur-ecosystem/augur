@@ -80,7 +80,7 @@ setup(
         'pytz==2015.7',
         'urllib3==1.21.1',
         'psycopg2',
-        'PyYAML==3.12',
+        'PyYAML==5.1',
         'munch==2.2.0',
         'pandas==0.22.0',
         'marshmallow'
