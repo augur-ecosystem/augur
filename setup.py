@@ -78,7 +78,7 @@ setup(
         'PyGithub==1.27.1',
         'python-dateutil==2.5.3',
         'pytz==2015.7',
-        'urllib3==1.21.1',
+        'urllib3==1.24.2',
         'psycopg2',
         'PyYAML==3.12',
         'munch==2.2.0',
