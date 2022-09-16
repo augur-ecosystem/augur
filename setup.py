@@ -71,7 +71,7 @@ setup(
         'boto3==1.2.6',
         'botocore==1.4.49',
         'jira',
-        'Mako==1.0.3',
+        'Mako==1.2.2',
         'oauthlib==1.0.3',
         'pathspec==0.3.4',
         'pyfluence==0.1.1',
